@@ -2117,7 +2117,7 @@ export class Bit {
 
     this.onHTTPRequest("/sse", (req: Request, res: Response) => {
       authMiddleware(req, res, async () => {
-        this.getLogger().info("mcp_server.sse_connection_attempt", {
+        this.getLogger().trace("mcp_server.sse_connection_attempt", {
           sessionId: req.query.sessionId,
         });
 
@@ -2125,7 +2125,7 @@ export class Bit {
         this.transports.set(transport.sessionId, transport);
 
         transport.onclose = () => {
-          this.getLogger().info("mcp_server.transport_closed", {
+          this.getLogger().trace("mcp_server.transport_closed", {
             sessionId: transport.sessionId,
           });
           this.transports.delete(transport.sessionId);
@@ -2134,7 +2134,7 @@ export class Bit {
         try {
           const sessionServer = await this.getMcpServerForConnection(req);
           await sessionServer.connect(transport);
-          this.getLogger().info("mcp_server.connected", {
+          this.getLogger().trace("mcp_server.connected", {
             sessionId: transport.sessionId,
           });
         } catch (error) {

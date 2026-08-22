@@ -41,9 +41,30 @@ import {
   type ContextPack,
 } from '../common/context';
 import type { NamedContext } from '../common/prompt-assembly/types';
+import { z } from 'zod';
+import { randomUUID } from 'crypto';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'tool-gateway';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
+
+/**
+ * Schema for agent.sendProgressUpdate tool.
+ * Allows agents to send progress messages to users before long-running operations.
+ * Sprint 22: Platform-internal progress update tool.
+ */
+const SendProgressUpdateSchema = z.object({
+  message: z.string().describe('Progress message to send to the user (1-200 characters)'),
+  emoji: z.string().optional().describe('Optional emoji to prepend to the message (default: 🔄)'),
+  urgency: z.enum(['low', 'normal', 'high']).optional().describe('Message urgency level (default: normal)'),
+  egress: z.object({
+    destination: z.string(),
+    connector: z.string(),
+    channel: z.string().optional(),
+    type: z.enum(['chat', 'dm', 'event']).optional(),
+  }).optional().describe('Egress from the original event (recommended for accurate routing). If omitted, will be constructed from userId.'),
+});
+
+type SendProgressUpdateArgs = z.infer<typeof SendProgressUpdateSchema>;
 
 export class ToolGatewayServer extends Bit {
   private registry = new ToolRegistry();
@@ -65,6 +86,9 @@ export class ToolGatewayServer extends Bit {
   // list change notifications when new Bits register and their tools are discovered. Each session is
   // keyed by a unique ID (e.g., `llm-bot-${timestamp}`). Cleanup happens when transport closes.
   private sessionServers: Map<string, Server> = new Map();
+  // Session contexts: Track active sessions with their current event context (Sprint 22).
+  // Keyed by sessionId, value contains SessionContext + currentEvent for agent.sendProgressUpdate tool.
+  private sessionContexts: Map<string, SessionContext & { currentEvent?: InternalEventV2; sessionId?: string }> = new Map();
   // Request deduplication: Track in-flight tool executions to prevent duplicate execution
   // caused by MCP SDK message duplication bug. Maps dedup key to Promise of the result.
   // This allows multiple handler invocations to await the same execution.
@@ -99,6 +123,257 @@ export class ToolGatewayServer extends Bit {
     this.contextPackStore = createContextPackStore(dbOrStore);
 
     this.setupApp(this.getApp() as any);
+
+    // Register tool-gateway-specific tools after setup
+    this.registerGatewayTools();
+  }
+
+  /**
+   * Register tool-gateway-specific MCP tools.
+   * Sprint 22: agent.sendProgressUpdate for sending progress messages before long operations.
+   */
+  protected registerGatewayTools(): void {
+    // Register to tool-gateway's own registry (used for proxying to agents)
+    this.registry.registerTool({
+      id: 'agent.sendProgressUpdate',
+      displayName: 'agent.sendProgressUpdate',
+      description: 'Send a progress update message to the user before starting a long-running operation. Use this to provide immediate feedback when an action may take more than a few seconds.',
+      inputSchema: SendProgressUpdateSchema,
+      execute: this.handleSendProgressUpdate.bind(this),
+      source: 'internal',
+    });
+
+    this.getLogger().info('tool_gateway.platform_tools.registered', {
+      tools: ['agent.sendProgressUpdate']
+    });
+  }
+
+  /**
+   * Handle agent.sendProgressUpdate tool invocation.
+   * Creates a progress event with the message in candidates[] and routes it via next()
+   * to respect platform safeguards (FeedbackMiddleware, candidate selection, egress).
+   * Sprint 22: Platform-internal progress update tool.
+   */
+  private async handleSendProgressUpdate(
+    args: SendProgressUpdateArgs,
+    extra?: { sessionId?: string; userRoles?: string[]; userId?: string; agentName?: string }
+  ): Promise<any> {
+    const logger = this.getLogger();
+    const sessionId = extra?.sessionId || '';
+    const userId = extra?.userId;
+
+    logger.debug('tool_gateway.send_progress_update.invoked', {
+      sessionId,
+      messageLength: args.message.length,
+      emoji: args.emoji,
+      urgency: args.urgency,
+      userId,
+    });
+
+    // Prefer egress from args (if agent provided it), otherwise construct from userId
+    let egressInfo: any;
+    let platform: string;
+    let externalId: string;
+
+    if (args.egress) {
+      // Use egress from original event (ideal path - preserves exact routing)
+      // The destination may be a specific egress instance (e.g., "egress.slack.v1")
+      // or the generic fallback ("internal.egress.v1")
+      platform = args.egress.connector;
+
+      // Validate and normalize destination
+      let destination = args.egress.destination;
+      if (!destination || !destination.includes('.')) {
+        // Invalid destination (e.g., just "slack" instead of "egress.slack.v1")
+        // Fall back to internal.egress.v1
+        logger.warn('tool_gateway.send_progress_update.invalid_destination', {
+          sessionId,
+          providedDestination: destination,
+          normalizedTo: 'internal.egress.v1',
+        });
+        destination = 'internal.egress.v1';
+      }
+
+      egressInfo = {
+        ...args.egress,  // Preserve ALL egress fields
+        destination,     // Override with validated/normalized destination
+      };
+
+      // Extract externalId from userId if available
+      if (userId) {
+        const parts = userId.split(':', 2);
+        externalId = parts[1] || userId;
+      } else {
+        externalId = 'unknown';
+      }
+
+      logger.debug('tool_gateway.send_progress_update.using_provided_egress', {
+        sessionId,
+        destination: egressInfo.destination,
+        connector: egressInfo.connector,
+        channel: egressInfo.channel,
+      });
+    } else {
+      // Fallback: construct from userId (backward compatibility)
+      if (!userId) {
+        const warning = 'No userId in request context and no egress parameter - cannot determine egress destination';
+        logger.warn('tool_gateway.send_progress_update.no_egress_info', {
+          sessionId,
+          extra,
+        });
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Warning: ${warning}. The progress message was not sent.`,
+            },
+          ],
+        };
+      }
+
+      // Extract platform from userId (format: "platform:id", e.g. "slack:U9S817Q3B")
+      const parts = userId.split(':', 2);
+      platform = parts[0];
+      externalId = parts[1];
+
+      if (!platform || !externalId) {
+        const warning = `Invalid userId format: "${userId}" (expected "platform:id")`;
+        logger.warn('tool_gateway.send_progress_update.invalid_user_id', {
+          sessionId,
+          userId,
+        });
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Warning: ${warning}. The progress message was not sent.`,
+            },
+          ],
+        };
+      }
+
+      egressInfo = {
+        destination: 'internal.egress.v1',
+        connector: platform,
+        channel: 'unknown', // Will be resolved by egress handler
+      };
+
+      logger.debug('tool_gateway.send_progress_update.using_userid_fallback', {
+        sessionId,
+        userId,
+        platform,
+      });
+    }
+
+    // Build progress event from available context
+    const progressMessage = `${args.emoji || '🔄'} ${args.message}`;
+    const correlationId = randomUUID();
+
+    const progressEvent: InternalEventV2 = {
+      v: '2',
+      correlationId,
+      type: 'chat.message.v1',
+      ingress: {
+        connector: platform as any,
+        source: `ingress.${platform}`,
+        ingressAt: new Date().toISOString(),
+        channel: egressInfo.channel, // Use channel from egress
+      },
+      identity: {
+        user: {
+          id: userId || `${platform}:${externalId}`,
+          displayName: 'User',
+          roles: extra?.userRoles || [],
+        },
+        external: {
+          id: externalId,
+          platform,
+        },
+      },
+      egress: egressInfo as any, // Use egress from context or fallback
+      message: {
+        id: randomUUID(),
+        role: 'assistant',
+        text: progressMessage,
+      },
+      routing: {
+        stage: 'response',
+        slip: [], // Empty slip signals Bit.next() to route to egress destination
+        history: [],
+      },
+      candidates: [
+        {
+          id: randomUUID(),
+          kind: 'text',
+          source: 'tool-gateway',
+          status: 'proposed',
+          text: progressMessage,
+          priority: 1.0,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      annotations: [
+        {
+          kind: 'progress_update',
+          value: JSON.stringify({
+            urgency: args.urgency || 'normal',
+            toolInvocation: 'agent.sendProgressUpdate',
+          }),
+          source: 'tool-gateway',
+          id: randomUUID(),
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    };
+
+    // Route through platform safeguards via next()
+    try {
+      logger.trace('tool_gateway.send_progress_update.calling_next', {
+        sessionId,
+        progressCorrelationId: progressEvent.correlationId,
+        hasRoutingSlip: progressEvent.routing?.slip !== undefined,
+        slipLength: progressEvent.routing?.slip?.length || 0,
+      });
+
+      await this.next(progressEvent);
+
+      logger.trace('tool_gateway.send_progress_update.sent', {
+        sessionId,
+        progressCorrelationId: progressEvent.correlationId,
+        messagePreview: progressMessage.slice(0, 50),
+        urgency: args.urgency || 'normal',
+        platform,
+        userId,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Progress update sent: "${progressMessage}"`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      logger.error('tool_gateway.send_progress_update.error', {
+        sessionId,
+        progressCorrelationId: correlationId,
+        platform,
+        userId,
+        error: error.message,
+        stack: error.stack,
+      });
+
+      // Don't throw - return error as content to prevent agent failure
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error sending progress update: ${error.message}`,
+          },
+        ],
+      };
+    }
   }
 
   async start(port: number) {
@@ -178,7 +453,7 @@ export class ToolGatewayServer extends Bit {
         this.inFlightRequests.delete(key);
       }
       if (expiredKeys.length > 0) {
-        this.getLogger().debug('tool_gateway.dedup.cleanup', { cleaned: expiredKeys.length, remaining: this.completedRequests.size });
+        this.getLogger().trace('tool_gateway.dedup.cleanup', { cleaned: expiredKeys.length, remaining: this.completedRequests.size });
       }
     }, 60000);
 
@@ -396,8 +671,9 @@ export class ToolGatewayServer extends Bit {
   async close(reason?: string) {
     if (this.registryWatcher) this.registryWatcher.stop();
     await this.mcpManager.shutdown();
-    // Clear all tracked session servers
+    // Clear all tracked session servers and contexts
     this.sessionServers.clear();
+    this.sessionContexts.clear();
     return super.close(reason);
   }
 
@@ -455,9 +731,10 @@ export class ToolGatewayServer extends Bit {
       } catch (error: any) {
         errorCount++;
 
-        // If session is disconnected, remove it from the map
+        // If session is disconnected, remove it from both maps
         if (error.message === 'Not connected') {
           this.sessionServers.delete(sessionId);
+          this.sessionContexts.delete(sessionId);
           logger.debug('tool_gateway.notifications.session_cleaned', {
             sessionId,
             reason: 'disconnected'
@@ -705,15 +982,25 @@ export class ToolGatewayServer extends Bit {
 
     // Track this session server for broadcasting notifications
     this.sessionServers.set(sessionId, sessionServer);
+
+    // Track session context for platform tools (Sprint 22: agent.sendProgressUpdate)
+    // currentEvent will be populated by llm-bot or other agents when they invoke tools
+    this.sessionContexts.set(sessionId, {
+      ...context,
+      sessionId,
+      currentEvent: undefined, // Will be set when agent provides event context
+    });
+
     logger.info('tool_gateway.session.registered', {
       sessionId,
       agentName: context.agentName,
-      totalSessions: this.sessionServers.size
+      totalSessions: this.sessionServers.size,
+      totalContexts: this.sessionContexts.size
     });
 
     // Discovery: listTools filtered by RBAC
     sessionServer.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
-      logger.debug('Handling ListToolsRequestSchema', {headers: extra.requestInfo?.headers});
+      logger.trace('Handling ListToolsRequestSchema', {headers: extra.requestInfo?.headers});
       const trustedDiscovery = (context.agentName === 'llm-bot') || (Array.isArray(context.roles) && context.roles.includes('discovery'));
       const rawTools = Object.values(this.registry.getTools());
       const visibleTools = trustedDiscovery
@@ -752,7 +1039,7 @@ export class ToolGatewayServer extends Bit {
             scopes: t.scopes,
           });
         });
-      logger.debug(`Returning ${tools.length} tools (trustedDiscovery=${trustedDiscovery})`);
+      logger.trace(`Returning ${tools.length} tools (trustedDiscovery=${trustedDiscovery})`);
       return { tools } as any;
     });
 
@@ -809,7 +1096,7 @@ export class ToolGatewayServer extends Bit {
 
       if (executionPromise) {
         // This request is already being executed - await the same Promise
-        logger.debug('tool_gateway.mcp.call_tool.duplicate_awaiting', {
+        logger.trace('tool_gateway.mcp.call_tool.duplicate_awaiting', {
           toolName,
           dedupKey: dedupKey.substring(0, 100)
         });
@@ -828,19 +1115,20 @@ export class ToolGatewayServer extends Bit {
       const allowed = this.rbac.isAllowedTool(tool, tool.originServer ? this.serverConfigs.get(tool.originServer) : undefined, reqContext);
       if (!allowed) throw new Error('Forbidden');
 
-      logger.debug('tool_gateway.mcp.call_tool.start', { id, args, reqContext });
+      logger.trace('tool_gateway.mcp.call_tool.start', { id, args, reqContext });
       const start = Date.now();
 
       // Create execution Promise and store it
       executionPromise = (async () => {
         try {
           const result = await tool.execute?.(args as any, {
+            sessionId,  // Sprint 22: Pass sessionId for platform-internal tools
             userRoles: reqContext.roles,
             userId: reqContext.userId,
             agentName: reqContext.agentName
           });
           const duration = Date.now() - start;
-          logger.debug('tool_gateway.mcp.call_tool.success', { id, duration });
+          logger.trace('tool_gateway.mcp.call_tool.success', { id, duration });
 
           // Translate result to MCP CallToolResult-like content
           if (typeof result === 'string') {
@@ -883,7 +1171,7 @@ export class ToolGatewayServer extends Bit {
       const allowed = this.rbac.isAllowedResource(resource, resource.originServer ? this.serverConfigs.get(resource.originServer) : undefined, reqContext);
       if (!allowed) throw new Error('Forbidden');
 
-      logger.debug('tool_gateway.mcp.read_resource.start', { uri, reqContext });
+      logger.trace('tool_gateway.mcp.read_resource.start', { uri, reqContext });
       const start = Date.now();
       try {
         const result = await resource.read?.({
@@ -892,7 +1180,7 @@ export class ToolGatewayServer extends Bit {
           agentName: reqContext.agentName
         });
         const duration = Date.now() - start;
-        logger.debug('tool_gateway.mcp.read_resource.success', { uri, duration });
+        logger.trace('tool_gateway.mcp.read_resource.success', { uri, duration });
         return result as any;
       } catch (error: any) {
         const duration = Date.now() - start;
@@ -913,7 +1201,7 @@ export class ToolGatewayServer extends Bit {
       if (!allowed) throw new Error('Forbidden');
 
       const args = (request.params.arguments as Record<string, string>) || {};
-      logger.debug('tool_gateway.mcp.get_prompt.start', { id, args, reqContext });
+      logger.trace('tool_gateway.mcp.get_prompt.start', { id, args, reqContext });
       const start = Date.now();
       try {
         const result = await prompt.get?.(args, {
@@ -922,7 +1210,7 @@ export class ToolGatewayServer extends Bit {
           agentName: reqContext.agentName
         });
         const duration = Date.now() - start;
-        logger.debug('tool_gateway.mcp.get_prompt.success', { id, duration });
+        logger.trace('tool_gateway.mcp.get_prompt.success', { id, duration });
         return result as any;
       } catch (error: any) {
         const duration = Date.now() - start;

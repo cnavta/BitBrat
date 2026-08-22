@@ -68,21 +68,21 @@ describe('Tool Gateway RBAC Repro', () => {
   it('GET /v1/tools without roles returns only public tools', async () => {
     const res = await request(app).get('/v1/tools');
     expect(res.status).toBe(200);
-    expect(res.body.tools.length).toBe(2);
-    expect(res.body.tools.every((t: any) => t.id.startsWith('public:'))).toBe(true);
+    expect(res.body.tools.length).toBe(3); // 2 public + 1 internal (agent.sendProgressUpdate)
+    expect(res.body.tools.filter((t: any) => t.id.startsWith('public:')).length).toBe(2);
   });
 
   it('GET /v1/tools with admin role returns matching tools', async () => {
     const res = await request(app).get('/v1/tools').set('x-roles', 'admin');
     expect(res.status).toBe(200);
-    expect(res.body.tools.length).toBe(7); // 2 public + 5 admin (admin:llm tool excluded because agent not matched)
+    expect(res.body.tools.length).toBe(8); // 2 public + 5 admin + 1 internal (admin:llm tool excluded because agent not matched)
   });
 
   it('GET /v1/tools for llm-bot agent returns allowlisted tools even without roles', async () => {
     const res = await request(app).get('/v1/tools').set('x-agent-name', 'llm-bot');
     expect(res.status).toBe(200);
-    // Should see 2 public tools + 1 admin:llm tool = 3 tools
-    expect(res.body.tools.length).toBe(3);
+    // Should see 2 public tools + 1 admin:llm tool + 1 internal = 4 tools
+    expect(res.body.tools.length).toBe(4);
     expect(res.body.tools.find((t: any) => t.id === 'admin:llm:tool')).toBeDefined();
     expect(res.body.tools.find((t: any) => t.id === 'admin:tool:1')).toBeUndefined();
   });

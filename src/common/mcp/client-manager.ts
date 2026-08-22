@@ -195,7 +195,7 @@ export class McpClientManager {
       config.transport !== 'inactive' &&
       config.status !== 'inactive'
     ) {
-      logger.debug('mcp.client_manager.skip_reconnect_unchanged', { name: config.name });
+      logger.trace?.('mcp.client_manager.skip_reconnect_unchanged', { name: config.name });
       // Refresh cached config so volatile metadata stays current.
       this.serverConfigs.set(config.name, { ...config });
       return;
