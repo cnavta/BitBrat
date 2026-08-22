@@ -43,16 +43,32 @@ function parseFlags(rest: string[]): Record<string, any> {
 
 /**
  * Write file safely with optional force overwrite
+ * Sprint 23 T2.1: Added dry-run support
  */
-function writeFileSafe(filePath: string, content: string, force: boolean, logger: Logger): { skipped: boolean; path: string } {
+function writeFileSafe(
+  filePath: string,
+  content: string,
+  force: boolean,
+  dryRun: boolean,
+  logger: Logger
+): { skipped: boolean; path: string; dryRun: boolean; size: number } {
+  const size = Buffer.byteLength(content, 'utf8');
+
+  // Dry-run mode: don't create files, just report
+  if (dryRun) {
+    const exists = fs.existsSync(filePath);
+    return { skipped: false, path: filePath, dryRun: true, size };
+  }
+
+  // Normal mode: check if file exists
   if (fs.existsSync(filePath) && !force) {
-    return { skipped: true, path: filePath };
+    return { skipped: true, path: filePath, dryRun: false, size: 0 };
   }
 
   const dir = path.dirname(filePath);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(filePath, content, 'utf8');
-  return { skipped: false, path: filePath };
+  return { skipped: false, path: filePath, dryRun: false, size };
 }
 
 /**
@@ -100,6 +116,7 @@ export async function cmdBitCreate(
   const active = parsedFlags.active === true || parsedFlags.active === 'true';
   const force = parsedFlags.force === true || parsedFlags.force === 'true';
   const register = parsedFlags.register === true || parsedFlags.register === 'true';
+  const dryRun = parsedFlags['dry-run'] === true || parsedFlags['dry-run'] === 'true';
 
   // Sprint 23: Validate git environment and get repository root
   const gitValidation = validateGitEnvironment();
@@ -122,6 +139,11 @@ export async function cmdBitCreate(
     console.log('To proceed anyway, use --force to bypass this warning.');
     console.log('');
     process.exit(0);
+  }
+
+  // Sprint 23 T2.1: Show dry-run banner if enabled
+  if (dryRun) {
+    console.log('\n🔍 DRY-RUN MODE - No files will be created\n');
   }
 
   // Validate inputs
@@ -180,22 +202,22 @@ export async function cmdBitCreate(
   const compose = generateCompose(name, port, [], []);
 
   // Write files
-  const results: Array<{ file: string; result: { skipped: boolean; path: string } }> = [];
+  const results: Array<{ file: string; result: { skipped: boolean; path: string; dryRun: boolean; size: number } }> = [];
 
   const appPath = path.join(root, entry);
-  results.push({ file: 'App source', result: writeFileSafe(appPath, appSource, force, logger) });
+  results.push({ file: 'App source', result: writeFileSafe(appPath, appSource, force, dryRun, logger) });
 
   const testPath = appPath.replace(/\.ts$/, '.test.ts');
-  results.push({ file: 'Test', result: writeFileSafe(testPath, testSource, force, logger) });
+  results.push({ file: 'Test', result: writeFileSafe(testPath, testSource, force, dryRun, logger) });
 
   const dockerfilePath = path.join(root, `Dockerfile.${name}`);
-  results.push({ file: 'Dockerfile', result: writeFileSafe(dockerfilePath, dockerfile, force, logger) });
+  results.push({ file: 'Dockerfile', result: writeFileSafe(dockerfilePath, dockerfile, force, dryRun, logger) });
 
   const composePath = path.join(root, 'infrastructure', 'docker-compose', 'services', `${name}.compose.yaml`);
-  results.push({ file: 'Docker Compose', result: writeFileSafe(composePath, compose, force, logger) });
+  results.push({ file: 'Docker Compose', result: writeFileSafe(composePath, compose, force, dryRun, logger) });
 
   // Register in architecture.yaml if requested
-  if (register) {
+  if (register && !dryRun) {
     try {
       const regOpts: RegistrationOptions = {
         name,
@@ -219,24 +241,43 @@ export async function cmdBitCreate(
   }
 
   // Print summary
-  console.log('\n✅ Bit creation complete\n');
-  results.forEach(({ file, result }) => {
-    const status = result.skipped ? '[EXISTS, SKIPPED]' : '[CREATED]';
-    console.log(`  ${status} ${file}: ${path.relative(root, result.path)}`);
-  });
+  if (dryRun) {
+    console.log('\n📋 Dry-run summary - Files that would be created:\n');
+    console.log(`  Repository root: ${root}`);
+    console.log(`  Current location: ${process.cwd()}\n`);
 
-  if (register) {
-    console.log(`  [REGISTERED] architecture.yaml`);
-  }
+    results.forEach(({ file, result }) => {
+      const relativePath = path.relative(root, result.path);
+      const sizeKB = (result.size / 1024).toFixed(2);
+      console.log(`  [WOULD CREATE] ${file}: ${relativePath} (${sizeKB} KB)`);
+    });
 
-  console.log('\nNext steps:');
-  console.log(`  1. Implement domain logic in ${entry}`);
-  console.log(`  2. Run: npm run build`);
-  console.log(`  3. Run: npm test -- ${name}`);
-  if (!register) {
-    console.log(`  4. Register in architecture.yaml (or use --register flag)`);
+    if (register) {
+      console.log(`  [WOULD REGISTER] architecture.yaml`);
+    }
+
+    console.log('\n✅ Validation complete - No files created');
+    console.log('   Run without --dry-run to create files\n');
+  } else {
+    console.log('\n✅ Bit creation complete\n');
+    results.forEach(({ file, result }) => {
+      const status = result.skipped ? '[EXISTS, SKIPPED]' : '[CREATED]';
+      console.log(`  ${status} ${file}: ${path.relative(root, result.path)}`);
+    });
+
+    if (register) {
+      console.log(`  [REGISTERED] architecture.yaml`);
+    }
+
+    console.log('\nNext steps:');
+    console.log(`  1. Implement domain logic in ${entry}`);
+    console.log(`  2. Run: npm run build`);
+    console.log(`  3. Run: npm test -- ${name}`);
+    if (!register) {
+      console.log(`  4. Register in architecture.yaml (or use --register flag)`);
+    }
+    console.log('');
   }
-  console.log('');
 }
 
 /**
@@ -275,6 +316,9 @@ Options:
 
   --force               Overwrite existing files
 
+  --dry-run             Preview what would be created without actually creating files
+                        (Sprint 23: T2.1)
+
   --register            Also register in architecture.yaml
 
   --help, -h            Show this help message
@@ -291,6 +335,9 @@ Examples:
 
   # Create and register in one step
   brat bit create my-service --register --active
+
+  # Preview what would be created (dry-run)
+  brat bit create my-service --dry-run --register
 
 Profile/Exposure Compatibility:
   core       → platform-only | none
