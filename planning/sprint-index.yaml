@@ -7,14 +7,14 @@
 #
 # To regenerate from scratch: Use the regenerate-sprint-index tool
 #
-# Generated: 2026-08-21T19:59:00.568Z
+# Generated: 2026-08-24T01:17:49.092Z
 #
 
 version: "1.0"
-generatedAt: 2026-08-22T21:37:47.509Z
-totalSprints: 23
+generatedAt: 2026-08-25T18:33:35.026Z
+totalSprints: 24
 activeSprints: 0
-completedSprints: 23
+completedSprints: 24
 sprints:
   - id: sprint-1-9ih2e3
     title: Fix Debug Trace Message Re-delivery Issue
@@ -232,6 +232,16 @@ sprints:
     completedAt: 2026-08-22T23:30:00.000Z
     completionMode: normal
     worktreePath: .worktrees/sprint-23-isla86
+  - id: sprint-24-jxvb9x
+    title: Claim Check Bit - Temporary Event Storage
+    status: complete
+    owner: claude
+    createdAt: 2026-08-23T14:21:52.189Z
+    manifestPath: .worktrees/sprint-24-jxvb9x/planning/sprint-24-jxvb9x/sprint-manifest.yaml
+    branch: feature/sprint-24-jxvb9x-claim-check-bit-temporary-even
+    worktreePath: .worktrees/sprint-24-jxvb9x
+    completedAt: 2026-08-25T18:33:35.011Z
+    completionMode: normal
 statistics:
   byStatus:
     planning: 0
@@ -239,8 +249,8 @@ statistics:
     validating: 0
     verifying: 0
     published: 0
-    complete: 23
+    complete: 24
   byCompletionMode:
-    normal: 18
+    normal: 19
     forced: 4
-  averageSprintDuration: PT20H
+  averageSprintDuration: PT22H
