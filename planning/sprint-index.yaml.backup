@@ -7,14 +7,14 @@
 #
 # To regenerate from scratch: Use the regenerate-sprint-index tool
 #
-# Generated: 2026-08-08T01:53:02.357Z
+# Generated: 2026-08-25T18:46:40.970Z
 #
 
 version: "1.0"
-generatedAt: 2026-08-08T05:38:02.609Z
-totalSprints: 2
-activeSprints: 0
-completedSprints: 2
+generatedAt: 2026-08-25T20:01:58.595Z
+totalSprints: 21
+activeSprints: 1
+completedSprints: 20
 sprints:
   - id: sprint-1-9ih2e3
     title: Fix Debug Trace Message Re-delivery Issue
@@ -26,7 +26,6 @@ sprints:
     completedAt: 2026-08-08T01:41:29.517Z
     completionMode: forced
     pr: https://github.com/cnavta/BitBrat/pull/305
-    worktreePath: .worktrees/sprint-1-9ih2e3
   - id: sprint-2-8olsv2
     title: Redis BEC Generation Gaps - Auto-Configure Redis for New Contexts
     status: complete
@@ -37,16 +36,185 @@ sprints:
     completedAt: 2026-08-08T01:35:00.000Z
     completionMode: normal
     pr: https://github.com/cnavta/BitBrat/pull/308
-    worktreePath: .worktrees/sprint-2-8olsv2
+  - id: sprint-3-p8ehzo
+    title: Fix BEC creation for remote Docker with PostgreSQL
+    status: complete
+    owner: christophernavta
+    createdAt: 2026-08-08T17:31:00.835Z
+    manifestPath: planning/sprint-3-p8ehzo/sprint-manifest.yaml
+    branch: feature/sprint-3-p8ehzo-fix-bec-creation-for-remote-do
+    completedAt: 2026-08-11T14:36:00.000Z
+    completionMode: forced
+  - id: sprint-5-anrn33
+    title: Architecture.yaml Infrastructure Redesign
+    status: complete
+    owner: christophernavta
+    createdAt: 2026-08-10T02:03:35.287Z
+    manifestPath: planning/sprint-5-anrn33/sprint-manifest.yaml
+    branch: feature/sprint-5-anrn33-architecture-yaml-infrastructu
+    completedAt: 2026-08-10T20:05:28.595Z
+    completionMode: normal
+  - id: sprint-7-y8gjnq
+    title: Foundation & Production Migration
+    status: complete
+    owner: christophernavta
+    createdAt: 2026-08-10T20:20:41.185Z
+    manifestPath: planning/sprint-7-y8gjnq/sprint-manifest.yaml
+    branch: feature/sprint-7-y8gjnq-foundation-production-migratio
+    completedAt: 2026-08-11T14:36:00.000Z
+    completionMode: forced
+  - id: sprint-8-uhh8fj
+    title: Architecture YAML Consolidation and Intent-Centric Refactor
+    status: complete
+    owner: "@christophernavta"
+    createdAt: 2026-08-11T03:17:07.896Z
+    manifestPath: planning/sprint-8-uhh8fj/sprint-manifest.yaml
+    branch: feature/sprint-8-uhh8fj-architecture-yaml-consolidatio
+    completedAt: 2026-08-11T14:35:00.000Z
+    completionMode: normal
+  - id: sprint-9-0az9n9
+    title: Test Suite Remediation
+    status: complete
+    owner: christophernavta
+    createdAt: 2026-08-12T00:58:32.195Z
+    manifestPath: planning/sprint-9-0az9n9/sprint-manifest.yaml
+    branch: feature/sprint-9-0az9n9-test-suite-remediation
+    completedAt: 2026-08-12T01:58:03.944Z
+    completionMode: normal
+  - id: sprint-10-ee8bxg
+    title: Refactor Twitch Integration to Standard Slack Pattern
+    status: complete
+    owner: christophernavta
+    createdAt: 2026-08-12T02:30:16.884Z
+    manifestPath: planning/sprint-10-ee8bxg/sprint-manifest.yaml
+    branch: feature/sprint-10-ee8bxg-refactor-twitch-integration-to
+    completedAt: 2026-08-12T13:55:36.874Z
+    completionMode: normal
+  - id: sprint-11-j1d49d
+    title: Discord Integration Modernization
+    status: complete
+    owner: Lead Implementor
+    createdAt: 2026-08-12T14:28:26.756Z
+    manifestPath: planning/sprint-11-j1d49d/sprint-manifest.yaml
+    branch: feature/sprint-11-j1d49d-discord-integration-modernizat
+    completedAt: 2026-08-12T22:45:42.073Z
+    completionMode: normal
+  - id: sprint-12-fxes5l
+    title: Ingress-Egress Bit Refactoring
+    status: planning
+    owner: christophernavta
+    createdAt: 2026-08-13T00:48:24.073Z
+    manifestPath: planning/sprint-12-fxes5l/sprint-manifest.yaml
+    branch: feature/sprint-12-fxes5l-ingress-egress-bit-refactoring
+  - id: sprint-13-eahhvf
+    title: DM Capability Implementation Across Integrations
+    status: complete
+    owner: christophernavta
+    createdAt: 2026-08-14T03:43:11.148Z
+    manifestPath: planning/sprint-13-eahhvf/sprint-manifest.yaml
+    branch: feature/sprint-13-eahhvf-dm-capability-implementation-a
+    completedAt: 2026-08-15T23:13:11.099Z
+    completionMode: normal
+  - id: sprint-15-gpcvez
+    title: obs-mcp Deployment Investigation
+    status: complete
+    owner: navta3
+    createdAt: 2026-08-16T00:40:00.128Z
+    manifestPath: planning/sprint-15-gpcvez/sprint-manifest.yaml
+    branch: feature/sprint-15-gpcvez-obs-mcp-deployment-investigati
+    completedAt: 2026-08-16T17:52:26.810Z
+    completionMode: normal
+    pr: https://github.com/cyanheads/bitbrat/pull/323
+  - id: sprint-16-aalwmj
+    title: Twitch EventSub Full Integration
+    status: complete
+    owner: christophernavta
+    createdAt: 2026-08-16T20:15:19.650Z
+    manifestPath: planning/sprint-16-aalwmj/sprint-manifest.yaml
+    branch: feature/sprint-16-aalwmj-twitch-eventsub-full-integrati
+    completedAt: 2026-08-16T23:45:00.000Z
+    completionMode: normal
+  - id: sprint-17-btnxhl
+    title: obs-mcp Deployment Fix
+    status: complete
+    owner: christophernavta
+    createdAt: 2026-08-17T18:00:26.131Z
+    manifestPath: planning/sprint-17-btnxhl/sprint-manifest.yaml
+    branch: feature/sprint-17-btnxhl-obs-mcp-deployment-fix
+    completedAt: 2026-08-17T18:07:47.150Z
+    completionMode: normal
+  - id: sprint-18-hwnd1s
+    title: Event Stream Analyzer - Phase 1 POC
+    status: complete
+    owner: Lead Implementor
+    createdAt: 2026-08-18T22:39:31.121Z
+    manifestPath: planning/sprint-18-hwnd1s/sprint-manifest.yaml
+    branch: feature/sprint-18-hwnd1s-event-stream-analyzer-phase-1-
+    completedAt: 2026-08-18T23:59:59.000Z
+    completionMode: normal
+  - id: sprint-19-c3762f
+    title: "Event Stream Analyzer - Phase 2: Multi-Observer & Window Types"
+    status: complete
+    owner: christophernavta
+    createdAt: 2026-08-19T03:15:23.499Z
+    manifestPath: planning/sprint-19-c3762f/sprint-manifest.yaml
+    branch: feature/sprint-19-c3762f-event-stream-analyzer-phase-2-
+    completedAt: 2026-08-19T20:06:42.981Z
+    completionMode: normal
+  - id: sprint-20-xc3pcu
+    title: "Event Stream Analyzer - Phase 3: Production Readiness"
+    status: complete
+    owner: Lead Implementor
+    createdAt: 2026-08-19T21:09:27.564Z
+    manifestPath: planning/sprint-20-xc3pcu/sprint-manifest.yaml
+    branch: unjust/crendleworths-pain
+    completedAt: 2026-08-20T20:45:00.000Z
+    completionMode: normal
+  - id: sprint-21-o1ihsj
+    title: Progress Messages Fix
+    status: complete
+    owner: claude
+    createdAt: 2026-08-21T16:12:19.218Z
+    manifestPath: planning/sprint-21-o1ihsj/sprint-manifest.yaml
+    branch: feature/sprint-21-o1ihsj-progress-messages-investigatio
+    completedAt: 2026-08-21T18:00:00.000Z
+    completionMode: normal
+  - id: sprint-22-p0k9gp
+    title: Agent Progress Update MCP Tool
+    status: complete
+    owner: claude
+    createdAt: 2026-08-21T20:18:28.562Z
+    manifestPath: planning/sprint-22-p0k9gp/sprint-manifest.yaml
+    branch: feature/sprint-22-p0k9gp-agent-progress-update-mcp-tool
+    completedAt: 2026-08-22T17:57:01.742Z
+    completionMode: normal
+  - id: sprint-23-isla86
+    title: Fix brat bit create command
+    status: complete
+    owner: navta
+    createdAt: 2026-08-22T18:46:34.108Z
+    manifestPath: planning/sprint-23-isla86/sprint-manifest.yaml
+    branch: feature/sprint-23-isla86-fix-brat-bit-create-command
+    completedAt: 2026-08-22T23:30:00.000Z
+    completionMode: normal
+  - id: sprint-24-jxvb9x
+    title: Claim Check Bit - Temporary Event Storage
+    status: complete
+    owner: claude
+    createdAt: 2026-08-23T14:21:52.189Z
+    manifestPath: planning/sprint-24-jxvb9x/sprint-manifest.yaml
+    branch: feature/sprint-24-jxvb9x-claim-check-bit-temporary-even
+    completedAt: 2026-08-25T18:33:35.011Z
+    completionMode: normal
 statistics:
   byStatus:
-    planning: 0
+    planning: 1
     in-progress: 0
     validating: 0
     verifying: 0
     published: 0
-    complete: 2
+    complete: 20
   byCompletionMode:
-    normal: 1
-    forced: 1
-  averageSprintDuration: PT17H
+    normal: 17
+    forced: 3
+  averageSprintDuration: PT18H
