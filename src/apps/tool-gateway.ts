@@ -156,26 +156,92 @@ export class ToolGatewayServer extends Bit {
    */
   private async handleSendProgressUpdate(
     args: SendProgressUpdateArgs,
-    extra?: { sessionId?: string; userRoles?: string[]; userId?: string; agentName?: string }
+    extra?: { sessionId?: string; userRoles?: string[]; userId?: string; agentName?: string; correlationId?: string }
   ): Promise<any> {
     const logger = this.getLogger();
     const sessionId = extra?.sessionId || '';
     const userId = extra?.userId;
+    const correlationId = extra?.correlationId;
 
     logger.debug('tool_gateway.send_progress_update.invoked', {
       sessionId,
+      correlationId,
       messageLength: args.message.length,
       emoji: args.emoji,
       urgency: args.urgency,
       userId,
     });
 
-    // Prefer egress from args (if agent provided it), otherwise construct from userId
+    // Prefer egress from args (if agent provided it), otherwise retrieve from claim check
     let egressInfo: any;
     let platform: string;
     let externalId: string;
+    let sourceEvent: InternalEventV2 | null = null;
 
-    if (args.egress) {
+    // Try to retrieve source event from claim check if correlationId available
+    if (!args.egress && correlationId) {
+      try {
+        // Get the claim.event.retrieve tool from registry
+        const claimTool = this.registry.getTool('claim.event.retrieve');
+
+        if (claimTool && claimTool.execute) {
+          // Call claim check to retrieve source event
+          const claimResult = await claimTool.execute(
+            { correlationId },
+            { sessionId, userRoles: extra?.userRoles || [] }
+          );
+
+          if (claimResult && !claimResult.isError) {
+            // Parse the event from the response
+            const content = claimResult.content?.[0];
+            if (content && content.type === 'text') {
+              try {
+                sourceEvent = JSON.parse(content.text);
+                logger.debug('tool_gateway.send_progress_update.claim_check_retrieved', {
+                  correlationId,
+                  hasSourceEvent: !!sourceEvent,
+                });
+              } catch (parseErr) {
+                logger.warn('tool_gateway.send_progress_update.claim_parse_failed', {
+                  correlationId,
+                  error: parseErr instanceof Error ? parseErr.message : String(parseErr),
+                });
+              }
+            }
+          }
+        } else {
+          logger.debug('tool_gateway.send_progress_update.claim_tool_not_found', {
+            correlationId,
+            note: 'claim.event.retrieve tool not registered yet',
+          });
+        }
+      } catch (claimErr) {
+        // Claim check failed - not critical, fall back to other methods
+        logger.warn('tool_gateway.send_progress_update.claim_check_failed', {
+          correlationId,
+          error: claimErr instanceof Error ? claimErr.message : String(claimErr),
+        });
+      }
+    }
+
+    // Use egress from source event if retrieved
+    if (sourceEvent && sourceEvent.egress) {
+      platform = sourceEvent.egress.connector;
+      externalId = sourceEvent.identity?.external?.id || 'unknown';
+
+      egressInfo = {
+        ...sourceEvent.egress,
+        destination: sourceEvent.egress.destination || 'internal.egress.v1',
+      };
+
+      logger.debug('tool_gateway.send_progress_update.using_claim_check_egress', {
+        correlationId,
+        destination: egressInfo.destination,
+        connector: egressInfo.connector,
+        channel: egressInfo.channel,
+        externalId,
+      });
+    } else if (args.egress) {
       // Use egress from original event (ideal path - preserves exact routing)
       // The destination may be a specific egress instance (e.g., "egress.slack.v1")
       // or the generic fallback ("internal.egress.v1")
@@ -267,11 +333,12 @@ export class ToolGatewayServer extends Bit {
 
     // Build progress event from available context
     const progressMessage = `${args.emoji || '🔄'} ${args.message}`;
-    const correlationId = randomUUID();
+    // Reuse existing correlationId if available, otherwise generate new one
+    const progressCorrelationId = correlationId || randomUUID();
 
     const progressEvent: InternalEventV2 = {
       v: '2',
-      correlationId,
+      correlationId: progressCorrelationId,
       type: 'chat.message.v1',
       ingress: {
         connector: platform as any,

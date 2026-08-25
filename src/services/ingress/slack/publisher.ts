@@ -6,17 +6,21 @@ import type { IngressPublisher } from '../core';
 export interface SlackIngressPublisherOptions {
   busPrefix?: string;
   publisherFactory?: (subject: string) => MessagePublisher;
+  /** Optional callback invoked after successful publish (Sprint 24: for snapshot publishing) */
+  onPublished?: (event: InternalEventV2) => Promise<void>;
 }
 
 export class SlackIngressPublisher implements IngressPublisher {
   private readonly subject: string;
   private readonly pub: MessagePublisher;
+  private readonly onPublished?: (event: InternalEventV2) => Promise<void>;
 
   constructor(options: SlackIngressPublisherOptions = {}) {
     const prefix = (options.busPrefix ?? process.env.BUS_PREFIX ?? '').toString();
     this.subject = `${prefix}${INTERNAL_INGRESS_V1}`;
     const factory = options.publisherFactory || createMessagePublisher;
     this.pub = factory(this.subject);
+    this.onPublished = options.onPublished;
   }
 
   async publish(evt: InternalEventV2): Promise<void> {
@@ -25,12 +29,23 @@ export class SlackIngressPublisher implements IngressPublisher {
       correlationId: evt.correlationId,
       source: evt.ingress.source,
     });
+
+    // Sprint 24: Call onPublished callback after successful publish (fail-open)
+    if (this.onPublished) {
+      try {
+        await this.onPublished(evt);
+      } catch (error) {
+        // Fail-open: Already published successfully, log warning only
+        console.warn('Slack publisher callback failed:', error);
+      }
+    }
   }
 }
 
 export function createSlackIngressPublisherFromConfig(
   cfg: IConfig,
-  publisherFactory?: (subject: string) => MessagePublisher
+  publisherFactory?: (subject: string) => MessagePublisher,
+  onPublished?: (event: InternalEventV2) => Promise<void>
 ): SlackIngressPublisher {
-  return new SlackIngressPublisher({ busPrefix: cfg.busPrefix, publisherFactory });
+  return new SlackIngressPublisher({ busPrefix: cfg.busPrefix, publisherFactory, onPublished });
 }

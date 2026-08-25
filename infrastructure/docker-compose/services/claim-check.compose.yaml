@@ -1,0 +1,28 @@
+services:
+  claim-check:
+    env_file:
+      - .env.brat
+    build:
+      context: ../..  # Sprint 375: Build context is repository root (for Dockerfile.base/Dockerfile.service)
+      dockerfile: Dockerfile.service
+      args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
+        SERVICE_NAME: claim-check
+        SERVICE_ENTRY: dist/apps/claim-check-service.js
+        SERVICE_PORT: "3008"
+    ports:
+      - "${CLAIM_CHECK_HOST_PORT:-3008}:3008"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3008/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      bitbrat-network:
+        aliases:
+          - claim-check.bitbrat.local

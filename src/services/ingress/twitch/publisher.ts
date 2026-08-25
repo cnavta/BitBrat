@@ -13,6 +13,8 @@ export interface TwitchIngressPublisherOptions {
   jitterMs?: number; // 0 => disable jitter (deterministic tests)
   /** Optional factory to create a MessagePublisher for a subject (e.g., BaseServer resources.publisher.create) */
   publisherFactory?: (subject: string) => MessagePublisher;
+  /** Optional callback invoked after successful publish (Sprint 24: for snapshot publishing) */
+  onPublished?: (event: InternalEventV2) => Promise<void>;
 }
 
 export interface ITwitchIngressPublisher {
@@ -29,6 +31,7 @@ export class TwitchIngressPublisher implements ITwitchIngressPublisher {
   private readonly subject: string;
   private readonly pub: MessagePublisher;
   private readonly opts: Required<Pick<TwitchIngressPublisherOptions, 'maxRetries' | 'baseDelayMs' | 'maxDelayMs' | 'jitterMs'>>;
+  private readonly onPublished?: (event: InternalEventV2) => Promise<void>;
 
   constructor(options: TwitchIngressPublisherOptions = {}) {
     const prefix = (options.busPrefix ?? process.env.BUS_PREFIX ?? '').toString();
@@ -41,6 +44,7 @@ export class TwitchIngressPublisher implements ITwitchIngressPublisher {
       maxDelayMs: options.maxDelayMs ?? 5000,
       jitterMs: options.jitterMs ?? 50,
     };
+    this.onPublished = options.onPublished;
   }
 
   async publish(evt: InternalEventV2): Promise<string | null> {
@@ -81,6 +85,20 @@ export class TwitchIngressPublisher implements ITwitchIngressPublisher {
         return retryable;
       }
     });
+
+    // Sprint 24: Call onPublished callback after successful publish (fail-open)
+    if (this.onPublished && res) {
+      try {
+        await this.onPublished(evt);
+      } catch (error) {
+        logger.warn('ingress.publish.callback_failed', {
+          correlationId: evt.correlationId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Fail-open: Don't throw, already published successfully
+      }
+    }
+
     return res;
   }
 
@@ -103,10 +121,15 @@ export function createTwitchIngressPublisherFromEnv(publisherFactory?: (subject:
   });
 }
 
-export function createTwitchIngressPublisherFromConfig(cfg: IConfig, publisherFactory?: (subject: string) => MessagePublisher): TwitchIngressPublisher {
+export function createTwitchIngressPublisherFromConfig(
+  cfg: IConfig,
+  publisherFactory?: (subject: string) => MessagePublisher,
+  onPublished?: (event: InternalEventV2) => Promise<void>
+): TwitchIngressPublisher {
   return new TwitchIngressPublisher({
     busPrefix: cfg.busPrefix,
     maxRetries: cfg.publishMaxRetries,
     publisherFactory,
+    onPublished,
   });
 }

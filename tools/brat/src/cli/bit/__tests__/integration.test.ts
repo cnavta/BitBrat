@@ -47,6 +47,12 @@ describe('brat bit create - Integration', () => {
     // Change to temp directory
     process.chdir(tempDir);
 
+    // Initialize git repository (required for git-aware commands)
+    const { execSync } = require('child_process');
+    execSync('git init', { cwd: tempDir, stdio: 'ignore' });
+    execSync('git config user.email "test@test.com"', { cwd: tempDir, stdio: 'ignore' });
+    execSync('git config user.name "Test User"', { cwd: tempDir, stdio: 'ignore' });
+
     // Create minimal architecture.yaml
     const minimalArch = {
       platform: 'bitbrat',

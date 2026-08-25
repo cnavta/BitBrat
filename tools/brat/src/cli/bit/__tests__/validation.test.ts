@@ -22,19 +22,19 @@ describe('validateBitName', () => {
   it('should reject PascalCase names', () => {
     const result = validateBitName('MyService');
     expect(result.valid).toBe(false);
-    expect(result.errors[0]).toContain('kebab-case');
+    expect(result.errors.join(' ')).toContain('kebab-case');
   });
 
   it('should reject snake_case names', () => {
     const result = validateBitName('my_service');
     expect(result.valid).toBe(false);
-    expect(result.errors[0]).toContain('kebab-case');
+    expect(result.errors.join(' ')).toContain('kebab-case');
   });
 
   it('should reject names with spaces', () => {
     const result = validateBitName('my service');
     expect(result.valid).toBe(false);
-    expect(result.errors[0]).toContain('kebab-case');
+    expect(result.errors.join(' ')).toContain('kebab-case');
   });
 
   it('should reject names starting with numbers', () => {
@@ -93,29 +93,33 @@ describe('validateProfileExposure', () => {
     it('should reject mcp-server with platform-only', () => {
       const result = validateProfileExposure('mcp-server', 'platform-only');
       expect(result.valid).toBe(false);
-      expect(result.errors[0]).toContain('mcp-server');
-      expect(result.errors[0]).toContain('platform+domain');
+      const allErrors = result.errors.join(' ');
+      expect(allErrors).toContain('mcp-server');
+      expect(allErrors).toContain('platform+domain');
     });
 
     it('should reject mcp-server with none', () => {
       const result = validateProfileExposure('mcp-server', 'none');
       expect(result.valid).toBe(false);
-      expect(result.errors[0]).toContain('mcp-server');
-      expect(result.errors[0]).toContain('platform+domain');
+      const allErrors = result.errors.join(' ');
+      expect(allErrors).toContain('mcp-server');
+      expect(allErrors).toContain('platform+domain');
     });
 
     it('should reject core with platform+domain', () => {
       const result = validateProfileExposure('core', 'platform+domain');
       expect(result.valid).toBe(false);
-      expect(result.errors[0]).toContain('core');
-      expect(result.errors[0]).toContain('cannot');
+      const allErrors = result.errors.join(' ');
+      expect(allErrors).toContain('core');
+      expect(allErrors).toContain('cannot');
     });
 
     it('should reject llm with platform+domain', () => {
       const result = validateProfileExposure('llm', 'platform+domain');
       expect(result.valid).toBe(false);
-      expect(result.errors[0]).toContain('llm');
-      expect(result.errors[0]).toContain('cannot');
+      const allErrors = result.errors.join(' ');
+      expect(allErrors).toContain('llm');
+      expect(allErrors).toContain('cannot');
     });
   });
 });

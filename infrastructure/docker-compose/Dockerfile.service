@@ -1,0 +1,42 @@
+# syntax=docker/dockerfile:1
+# Service-specific Dockerfile that inherits from bitbrat-base (Sprint 375 Phase 2).
+#
+# This file adds only service-specific layers on top of the shared base image:
+# - SERVICE_NAME, SERVICE_ENTRY, SERVICE_PORT environment variables
+# - CMD to start the specific service
+#
+# Build example:
+#   docker build -f Dockerfile.service \
+#     --build-arg BASE_IMAGE=bitbrat-base:latest \
+#     --build-arg SERVICE_NAME=llm-bot \
+#     --build-arg SERVICE_ENTRY=dist/apps/llm-bot-service.js \
+#     --build-arg SERVICE_PORT=3000 \
+#     -t llm-bot:latest .
+#
+# Benefits (Sprint 375 Phase 2):
+# - 70-85% faster builds (node_modules + dist already cached in base)
+# - Service builds complete in <10 seconds vs 60-120 seconds
+# - Only rebuilds when service code changes, not dependencies
+
+# Sprint 375: Allow base image to be overridden (defaults to bitbrat-base:latest)
+ARG BASE_IMAGE=bitbrat-base:latest
+
+# Inherit from base image (contains node_modules, dist/, architecture.yaml)
+FROM ${BASE_IMAGE}
+
+# Service-specific parameters (supplied via --build-arg)
+ARG SERVICE_NAME
+ARG SERVICE_ENTRY
+ARG SERVICE_PORT=3000
+
+# Set environment variables for service configuration
+ENV SERVICE_NAME=${SERVICE_NAME}
+ENV SERVICE_PORT=${SERVICE_PORT}
+ENV SERVICE_ENTRY=${SERVICE_ENTRY}
+
+# Expose service port
+EXPOSE ${SERVICE_PORT}
+
+# Start the service using the entry point from SERVICE_ENTRY
+# Use shell form so ${SERVICE_ENTRY} is expanded at runtime from ENV
+CMD ["sh", "-c", "exec node \"$SERVICE_ENTRY\""]

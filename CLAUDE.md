@@ -537,6 +537,83 @@ Works with remote Docker via SSH. Gracefully degrades on discovery failures.
 
 ---
 
+### 8. Using Claim Check for Event Retrieval (Sprint 24)
+
+**Pattern for retrieving persisted events from outside the routing slip.**
+
+Claim check provides temporary Redis-backed storage for events and blobs with automatic TTL expiration. Use when a service needs access to the source event context (ingress/egress metadata) but doesn't have it in the current message.
+
+**Key use case**: Progress messages (Sprint 22) - LLM sends updates but needs original event's platform/channel info.
+
+```typescript
+// In tool-gateway or any Bit with MCP access
+async function sendProgressUpdate(correlationId: string, message: string) {
+  // Retrieve source event from claim check (Sprint 24: returns StoredSnapshot)
+  const claimTool = this.registry.getTool('claim.event.retrieve');
+
+  if (claimTool && claimTool.execute) {
+    const result = await claimTool.execute(
+      { correlationId },
+      { sessionId, userRoles: [] }
+    );
+
+    if (result && !result.isError) {
+      // Sprint 24: Result includes versioning metadata + event
+      const snapshot = JSON.parse(result.content[0].text);
+      const sourceEvent = snapshot.event; // Extract event from StoredSnapshot
+
+      // Optional: Check snapshot metadata
+      this.logger.debug('Retrieved snapshot', {
+        kind: snapshot.kind,           // 'initial' | 'update' | 'final' | 'deadletter'
+        capturedAt: snapshot.capturedAt,
+        sourceService: snapshot.sourceService
+      });
+
+      // Use ingress/egress from source event
+      await this.next({
+        ...progressEvent,
+        ingress: sourceEvent.ingress,  // Original platform context
+        egress: sourceEvent.egress,     // Original routing destination
+        identity: sourceEvent.identity, // Original user
+      });
+    }
+  }
+}
+```
+
+**Storage**: Events auto-stored by claim-check service on `internal.persistence.snapshot.v1` (ALL snapshot kinds: initial, update, final, deadletter). Timestamp-based versioning handles out-of-order delivery. Default TTL: 300s (5 min).
+
+**Versioning**: Uses `capturedAt` timestamp to determine event version. Newer snapshots overwrite older ones. Stale snapshots rejected. See `documentation/guides/claim-check.md` for out-of-order scenarios.
+
+**MCP Tools** (platform-only, 6 total):
+- `claim.event.retrieve(correlationId)` - Retrieve StoredSnapshot (includes versioning metadata + full event)
+- `claim.event.status(correlationId)` - Get metadata without full event (lightweight)
+- `claim.event.exists(correlationId)` - Check existence (boolean)
+- `claim.blob.store(data, contentType, ttl)` - Store binary data
+- `claim.blob.retrieve(blobId)` - Retrieve binary data
+- `claim.blob.exists(blobId)` - Check blob existence
+
+**Fail-open design**: If Redis unavailable or event expired, gracefully degrades (logs warning, continues execution).
+
+**Configuration**:
+```yaml
+# architecture.yaml
+claim-check:
+  profile: core
+  stage: persist
+  topics:
+    consumes:
+      - internal.persistence.snapshot.v1
+  env:
+    - CLAIM_CHECK_DEFAULT_TTL_SECONDS  # Default: 300
+    - CLAIM_CHECK_MAX_TTL_SECONDS      # Default: 3600
+    - REDIS_URL
+```
+
+**Documentation**: `documentation/guides/claim-check.md`
+
+---
+
 ### Quick Reference Patterns
 
 **Adding MCP Tool:**
