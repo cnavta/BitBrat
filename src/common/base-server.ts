@@ -29,7 +29,7 @@ import {
 import type { RedisClientType } from 'redis';
 import type { MessageHandler, SubscribeOptions, UnsubscribeFn } from '../services/message-bus';
 import { initializeTracing, shutdownTracing, getTracer, startActiveSpan, api } from './tracing';
-import type { InternalEventV2, RoutingStep, RoutingStatus, SnapshotDeadletterV1, SnapshotDeliveryV1 } from '../types/events';
+import type { InternalEventV2, RoutingStep, RoutingStatus, SnapshotDeadletterV1, SnapshotDeliveryV1, SnapshotKind } from '../types/events';
 import { markSelectedCandidate } from './events/selection';
 import { features } from './feature-flags';
 import { publishPersistenceSnapshot } from './events/persistence-snapshots';
@@ -1427,7 +1427,7 @@ export class Bit {
   }
 
   protected async publishPersistenceSnapshot(params: {
-    kind: 'update' | 'final' | 'deadletter';
+    kind: SnapshotKind;
     sourceTopic: string;
     event: InternalEventV2;
     changeSummary?: string;

@@ -12,6 +12,8 @@ export interface TwilioIngressPublisherOptions {
   maxDelayMs?: number;
   jitterMs?: number;
   publisherFactory?: (subject: string) => MessagePublisher;
+  /** Optional callback invoked after successful publish (Sprint 24: for snapshot publishing) */
+  onPublished?: (event: InternalEventV2) => Promise<void>;
 }
 
 export interface ITwilioIngressPublisher {
@@ -22,6 +24,7 @@ export class TwilioIngressPublisher implements ITwilioIngressPublisher {
   private readonly subject: string;
   private readonly pub: MessagePublisher;
   private readonly opts: Required<Pick<TwilioIngressPublisherOptions, 'maxRetries' | 'baseDelayMs' | 'maxDelayMs' | 'jitterMs'>>;
+  private readonly onPublished?: (event: InternalEventV2) => Promise<void>;
 
   constructor(options: TwilioIngressPublisherOptions = {}) {
     const prefix = (options.busPrefix ?? process.env.BUS_PREFIX ?? '').toString();
@@ -34,6 +37,7 @@ export class TwilioIngressPublisher implements ITwilioIngressPublisher {
       maxDelayMs: options.maxDelayMs ?? 5000,
       jitterMs: options.jitterMs ?? 50,
     };
+    this.onPublished = options.onPublished;
   }
 
   async publish(evt: InternalEventV2): Promise<string | null> {
@@ -62,14 +66,33 @@ export class TwilioIngressPublisher implements ITwilioIngressPublisher {
           || code === 10 /* ABORTED */;
       }
     });
+
+    // Sprint 24: Call onPublished callback after successful publish (fail-open)
+    if (this.onPublished && res) {
+      try {
+        await this.onPublished(evt);
+      } catch (error) {
+        logger.warn('twilio.ingress.publish.callback_failed', {
+          correlationId: evt.correlationId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Fail-open: Don't throw, already published successfully
+      }
+    }
+
     return res;
   }
 }
 
-export function createTwilioIngressPublisherFromConfig(cfg: IConfig, publisherFactory?: (subject: string) => MessagePublisher): TwilioIngressPublisher {
+export function createTwilioIngressPublisherFromConfig(
+  cfg: IConfig,
+  publisherFactory?: (subject: string) => MessagePublisher,
+  onPublished?: (event: InternalEventV2) => Promise<void>
+): TwilioIngressPublisher {
   return new TwilioIngressPublisher({
     busPrefix: cfg.busPrefix,
     maxRetries: cfg.publishMaxRetries,
     publisherFactory,
+    onPublished,
   });
 }

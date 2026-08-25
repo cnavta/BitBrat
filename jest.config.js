@@ -23,6 +23,10 @@ module.exports = () => {
 
   const isCI = !!process.env.CI || process.env.CLOUD_BUILD === '1' || process.env.BUILDKITE === 'true' || !!process.env.BUILD_ID;
   if (isCI) {
+    // Skip Redis integration tests in CI by default (Redis not available in build containers)
+    if (!process.env.SKIP_REDIS_TESTS) {
+      process.env.SKIP_REDIS_TESTS = 'true';
+    }
     return {
       ...base,
       // Run tests in a single worker and disable worker_threads to improve stability in CI containers

@@ -595,6 +595,8 @@ services:
     topics:
       publishes:
         - internal.ingress.v1
+        # Sprint 24: Publishes 'initial' snapshots for unified persistence flow
+        # All ingested events immediately published as 'initial' snapshots after successful ingress
         - internal.persistence.snapshot.v1
       consumes:
         - internal.egress.v1.{instanceId}
@@ -752,8 +754,7 @@ services:
         - persistence
     topics:
       consumes:
-        - internal.ingress.v1
-        - internal.persistence.snapshot.v1
+        - internal.persistence.snapshot.v1  # Sprint 24: Snapshot-only persistence flow
         - internal.persistence.finalize.v1
         - internal.deadletter.v1
         - internal.router.dlq.v1
@@ -988,18 +989,44 @@ services:
     entry: src/apps/context-pack-service.ts
     port: 3000
   event-stream-analyzer:
-    profile: core  # Phase 1 POC uses stub analysis; will upgrade to 'llm' in Phase 2
+    profile: core
     category: platform
     mcp:
       exposure: platform-only
     active: true
-    description: 'Real-time event stream analysis using RxJS sliding windows (v4 streaming architecture)'
+    description: Real-time event stream analysis using RxJS sliding windows (v4 streaming architecture)
     kind: pipeline-service
     stage: analyze
     entry: src/apps/event-stream-analyzer-service.ts
     port: 3000
     secrets:
       - MCP_AUTH_TOKEN
+  claim-check:
+    category: platform
+    profile: core
+    mcp:
+      exposure: platform-only
+    active: true
+    description: Claim Check Bit - Temporary event and blob storage
+    kind: pipeline-service
+    stage: persist
+    stateful: false
+    entry: src/apps/claim-check-service.ts
+    port: 3008
+    dependencies:
+      infrastructure:
+        - messaging
+        - caching
+    topics:
+      consumes:
+        - internal.persistence.snapshot.v1
+      produces: []
+    env:
+      - CLAIM_CHECK_MAX_EVENT_SIZE_BYTES
+      - CLAIM_CHECK_MAX_BLOB_SIZE_BYTES
+      - CLAIM_CHECK_DEFAULT_TTL_SECONDS
+      - CLAIM_CHECK_MAX_TTL_SECONDS
+      - REDIS_URL
 executionContexts:
   local:
     description: Local Docker development environment

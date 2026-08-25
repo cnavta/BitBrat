@@ -325,4 +325,167 @@ describe('PersistenceStore', () => {
 
     expect(db.__state.rootSets['sources/twitch:12345']).toMatchObject({ streamStatus: 'ONLINE', viewerCount: 100 });
   });
+
+  // ============================================================================
+  // Sprint 24: Tests for 'initial' Snapshot Handling
+  // ============================================================================
+
+  describe('Sprint 24: initial snapshot handling', () => {
+    test('applySnapshotEvent creates aggregate from initial snapshot (race condition)', async () => {
+      const db = makeFirestoreMock();
+      const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+      const store = new PersistenceStore({ firestore: db, logger });
+
+      // Initial snapshot arrives BEFORE upsertIngressEvent
+      const now = new Date().toISOString();
+      const result = await store.applySnapshotEvent({
+        v: '1',
+        correlationId: 'c-race',
+        kind: 'initial',
+        capturedAt: now,
+        sourceService: 'ingress-egress',
+        sourceTopic: 'internal.ingress.v1',
+        idempotencyKey: 'c-race:initial:ingress-egress:internal.ingress.v1:' + now,
+        event: makeEvent({ correlationId: 'c-race' }),
+      });
+
+      expect(result.duplicate).toBe(false);
+      expect(result.snapshot.kind).toBe('initial');
+      expect(result.snapshot.sequence).toBe(1);
+      expect(result.aggregate.status).toBe('INGESTED');
+      expect(result.aggregate.correlationId).toBe('c-race');
+      expect(db.__state.rootSets['c-race']).toBeDefined();
+      expect(db.__state.snapshotSets[`c-race/${result.snapshot.snapshotId}`].kind).toBe('initial');
+    });
+
+    test('applySnapshotEvent handles initial arriving after update (out-of-order)', async () => {
+      const db = makeFirestoreMock();
+      const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+      const store = new PersistenceStore({ firestore: db, logger });
+
+      // First, apply an 'update' snapshot (normal flow)
+      await store.upsertIngressEvent(makeEvent({ correlationId: 'c-ooo' }));
+      const updateTime = new Date().toISOString();
+      await store.applySnapshotEvent({
+        v: '1',
+        correlationId: 'c-ooo',
+        kind: 'update',
+        capturedAt: updateTime,
+        sourceService: 'llm-bot',
+        sourceTopic: 'internal.analysis.v1',
+        idempotencyKey: 'c-ooo:update:llm-bot:internal.analysis.v1:' + updateTime,
+        event: makeEvent({ correlationId: 'c-ooo' }),
+      });
+
+      // Now apply an 'initial' snapshot (out-of-order)
+      const initialTime = new Date().toISOString();
+      const result = await store.applySnapshotEvent({
+        v: '1',
+        correlationId: 'c-ooo',
+        kind: 'initial',
+        capturedAt: initialTime,
+        sourceService: 'ingress-egress',
+        sourceTopic: 'internal.ingress.v1',
+        idempotencyKey: 'c-ooo:initial:ingress-egress:internal.ingress.v1:' + initialTime,
+        event: makeEvent({ correlationId: 'c-ooo' }),
+      });
+
+      expect(result.duplicate).toBe(false);
+      expect(result.snapshot.kind).toBe('initial');
+      expect(result.snapshot.sequence).toBe(3); // After initial + update
+      expect(result.aggregate.status).toBe('INGESTED'); // 'initial' sets status to INGESTED
+      expect(Object.keys(db.__state.snapshotSets).filter(k => k.startsWith('c-ooo/'))).toHaveLength(3);
+    });
+
+    test('applySnapshotEvent is idempotent for duplicate initial snapshots', async () => {
+      const db = makeFirestoreMock();
+      const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+      const store = new PersistenceStore({ firestore: db, logger });
+
+      const payload = {
+        v: '1',
+        correlationId: 'c-dup-init',
+        kind: 'initial',
+        capturedAt: '2024-01-01T10:00:00.000Z',
+        sourceService: 'ingress-egress',
+        sourceTopic: 'internal.ingress.v1',
+        idempotencyKey: 'c-dup-init:initial:ingress-egress:internal.ingress.v1:2024-01-01T10:00:00.000Z',
+        event: makeEvent({ correlationId: 'c-dup-init' }),
+      };
+
+      const first = await store.applySnapshotEvent(payload);
+      const second = await store.applySnapshotEvent(payload);
+
+      expect(first.duplicate).toBe(false);
+      expect(second.duplicate).toBe(true);
+      expect(first.snapshot.snapshotId).toBe(second.snapshot.snapshotId);
+      expect(Object.keys(db.__state.snapshotSets).filter(k => k.startsWith('c-dup-init/'))).toHaveLength(1);
+    });
+
+    test('applySnapshotEvent stores all fields correctly for initial snapshots', async () => {
+      const db = makeFirestoreMock();
+      const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+      const store = new PersistenceStore({ firestore: db, logger });
+
+      const capturedAt = '2024-01-01T10:00:00.000Z';
+      const event = makeEvent({
+        correlationId: 'c-fields',
+        type: 'chat.message.v1',
+        ingress: { ingressAt: capturedAt, source: 'ingress.twitch', connector: 'twitch' },
+        identity: { external: { id: 'u-123', platform: 'twitch', displayName: 'TestUser' } },
+        message: { id: 'm1', role: 'user', text: 'Hello world' },
+      });
+
+      const result = await store.applySnapshotEvent({
+        v: '1',
+        correlationId: 'c-fields',
+        kind: 'initial',
+        capturedAt,
+        sourceService: 'ingress-egress',
+        sourceTopic: 'internal.ingress.v1',
+        idempotencyKey: 'c-fields:initial:ingress-egress:internal.ingress.v1:' + capturedAt,
+        event,
+      });
+
+      // Verify aggregate
+      expect(result.aggregate.correlationId).toBe('c-fields');
+      expect(result.aggregate.eventType).toBe('chat.message.v1');
+      expect(result.aggregate.source).toBe('ingress.twitch');
+      expect(result.aggregate.status).toBe('INGESTED');
+      expect(result.aggregate.latestStage).toBe('initial'); // From event.routing.stage
+      expect(result.aggregate.snapshotCount).toBe(1);
+      expect(result.aggregate.identitySummary?.externalId).toBe('u-123');
+      expect(result.aggregate.identitySummary?.platform).toBe('twitch');
+      expect(result.aggregate.identitySummary?.displayName).toBe('TestUser');
+
+      // Verify snapshot
+      expect(result.snapshot.kind).toBe('initial');
+      expect(result.snapshot.sequence).toBe(1);
+      expect(result.snapshot.sourceService).toBe('ingress-egress');
+      expect(result.snapshot.sourceTopic).toBe('internal.ingress.v1');
+      expect(result.snapshot.event.message?.text).toBe('Hello world');
+      expect(db.__state.snapshotSets[`c-fields/${result.snapshot.snapshotId}`]).toBeDefined();
+    });
+
+    test('deriveAggregateStatus returns INGESTED for initial snapshots', async () => {
+      const db = makeFirestoreMock();
+      const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+      const store = new PersistenceStore({ firestore: db, logger });
+
+      const result = await store.applySnapshotEvent({
+        v: '1',
+        correlationId: 'c-status',
+        kind: 'initial',
+        capturedAt: new Date().toISOString(),
+        sourceService: 'ingress-egress',
+        sourceTopic: 'internal.ingress.v1',
+        idempotencyKey: 'c-status:initial:test',
+        event: makeEvent({ correlationId: 'c-status' }),
+      });
+
+      expect(result.aggregate.status).toBe('INGESTED');
+      expect(result.aggregate.finalizedAt).toBeUndefined();
+      expect(result.aggregate.finalSnapshotId).toBeUndefined();
+    });
+  });
 });

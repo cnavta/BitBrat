@@ -1,0 +1,126 @@
+id: sprint-24-jxvb9x
+title: Claim Check Bit - Temporary Event Storage
+goal: |
+  Design and implement a Claim Check Bit with Redis-backed temporary storage
+  for events and large content blobs. Includes critical architecture fix:
+  unified snapshot publishing model to eliminate persistence split-brain
+  and enable cross-bit event access during processing.
+owner: claude
+createdAt: 2026-08-23T14:21:52.189Z
+revisedAt: 2026-08-25T00:00:00.000Z
+status: in-progress
+links:
+  branch: feature/sprint-24-jxvb9x-claim-check-bit-temporary-even
+  executionPlan: planning/sprint-24-jxvb9x/execution-plan-revised.md
+  backlog: planning/sprint-24-jxvb9x/backlog-revised.yaml
+  architectureFix: planning/sprint-24-jxvb9x/persistence-architecture-fix-plan.md
+  versioningDesign: planning/sprint-24-jxvb9x/claim-check-versioning-design.md
+
+scope:
+  original:
+    - Implement ClaimCheckService (Redis operations)
+    - Subscribe to persistence snapshots (filter for 'final' only)
+    - MCP tools for event/blob storage and retrieval
+    - Base Bit helper methods
+    - Integration testing and documentation
+
+  revised:
+    - Fix persistence split-brain architecture
+    - Implement unified snapshot publishing (all events via topic)
+    - Ingress publishes 'initial' snapshots immediately
+    - Claim-check with versioning (handles all snapshot kinds)
+    - Out-of-order delivery support
+    - Full lifecycle event tracking
+    - Comprehensive testing and documentation
+
+  additions:
+    - Type system updates (enable 'initial' snapshots)
+    - Persistence service refactoring (remove dual subscription)
+    - Ingress snapshot publishing infrastructure
+    - Timestamp-based versioning algorithm
+    - Extended testing coverage
+
+phases:
+  - name: Type System & Snapshot Policy Updates
+    priority: P0
+    tasks: 4
+    estimatedHours: 2
+
+  - name: Persistence Service Refactoring
+    priority: P0
+    tasks: 6
+    estimatedHours: 7
+    criticalNote: MUST deploy AFTER Phase 3 to avoid data loss
+
+  - name: Ingress 'initial' Snapshot Publishing
+    priority: P0
+    tasks: 4
+    estimatedHours: 4.5
+    criticalNote: MUST deploy BEFORE Phase 2
+
+  - name: Claim-Check Implementation with Versioning
+    priority: P0
+    tasks: 5
+    estimatedHours: 8
+
+  - name: Integration, Validation & Documentation
+    priority: P1
+    tasks: 6
+    estimatedHours: 6.5
+
+metrics:
+  totalTasks: 26
+  estimatedHours: 28
+  priorityP0Tasks: 22
+  priorityP1Tasks: 4
+
+risks:
+  critical:
+    - Event loss if deployment order wrong (Ingress must deploy before Persistence)
+    - Out-of-order delivery bugs in versioning logic
+
+  high:
+    - Performance degradation from dual publishing
+    - Redis memory exhaustion
+
+  mitigation:
+    - Strict deployment order enforcement
+    - Canary deployment strategy
+    - Comprehensive integration testing
+    - Agent-dev validation before production
+
+deliverables:
+  code:
+    - src/types/events.ts (updated)
+    - src/common/base-server.ts (updated)
+    - src/common/events/persistence-snapshots.ts (updated)
+    - src/apps/persistence-service.ts (refactored)
+    - src/common/integration-bit.ts (snapshot publishing)
+    - src/services/claim-check/claim-check-service.ts (new)
+    - src/apps/claim-check-service.ts (new)
+
+  tests:
+    - 15+ unit test files/additions
+    - 100+ new test cases
+    - Integration test suite
+    - Agent-dev validation
+
+  documentation:
+    - planning/sprint-24-jxvb9x/execution-plan-revised.md
+    - planning/sprint-24-jxvb9x/backlog-revised.yaml
+    - planning/sprint-24-jxvb9x/persistence-architecture-fix-plan.md
+    - planning/sprint-24-jxvb9x/claim-check-versioning-design.md
+    - documentation/guides/claim-check.md
+    - CLAUDE.md (updated)
+    - architecture.yaml (updated)
+
+notes: |
+  Sprint scope significantly expanded after discovering critical persistence
+  architecture issue during planning. Original approach (filtering for 'final'
+  snapshots only) would not work due to race condition. New approach implements
+  unified snapshot publishing model where ALL events flow through single topic,
+  enabling claim-check to access events immediately during processing.
+
+  Key architectural change: Persistence service will no longer consume from
+  internal.ingress.v1, only from internal.persistence.snapshot.v1. This
+  requires careful deployment ordering to avoid data loss.

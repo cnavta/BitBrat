@@ -328,7 +328,7 @@ export interface EventSnapshotDocV1 {
 export interface PersistenceSnapshotEventV1 {
   v: '1';
   correlationId: string;
-  kind: Exclude<SnapshotKind, 'initial'>;
+  kind: SnapshotKind;
   capturedAt: string;
   sourceService: string;
   sourceTopic: string;

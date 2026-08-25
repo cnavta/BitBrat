@@ -9,7 +9,6 @@ const SERVICE_NAME = process.env.SERVICE_NAME || 'persistence';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
 
 const RAW_CONSUMED_TOPICS: string[] = [
-  "internal.ingress.v1",
   INTERNAL_PERSISTENCE_SNAPSHOT_V1,
   "internal.persistence.finalize.v1",
   "internal.deadletter.v1",
@@ -34,44 +33,6 @@ class PersistenceServer extends Bit {
         process.env.SERVICE_INSTANCE_ID ||
         process.env.HOSTNAME ||
         Math.random().toString(36).slice(2);
-
-      { // subscription for internal.ingress.v1
-        const raw = "internal.ingress.v1";
-        const destination = raw && raw.includes('{instanceId}') ? raw.replace('{instanceId}', String(instanceId)) : raw;
-        const queue = raw && raw.includes('{instanceId}') ? SERVICE_NAME + '.' + String(instanceId) : SERVICE_NAME;
-        try {
-          await this.onMessage<InternalEventV2>(
-            { destination, queue, ack: 'explicit' },
-            async (msg: InternalEventV2, _attributes, ctx) => {
-              try {
-                this.getLogger().info('persistence.message.received', {
-                  destination,
-                  type: (msg as any)?.type,
-                  correlationId: (msg as any)?.correlationId,
-                });
-                const documentStore = createDocumentStore();
-                const store = new PersistenceStore({ documentStore, logger: this.getLogger() as any });
-
-                // For system events, we want BOTH SourceState (monitoring) AND IngressEvent (routing/snapshots)
-                // This ensures snapshots can be applied even when PERSISTENCE_SNAPSHOT_MODE=all
-                if (msg.type?.startsWith('system.')) {
-                  await store.upsertIngressEvent(msg);
-                  await store.upsertSourceState(msg);
-                } else {
-                  await store.upsertIngressEvent(msg);
-                }
-                await ctx.ack();
-              } catch (e: any) {
-                this.getLogger().error('persistence.message.handler_error', { destination, error: e?.message || String(e) });
-                await ctx.ack();
-              }
-            }
-          );
-          this.getLogger().info('persistence.subscribe.ok', { destination, queue });
-        } catch (e: any) {
-          this.getLogger().error('persistence.subscribe.error', { destination, queue, error: e?.message || String(e) });
-        }
-      }
 
       { // subscription for internal.persistence.snapshot.v1
         const raw = INTERNAL_PERSISTENCE_SNAPSHOT_V1;
