@@ -1,0 +1,435 @@
+# Agent-Dev Environment Stabilization - Sprint Backlog
+# Sprint: sprint-25-djllfn
+# Owner: Lead Implementor
+# Created: 2026-08-25
+
+metadata:
+  sprint: sprint-25-djllfn
+  title: Agent-Dev Environment Stabilization
+  goal: Make agent-dev environments stable and reliable for agent use
+  created: 2026-08-25T22:00:00.000Z
+  estimatedEffort: 8-12 hours
+  priority: P0 (Critical Infrastructure)
+
+# Priority Legend:
+# P0 = Blocker (cannot proceed without this)
+# P1 = Critical (major functionality broken)
+# P2 = Important (significant improvement)
+# P3 = Nice-to-have (quality of life)
+
+tasks:
+  # === BLOCKERS (P0) ===
+
+  - id: T1
+    title: Fix missing infrastructure services in agent-dev compose generation
+    priority: P0
+    status: pending
+    category: infrastructure
+    estimatedHours: 4
+    blockedBy: []
+    blocks: [T2, T3, T4, T5, T6, T7, T8, T9]
+    issue: "#1 - Missing Infrastructure Services"
+    rootCause: "CONFIRMED - Missing contextName parameter in scaffoldEnvironment() line 521"
+    description: |
+      ROOT CAUSE IDENTIFIED: scaffoldEnvironment() calls getRequiredInfrastructure()
+      WITHOUT passing contextName parameter, causing it to default to 'local' context.
+      InfrastructureRegistry filters by scope, doesn't match agent-dev contexts.
+
+      The fix is trivial: Add one parameter to line 521.
+
+    acceptanceCriteria:
+      - Primary fix: Add contextName parameter to getRequiredInfrastructure() call
+      - Secondary fix: Update InfrastructureRegistry scope matching to treat agent-dev as local-scoped
+      - Generated agent-dev compose files include nats service with health check
+      - Generated agent-dev compose files include redis service with health check
+      - Generated agent-dev compose files include postgres service with health check
+      - All infrastructure services use correct network configuration
+      - Volume definitions created for persistent data
+      - Docker Compose validation passes (docker compose config)
+      - Agent-dev environment starts successfully (all services healthy)
+
+    technicalApproach:
+      PRIMARY FIX (1 line):
+      - File: tools/brat/src/commands/context/create.ts:521
+      - Change: getRequiredInfrastructure(repoRoot, activeServices)
+      - To: getRequiredInfrastructure(repoRoot, activeServices, contextName)
+
+      SECONDARY FIX (scope matching):
+      - File: tools/brat/src/infrastructure/registry.ts
+      - Update getRequiredInfrastructure() to treat agent-dev-* contexts as local-scoped
+      - Add logic: const effectiveContext = context.startsWith('agent-dev-') ? 'local' : context
+      - Use effectiveContext when filtering by scope
+
+      VALIDATION:
+      - Test with fresh agent-dev context provision
+      - Verify generated compose includes infrastructure
+      - Verify Docker Compose validation passes
+      - Verify services start and reach healthy state
+
+    testPlan:
+      - Unit test: getRequiredInfrastructure() with agent-dev context returns nats/redis/postgres
+      - Integration test: scaffoldEnvironment() generates complete compose file
+      - E2E test: Full agent-dev lifecycle (provision → start → validate → destroy)
+      - Manual verification: docker compose config passes
+      - Manual verification: agent_dev.start() succeeds
+
+    files:
+      PRIMARY:
+      - tools/brat/src/commands/context/create.ts (line 521 - add contextName parameter)
+
+      SECONDARY:
+      - tools/brat/src/infrastructure/registry.ts (scope matching logic)
+
+      TESTING:
+      - tools/brat/src/context/__tests__/agent-dev-compose-generation.test.ts (new)
+      - tools/brat/src/infrastructure/__tests__/registry-scope-matching.test.ts (new)
+
+    references:
+      - Code analysis: planning/sprint-25-djllfn/code-analysis.md
+      - Working example: infrastructure/docker-compose/docker-compose.local.yaml lines 13-93
+      - Bug location: tools/brat/src/commands/context/create.ts:521
+      - Function signature: tools/brat/src/context/parse-dependencies.ts:135-139
+
+  # === CRITICAL (P1) ===
+
+  - id: T2
+    title: Add integration test for agent-dev infrastructure services
+    priority: P1
+    status: pending
+    category: testing
+    estimatedHours: 1-2
+    blockedBy: [T1]
+    blocks: []
+    description: |
+      Prevent regression by adding automated test that verifies agent-dev
+      compose files include required infrastructure services.
+
+    acceptanceCriteria:
+      - Test creates agent-dev context via provision tool
+      - Test parses generated compose file
+      - Test asserts presence of nats, redis, postgres services
+      - Test validates health check definitions
+      - Test validates network configuration
+      - Test runs in CI pipeline
+
+    technicalApproach:
+      - Add test to tools/brat/src/dev-mcp/__tests__/agent-dev-integration.test.ts
+      - Use YAML parser to read generated compose file
+      - Assert on service existence and configuration
+      - Clean up test contexts after execution
+
+    files:
+      - tools/brat/src/dev-mcp/__tests__/agent-dev-integration.test.ts (new)
+
+  - id: T3
+    title: Fix missing environment variable defaults in .env.brat
+    priority: P1
+    status: pending
+    category: configuration
+    estimatedHours: 1-2
+    blockedBy: [T1]
+    blocks: []
+    issue: "#2 - Missing Environment Variables"
+    description: |
+      Agent-dev provision creates .env.brat but is missing required defaults,
+      causing 19 warnings during Docker Compose build and potential runtime failures.
+
+    acceptanceCriteria:
+      - .env.brat includes REDIS_URL with correct value (redis://redis:6379)
+      - .env.brat includes LLM_PROVIDER with default (openai)
+      - .env.brat includes LLM_MODEL with default (gpt-4o-mini)
+      - .env.brat includes REFLEX_CACHE_POLL_INTERVAL_MS with default (10000)
+      - .env.brat includes PERSISTENCE_DRIVER with default (postgres)
+      - .env.brat includes DATABASE_URL with correct connection string
+      - Docker Compose build produces NO warnings about unset variables
+      - Optional platform variables (Slack, Discord, Twilio) documented as optional
+
+    technicalApproach:
+      - Locate .env.brat generation code in agent-dev provision
+      - Add required defaults from architecture.yaml env section
+      - Use template approach (copy from .env.example if exists)
+      - Document which variables are required vs optional
+
+    testPlan:
+      - Provision new agent-dev context
+      - Inspect generated .env.brat
+      - Run 'docker compose build' and verify no warnings
+      - Start services and verify config loaded correctly
+
+    files:
+      - tools/brat/src/dev-mcp/agent-dev-context-manager.ts
+      - .env.brat (generated)
+      - .env.example (reference)
+
+  - id: T4
+    title: Validate agent-dev can start and reach healthy state
+    priority: P1
+    status: pending
+    category: validation
+    estimatedHours: 1
+    blockedBy: [T1, T3]
+    blocks: [T5]
+    description: |
+      End-to-end validation that agent-dev environment can start successfully
+      and all services reach healthy state.
+
+    acceptanceCriteria:
+      - agent_dev.provision() completes without errors
+      - agent_dev.start() completes without errors
+      - All infrastructure services report 'healthy' within 30 seconds
+      - All application services start successfully
+      - Health checks pass for all services
+      - No errors in service logs during startup
+
+    technicalApproach:
+      - Create clean agent-dev context
+      - Start with agent_dev.start()
+      - Poll Docker health status until all healthy or timeout
+      - Check logs for startup errors
+      - Verify services can communicate (e.g., nats connection)
+
+    testPlan:
+      - Manual: Follow agent-dev quick start guide
+      - Automated: Integration test with health polling
+      - Verify with 'docker ps' (all containers 'healthy')
+      - Verify with 'docker logs' (no fatal errors)
+
+  # === IMPORTANT (P2) ===
+
+  - id: T5
+    title: Test !ping response in agent-dev environment
+    priority: P2
+    status: pending
+    category: validation
+    estimatedHours: 1
+    blockedBy: [T4]
+    blocks: []
+    description: |
+      Original sprint goal - verify basic !ping functionality works in agent-dev
+      to validate end-to-end message flow.
+
+    acceptanceCriteria:
+      - Can send test message via api-gateway WebSocket
+      - ingress-egress receives and routes message
+      - event-router applies routing slip
+      - llm-bot receives and processes message
+      - Response flows back through egress
+      - !ping returns expected pong response
+      - Message persisted to PostgreSQL (snapshots table)
+
+    technicalApproach:
+      - Use api-gateway WebSocket endpoint
+      - Send chat.message.v1 with text "!ping"
+      - Monitor NATS topics for message flow
+      - Verify llm-bot processes and responds
+      - Query PostgreSQL to verify persistence
+
+    testPlan:
+      - Manual test via WebSocket client
+      - Automated test via brat chat command
+      - Verify message in database
+      - Check logs for complete flow
+
+  - id: T6
+    title: Add pre-flight validation to agent_dev.start()
+    priority: P2
+    status: pending
+    category: reliability
+    estimatedHours: 2
+    blockedBy: [T1]
+    blocks: []
+    issue: "#3 - No Clear Error Messages"
+    description: |
+      Validate compose file and environment before attempting to start services,
+      providing clear error messages for common issues.
+
+    acceptanceCriteria:
+      - Parse compose file before starting
+      - Verify all depends_on services are defined
+      - Check for port conflicts with running containers
+      - Validate .env.brat has required variables
+      - Provide specific error messages for known issues
+      - Suggest remediation steps
+
+    technicalApproach:
+      - Add validateComposeFile() function
+      - Check for undefined service references
+      - Use docker ps to detect port conflicts
+      - Parse .env.brat for required vars
+      - Return actionable error messages
+
+    testPlan:
+      - Test with broken compose file (missing nats)
+      - Test with port conflict (postgres already running)
+      - Test with missing .env.brat
+      - Verify clear error messages in each case
+
+  - id: T7
+    title: Improve error messages for agent_dev.start() failures
+    priority: P2
+    status: pending
+    category: dx
+    estimatedHours: 1
+    blockedBy: [T6]
+    blocks: []
+    issue: "#3 - No Clear Error Messages"
+    description: |
+      Extract meaningful errors from Docker Compose output and provide
+      specific remediation guidance.
+
+    acceptanceCriteria:
+      - Parse Docker Compose stderr for actual error
+      - Suppress irrelevant warnings (env var defaults)
+      - Show only critical errors
+      - Provide context-specific remediation
+      - Link to documentation for complex issues
+
+    technicalApproach:
+      - Create error parser for Docker Compose output
+      - Map known errors to remediation steps
+      - Filter warnings vs errors
+      - Format output for readability
+
+    testPlan:
+      - Test with various failure modes
+      - Verify error extraction works
+      - Verify remediation steps are helpful
+
+  - id: T8
+    title: Document agent-dev environment setup and troubleshooting
+    priority: P2
+    status: pending
+    category: documentation
+    estimatedHours: 2
+    blockedBy: [T1, T3, T4, T5]
+    blocks: []
+    description: |
+      Create comprehensive documentation for agent-dev environments covering
+      setup, usage, and troubleshooting common issues.
+
+    acceptanceCriteria:
+      - Quick start guide (provision, start, test, destroy)
+      - Architecture overview (how agent-dev differs from local)
+      - Troubleshooting guide (common errors and solutions)
+      - Best practices (when to use agent-dev, cleanup)
+      - Example workflows (test new service, validate changes)
+
+    technicalApproach:
+      - Update documentation/guides/agent-dev-contexts.md
+      - Add troubleshooting section
+      - Include real examples from sprint testing
+      - Link from CLAUDE.md
+
+    files:
+      - documentation/guides/agent-dev-contexts.md
+      - documentation/guides/agent-dev-troubleshooting.md (new)
+      - CLAUDE.md (update agent-dev section)
+
+  # === NICE-TO-HAVE (P3) ===
+
+  - id: T9
+    title: Add real-time health check feedback to agent_dev.start()
+    priority: P3
+    status: pending
+    category: dx
+    estimatedHours: 2-3
+    blockedBy: [T1]
+    blocks: []
+    issue: "#4 - No Health Check Feedback"
+    description: |
+      Show real-time progress as services start and health checks pass,
+      improving visibility into long startup times.
+
+    acceptanceCriteria:
+      - Show service start progress in real-time
+      - Display health check status (starting → healthy)
+      - Show time elapsed for each service
+      - Provide --quiet flag to suppress progress
+      - Provide --follow-logs flag to tail logs
+
+    technicalApproach:
+      - Poll docker ps for service status
+      - Parse health check state from Docker API
+      - Use progress bar or status table
+      - Stream updates to stdout
+
+    testPlan:
+      - Start agent-dev and verify progress shown
+      - Verify accurate health check status
+      - Test --quiet and --follow-logs flags
+
+  - id: T10
+    title: Add agent-dev smoke test to CI pipeline
+    priority: P3
+    status: pending
+    category: ci
+    estimatedHours: 2
+    blockedBy: [T1, T2, T4]
+    blocks: []
+    description: |
+      Add automated smoke test that provisions agent-dev environment,
+      starts services, and verifies basic functionality.
+
+    acceptanceCriteria:
+      - CI job provisions agent-dev context
+      - CI job starts all services
+      - CI job verifies health checks pass
+      - CI job runs basic smoke tests (!ping)
+      - CI job cleans up environment
+      - Job runs on every PR
+
+    technicalApproach:
+      - Add .github/workflows/agent-dev-smoke-test.yml
+      - Use GitHub Actions with Docker
+      - Provision → start → test → destroy
+      - Fail on any errors
+
+    files:
+      - .github/workflows/agent-dev-smoke-test.yml (new)
+
+# === SPRINT COMPLETION CRITERIA ===
+
+completionCriteria:
+  minimumViable:
+    - T1: Infrastructure services included in agent-dev compose
+    - T4: Agent-dev environment can start successfully
+    - T5: "!ping response works in agent-dev"
+
+  recommended:
+    - T2: Integration test prevents regression
+    - T3: Environment variables properly defaulted
+    - T6: Pre-flight validation catches common errors
+    - T8: Documentation updated
+
+  stretchGoals:
+    - T7: Improved error messages
+    - T9: Real-time health check feedback
+    - T10: CI smoke tests
+
+# === RISK ASSESSMENT ===
+
+risks:
+  - risk: Compose generation code is more complex than expected
+    impact: high
+    probability: medium
+    mitigation: Start with minimal change (copy local infrastructure), iterate if needed
+
+  - risk: Infrastructure services have environment-specific configuration
+    impact: medium
+    probability: low
+    mitigation: Use same config as local context, document any differences
+
+  - risk: Testing reveals additional agent-dev issues
+    impact: medium
+    probability: high
+    mitigation: Prioritize blockers, defer nice-to-haves to backlog
+
+# === NOTES ===
+
+notes:
+  - All tasks tracked in this backlog are sprint-scoped (not project-wide)
+  - P0/P1 tasks MUST be completed for sprint success
+  - P2 tasks are recommended for quality
+  - P3 tasks are optional improvements
+  - If new issues discovered, add to backlog and re-prioritize
+  - Sprint success = agent-dev environments work reliably for testing
