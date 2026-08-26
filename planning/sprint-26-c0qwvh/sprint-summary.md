@@ -295,3 +295,19 @@ Sprint 26 successfully completed all core objectives, delivering fully functiona
 The sprint unblocks agent-dev usage for testing and validates CLAUDE.md guidance to proactively test in agent-dev environments. Developer experience is significantly improved with zero-config startup and clear defaults.
 
 **Status**: ✅ Ready for deployment and production use
+
+---
+
+## Post-Implementation Fix
+
+**Issue**: TypeScript compilation errors in integration tests
+- Tests called `destroy(contextName, true)` but method signature is `destroy(contextName)`
+- **Fixed**: Removed incorrect second parameter from all test files
+- **Status**: ✅ All TypeScript compilation errors resolved
+- **Commit**: 4c826dc0
+
+**Integration Test Status**:
+- Tests compile successfully (TypeScript errors resolved)
+- Runtime execution requires Docker environment with bitbrat-base image
+- Tests designed to skip gracefully in CI if Docker unavailable
+- Intended for manual execution or Docker-enabled CI environments
