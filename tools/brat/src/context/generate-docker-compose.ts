@@ -226,15 +226,18 @@ export function generateInfrastructureCompose(
       // Add volumes if defined (convert VolumeConfig[] to string[])
       if (spec.volumes && spec.volumes.length > 0) {
         composeDef.volumes = spec.volumes.map(vol => {
+          // Sprint 25: Support both 'mount' and 'target' (architecture.yaml uses 'target')
+          const mountPath = (vol as any).target || vol.mount;
+
           if (vol.name) {
             // Named volume: "volume-name:/mount/path[:ro]"
-            return `${vol.name}:${vol.mount}${vol.readOnly ? ':ro' : ''}`;
+            return `${vol.name}:${mountPath}${vol.readOnly ? ':ro' : ''}`;
           } else if (vol.source) {
             // Bind mount: "source:/mount/path[:ro]"
-            return `${vol.source}:${vol.mount}${vol.readOnly ? ':ro' : ''}`;
+            return `${vol.source}:${mountPath}${vol.readOnly ? ':ro' : ''}`;
           } else {
             // Fallback: just the mount path (anonymous volume)
-            return vol.mount;
+            return mountPath;
           }
         });
       }

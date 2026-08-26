@@ -169,12 +169,17 @@ export class InfrastructureRegistry {
   ): InfrastructureSpec | null {
     const architecture = this.loadArchitecture(repoRoot);
 
+    // Sprint 25: Agent-dev contexts are ephemeral and inherit infrastructure from 'local'
+    // Fall back to 'local' context for infrastructure resolution
+    const effectiveContext = context.startsWith('agent-dev-') ? 'local' : context;
+
     // Get execution context
-    const executionContext = architecture.executionContexts![context];
+    const executionContext = architecture.executionContexts![effectiveContext];
     if (!executionContext) {
       throw new Error(
-        `Execution context "${context}" not found in architecture.yaml\n` +
-          `Available contexts: ${Object.keys(architecture.executionContexts!).join(', ')}`
+        `Execution context "${effectiveContext}" not found in architecture.yaml\n` +
+          `Available contexts: ${Object.keys(architecture.executionContexts!).join(', ')}\n` +
+          `Original context: "${context}"`
       );
     }
 

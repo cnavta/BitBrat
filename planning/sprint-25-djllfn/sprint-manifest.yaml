@@ -1,0 +1,50 @@
+id: sprint-25-djllfn
+title: Agent-Dev Environment Stabilization
+goal: Address issues with agent-dev environments to make them stable and
+  reliable for agent use, enabling confident testing and validation of new
+  features
+owner: Lead Implementor
+createdAt: 2026-08-25T22:02:41.897Z
+completedAt: 2026-08-26T07:00:00.000Z
+status: complete
+links:
+  branch: feature/sprint-25-djllfn-agent-dev-environment-stabiliz
+deliverables:
+  - Infrastructure services now included in agent-dev Docker Compose files
+  - Three critical fixes to context creation and infrastructure resolution
+  - Comprehensive validation and testing demonstrating fixes work
+  - Complete sprint documentation including summary and next-sprint planning
+artifacts:
+  - planning/sprint-25-djllfn/sprint-manifest.yaml
+  - planning/sprint-25-djllfn/backlog.yaml
+  - planning/sprint-25-djllfn/issues-found.md
+  - planning/sprint-25-djllfn/code-analysis.md
+  - planning/sprint-25-djllfn/implementation-notes.md
+  - planning/sprint-25-djllfn/sprint-25-summary.md
+  - planning/sprint-25-djllfn/next-sprint-execution-plan.md
+  - planning/sprint-25-djllfn/next-sprint-backlog.yaml
+  - planning/sprint-25-djllfn/request-log.md
+filesModified:
+  - tools/brat/src/commands/context/create.ts
+  - tools/brat/src/infrastructure/registry.ts
+notes: |
+  Sprint initialized via MCP start-sprint tool.
+
+  PRIMARY GOAL ACHIEVED: Agent-dev environments now include infrastructure
+  services (NATS, Redis, PostgreSQL) and can start successfully.
+
+  Root cause: scaffoldEnvironment() was calling getRequiredInfrastructure()
+  without contextName parameter, causing it to default to 'local' context
+  and fail to resolve infrastructure for agent-dev contexts.
+
+  Fixes implemented:
+  1. Added contextName parameter to getRequiredInfrastructure() call
+  2. Agent-dev contexts now inherit infrastructure from 'local' context
+  3. Added infrastructure.provider to ephemeral context configuration
+
+  Validation: Full runtime testing confirmed infrastructure services start
+  and reach healthy state. Discovered two follow-on issues (JetStream config
+  and environment variables) that are documented for next sprint.
+
+  Impact: Unblocks agent-dev usage for testing, enables sprint protocol
+  compliance, validates CLAUDE.md guidance to test in agent-dev.
