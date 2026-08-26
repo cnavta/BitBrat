@@ -311,3 +311,31 @@ The sprint unblocks agent-dev usage for testing and validates CLAUDE.md guidance
 - Runtime execution requires Docker environment with bitbrat-base image
 - Tests designed to skip gracefully in CI if Docker unavailable
 - Intended for manual execution or Docker-enabled CI environments
+
+---
+
+## Final Fixes and Validation
+
+**Issue**: Template path resolution and missing environment variables
+- Template path was resolving to `tools/.env.agent-dev.template` instead of repo root
+- Missing service-specific LLM variables (LLM_BOT_*, QUERY_ANALYZER_*)
+- Missing Twitch variables (TWITCH_BOT_USERNAME, TWITCH_CHANNELS)
+- Docker Compose config validation test not loading .env.brat file
+
+**Fixes Applied** (Commit d9b06c5d):
+1. **Template Path**: Changed from 3 levels up to 4 levels up in path calculation
+2. **Missing Variables**: Added 13 variables to .env.agent-dev.template
+3. **Test Fix**: Added `--env-file .env.brat` flag to Docker Compose config command
+
+**Final Validation Results**:
+- ✅ All 25 unit tests passing (env-parser: 19/19, infrastructure-commands: 6/6)
+- ✅ All 3 environment validation tests passing
+- ✅ Zero Docker Compose environment variable warnings
+- ✅ Template correctly loaded and all required variables present
+- ⚠️ Integration tests (E2E, JetStream) require Docker infrastructure (obs-mcp base image)
+
+**Sprint Completion**:
+- **Core Tasks**: 9/9 completed (T1.1-T3.1, T4.1-T4.2) ✅
+- **Optional Tasks**: 7 pending (T4.3, T5.1-T5.2, T6.1-T6.2, T7.1) - documented for future sprints
+- **Test Coverage**: 33 tests total (25 unit + 3 integration + 5 E2E designed)
+- **Status**: ✅ All minimum viable completion criteria met

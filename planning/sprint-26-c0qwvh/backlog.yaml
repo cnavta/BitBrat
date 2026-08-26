@@ -342,10 +342,11 @@ tasks:
   - id: T4.1
     title: Add compose generation unit tests
     priority: P1
-    status: pending
+    status: completed
     phase: 4
     category: testing
     estimatedHours: 2
+    actualHours: 1
     blockedBy: [T1.2]
     blocks: []
     description: |
@@ -379,10 +380,11 @@ tasks:
   - id: T4.2
     title: Add environment generation unit tests
     priority: P1
-    status: pending
+    status: completed
     phase: 4
     category: testing
     estimatedHours: 1
+    actualHours: 1
     blockedBy: [T2.2]
     blocks: []
     description: |
