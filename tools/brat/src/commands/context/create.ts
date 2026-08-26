@@ -679,7 +679,8 @@ export function generateEnvBrat(
   userOverrides?: Record<string, string>
 ): string {
   // Try to read template file (fallback to empty if not found)
-  const templatePath = path.join(path.dirname(__dirname), '../../../.env.agent-dev.template');
+  // From tools/brat/dist/commands/context, go up to repo root: ../../../../
+  const templatePath = path.join(path.dirname(__dirname), '../../../../.env.agent-dev.template');
   let templateEnv = new Map<string, string>();
 
   if (fs.existsSync(templatePath)) {

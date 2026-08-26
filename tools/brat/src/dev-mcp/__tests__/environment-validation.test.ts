@@ -101,8 +101,9 @@ describe('Environment Variable Validation (T2.3)', () => {
     try {
       // Run docker compose config to validate the configuration
       // This will show warnings for unset environment variables
+      const envBratPath = path.join(repoRoot, '.env.brat');
       const { stderr } = await execAsync(
-        `docker compose -f ${composePath} --project-directory ${repoRoot} config`,
+        `docker compose -f ${composePath} --project-directory ${repoRoot} --env-file ${envBratPath} config`,
         { env: { ...process.env, COMPOSE_PROJECT_NAME: `bitbrat-${contextName}` } }
       );
 
