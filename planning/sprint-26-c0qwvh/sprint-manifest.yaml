@@ -4,7 +4,7 @@ goal: Complete agent-dev functionality with JetStream auto-config, environment
   defaults, and E2E validation
 owner: Lead Implementor
 createdAt: 2026-08-26T13:54:42.631Z
-status: in-progress
+status: validating
 links:
   branch: feature/sprint-26-c0qwvh-agent-dev-environment-completi
 notes: Sprint initialized via MCP start-sprint tool

@@ -69,7 +69,7 @@ describe('Agent-Dev End-to-End (!ping test) - T3.1', () => {
     // Clean up - destroy the test context
     try {
       console.log(`Cleaning up context: ${contextName}...`);
-      await manager.destroy(contextName, true);
+      await manager.destroy(contextName);
       console.log('Cleanup complete!');
     } catch (error) {
       console.warn('Failed to destroy test context:', error);

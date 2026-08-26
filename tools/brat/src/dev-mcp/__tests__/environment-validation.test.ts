@@ -48,7 +48,7 @@ describe('Environment Variable Validation (T2.3)', () => {
 
     // Clean up - destroy the test context
     try {
-      await manager.destroy(contextName, true);
+      await manager.destroy(contextName);
     } catch (error) {
       console.warn('Failed to destroy test context:', error);
       // Non-fatal - test context can be manually cleaned up
