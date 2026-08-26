@@ -1,0 +1,814 @@
+# Agent-Dev Environment Completion - Sprint Backlog
+# Sprint: sprint-26-proposed (follows sprint-25-djllfn)
+# Owner: Lead Implementor
+# Created: 2026-08-26
+# Based on: Sprint 25 discoveries and next-sprint-execution-plan.md
+
+metadata:
+  sprint: sprint-26-proposed
+  title: Agent-Dev Environment Completion
+  goal: Complete agent-dev functionality with JetStream auto-config, environment defaults, and E2E validation
+  created: 2026-08-26T03:00:00.000Z
+  estimatedEffort: 12-16 hours
+  priority: P1 (Critical for developer experience)
+  dependencies:
+    - Sprint 25 fixes merged to main
+  references:
+    - planning/sprint-25-djllfn/sprint-25-summary.md
+    - planning/sprint-25-djllfn/next-sprint-execution-plan.md
+    - planning/sprint-25-djllfn/issues-found.md
+
+# Priority Legend:
+# P0 = Blocker (cannot proceed without this)
+# P1 = Critical (major functionality broken)
+# P2 = Important (significant improvement)
+# P3 = Nice-to-have (quality of life)
+
+tasks:
+  # === PHASE 1: NATS JETSTREAM AUTO-CONFIGURATION (P0) ===
+
+  - id: T1.1
+    title: Implement infrastructure config → command translation
+    priority: P0
+    status: completed
+    phase: 1
+    category: infrastructure
+    estimatedHours: 3
+    actualHours: 2
+    blockedBy: []
+    blocks: [T1.2, T1.3, T3.1]
+    issue: "Sprint 25 Discovery: NATS JetStream not enabled"
+    description: |
+      Add function to translate architecture.yaml infrastructure config
+      into Docker Compose command arguments.
+
+      Currently: config.jetstream: true is read but not applied
+      Target: Generated compose includes command: ["-js", "-sd", "/data", "-m", "8222"]
+
+    acceptanceCriteria:
+      - buildInfrastructureCommand() function handles NATS JetStream
+      - buildInfrastructureCommand() function handles Redis persistence
+      - config.jetstream: true → command with -js flag
+      - config.appendonly: yes → command with --appendonly yes
+      - Function returns undefined for services without special commands
+      - Unit tests cover all infrastructure services
+
+    technicalApproach:
+      - Add buildInfrastructureCommand() to generate-docker-compose.ts
+      - Read infrastructure.docker.<service>.config from architecture.yaml
+      - Map well-known config keys to command arguments
+      - NATS: jetstream → -js, -sd /data, -m 8222
+      - Redis: appendonly → --appendonly yes, --appendfsync <value>
+      - Return undefined for services without command requirements
+
+    testPlan:
+      - Unit test: buildInfrastructureCommand('nats', { jetstream: true })
+      - Unit test: buildInfrastructureCommand('redis', { appendonly: 'yes' })
+      - Unit test: buildInfrastructureCommand('postgres', {}) returns undefined
+      - Integration test: Generated compose includes command sections
+
+    files:
+      - tools/brat/src/context/generate-docker-compose.ts (modify)
+      - tools/brat/src/context/__tests__/infrastructure-commands.test.ts (new)
+
+    references:
+      - architecture.yaml lines 199-234 (infrastructure.docker.messaging config)
+      - docker-compose.local.yaml lines 30-50 (working NATS command example)
+
+  - id: T1.2
+    title: Integrate command builder into compose generation
+    priority: P0
+    status: completed
+    phase: 1
+    category: infrastructure
+    estimatedHours: 2
+    actualHours: 0.5
+    blockedBy: [T1.1]
+    blocks: [T1.3, T3.1]
+    description: |
+      Update generateDockerCompose() to call buildInfrastructureCommand()
+      for each infrastructure service and include result in compose file.
+
+    acceptanceCriteria:
+      - generateDockerCompose() calls buildInfrastructureCommand() for infra services
+      - Generated compose includes command section when function returns value
+      - Command section omitted when function returns undefined
+      - Integration test validates command presence in generated files
+
+    technicalApproach:
+      - In generateDockerCompose(), after adding infrastructure services
+      - For each infrastructure service, call buildInfrastructureCommand()
+      - If result is not undefined, add command section to service definition
+      - Preserve existing behavior for services without commands
+
+    testPlan:
+      - Integration test: Generate agent-dev compose, verify nats has command
+      - Integration test: Generate agent-dev compose, verify redis has command
+      - Integration test: Generate agent-dev compose, verify postgres has no command
+      - Regression test: Local compose generation still works
+
+    files:
+      - tools/brat/src/context/generate-docker-compose.ts (modify)
+      - tools/brat/src/context/__tests__/compose-generation.test.ts (new)
+
+  - id: T1.3
+    title: Validate JetStream enabled in running container
+    priority: P0
+    status: completed
+    phase: 1
+    category: validation
+    estimatedHours: 1
+    actualHours: 1
+    blockedBy: [T1.1, T1.2]
+    blocks: [T3.1]
+    description: |
+      Add test that provisions agent-dev, starts NATS, and verifies
+      JetStream is actually enabled (not just command present in compose).
+
+    acceptanceCriteria:
+      - Test provisions fresh agent-dev context
+      - Test starts NATS container
+      - Test checks NATS logs for "jetstream enabled" message
+      - Test verifies JetStream API responds
+      - Test cleans up context after completion
+
+    technicalApproach:
+      - Provision agent-dev context in test setup
+      - Start services with docker compose up
+      - Read NATS container logs: docker logs <container>
+      - Assert logs contain "jetstream enabled"
+      - Optional: curl http://localhost:8222/jsz to verify API
+
+    testPlan:
+      - Integration test: Full lifecycle (provision → start → validate → destroy)
+      - Test timeout: 120 seconds (generous for slow systems)
+      - Test cleanup: Always destroy context in afterAll()
+
+    files:
+      - tools/brat/src/infrastructure/__tests__/jetstream-validation.test.ts (new)
+
+  # === PHASE 2: ENVIRONMENT VARIABLE DEFAULTS (P0) ===
+
+  - id: T2.1
+    title: Create .env.agent-dev.template with all required variables
+    priority: P0
+    status: completed
+    phase: 2
+    category: configuration
+    estimatedHours: 2
+    actualHours: 1
+    blockedBy: []
+    blocks: [T2.2, T3.1]
+    issue: "Sprint 25 Discovery: Missing environment variables"
+    description: |
+      Create comprehensive .env template with all required platform variables,
+      optional integration variables, and feature flags.
+
+      Template should include:
+      - Required platform vars (LLM_PROVIDER, REDIS_URL, etc.)
+      - Optional integration vars (Slack, Discord, Twilio)
+      - Feature flags (API_GATEWAY_ALLOW_ANONYMOUS_WS, etc.)
+      - Persistence settings
+      - Clear comments explaining each section
+
+    acceptanceCriteria:
+      - Template includes all variables from architecture.yaml services.*.env
+      - Required variables have sane defaults
+      - Optional variables documented as optional with blank defaults
+      - Secrets (API keys, tokens) left blank with instructions
+      - Comments explain purpose of each section
+      - Template validated against actual service requirements
+
+    technicalApproach:
+      - Audit architecture.yaml for all env variables across services
+      - Group variables by category (platform, integrations, features)
+      - Provide defaults for required non-secret variables
+      - Leave secrets blank with TODO comments
+      - Add header explaining template usage
+      - Add footer with reference to documentation
+
+    testPlan:
+      - Manual review: All services' env requirements covered
+      - Validation script: Parse template and check for required vars
+      - Integration test: Use template in agent-dev provision
+
+    files:
+      - .env.agent-dev.template (new)
+
+    references:
+      - architecture.yaml services section (env definitions)
+      - .env.example (if exists - reference structure)
+      - planning/sprint-25-djllfn/issues-found.md (missing vars list)
+
+  - id: T2.2
+    title: Implement template-based .env.brat generation
+    priority: P0
+    status: completed
+    phase: 2
+    category: configuration
+    estimatedHours: 2
+    actualHours: 2
+    blockedBy: [T2.1]
+    blocks: [T2.3, T3.1]
+    description: |
+      Update agent-dev provision to use .env.agent-dev.template instead
+      of hardcoded variable generation.
+
+      Merge strategy: template defaults + user overrides + context-specific
+
+    acceptanceCriteria:
+      - generateEnvironmentFile() reads .env.agent-dev.template
+      - Function parses template into key-value pairs
+      - Function merges: defaults + user overrides + context-specific
+      - Context-specific includes: BITBRAT_CONTEXT, POSTGRES_PASSWORD
+      - Generated .env.brat preserves comments from template
+      - Function handles missing template gracefully (fallback to hardcoded)
+
+    technicalApproach:
+      - Create parseEnvFile() utility to parse .env format
+      - Read template from .env.agent-dev.template
+      - Parse into Map<string, string>
+      - Merge with user-provided overrides (from provision params)
+      - Add context-specific values (contextName, generated passwords)
+      - Write merged result to .env.brat
+      - Preserve comments and structure if possible
+
+    testPlan:
+      - Unit test: parseEnvFile() handles comments, quotes, multiline
+      - Unit test: Merge strategy applies correct precedence
+      - Integration test: Provision generates .env.brat with all vars
+      - Regression test: Existing provision parameters still work
+
+    files:
+      - tools/brat/src/utils/env-parser.ts (new)
+      - tools/brat/src/dev-mcp/agent-dev-context-manager.ts (modify)
+      - tools/brat/src/utils/__tests__/env-parser.test.ts (new)
+
+  - id: T2.3
+    title: Validate zero Docker Compose warnings
+    priority: P0
+    status: completed
+    phase: 2
+    category: validation
+    estimatedHours: 1
+    actualHours: 1
+    blockedBy: [T2.2]
+    blocks: [T3.1]
+    description: |
+      Add test that provisions agent-dev and verifies Docker Compose build
+      produces zero warnings about unset environment variables.
+
+    acceptanceCriteria:
+      - Test provisions fresh agent-dev context
+      - Test runs: docker compose build
+      - Test captures stderr output
+      - Test asserts no "variable is not set" warnings
+      - Test documents any acceptable warnings (if necessary)
+
+    technicalApproach:
+      - Provision agent-dev context
+      - Run: docker compose -f <compose> build 2>&1
+      - Parse stderr for warnings
+      - Filter out acceptable warnings (document why)
+      - Assert zero unacceptable warnings
+      - Cleanup context
+
+    testPlan:
+      - Integration test: Full build with warning detection
+      - Test timeout: 300 seconds (build can be slow)
+      - Negative test: Missing required var should trigger warning
+
+    files:
+      - tools/brat/src/dev-mcp/__tests__/environment-validation.test.ts (new)
+
+  # === PHASE 3: END-TO-END VALIDATION (P1) ===
+
+  - id: T3.1
+    title: Implement !ping E2E test
+    priority: P1
+    status: completed
+    phase: 3
+    category: validation
+    estimatedHours: 4
+    actualHours: 2
+    blockedBy: [T1.2, T2.2]
+    blocks: []
+    description: |
+      Create comprehensive E2E test that validates full agent-dev stack:
+      1. Provision context
+      2. Start all services
+      3. Send !ping via WebSocket
+      4. Verify pong response received
+      5. Cleanup
+
+      This is the ultimate validation that agent-dev environments work.
+
+    acceptanceCriteria:
+      - Test provisions agent-dev context (unique name)
+      - Test starts services and waits for healthy state
+      - Test connects to api-gateway WebSocket
+      - Test sends chat.message.v1 with "!ping"
+      - Test receives response with "pong" within 5 seconds
+      - Test verifies message persisted to PostgreSQL
+      - Test cleans up context in afterAll (even if test fails)
+
+    technicalApproach:
+      - Setup: Provision and start agent-dev context
+      - Use WebSocket client to connect to ws://localhost:3004/ws/v1
+      - Send message with correlationId for tracking
+      - Listen for response with matching correlationId
+      - Timeout after 5 seconds if no response
+      - Query PostgreSQL to verify persistence
+      - Teardown: Destroy context
+
+    testPlan:
+      - E2E test: Happy path (!ping → pong)
+      - E2E test: Verify persistence (query snapshots table)
+      - E2E test: Timeout if no response (negative test)
+      - Test timeout: 120 seconds (full stack startup)
+      - Cleanup: Always runs even if test fails
+
+    files:
+      - tools/brat/src/dev-mcp/__tests__/agent-dev-e2e.test.ts (new)
+      - tools/brat/src/dev-mcp/__tests__/helpers/websocket-client.ts (new)
+      - tools/brat/src/dev-mcp/__tests__/helpers/postgres-client.ts (new)
+
+    references:
+      - src/apps/llm-bot-service.ts (ping command handler)
+      - src/apps/api-gateway.ts (WebSocket implementation)
+
+  # === PHASE 4: REGRESSION PREVENTION (P1) ===
+
+  - id: T4.1
+    title: Add compose generation unit tests
+    priority: P1
+    status: completed
+    phase: 4
+    category: testing
+    estimatedHours: 2
+    actualHours: 1
+    blockedBy: [T1.2]
+    blocks: []
+    description: |
+      Comprehensive unit tests for Docker Compose generation to prevent
+      regressions like Sprint 25's missing infrastructure services.
+
+    acceptanceCriteria:
+      - Test: Infrastructure services included
+      - Test: JetStream command present when config.jetstream: true
+      - Test: Health checks defined for all infrastructure
+      - Test: Networks configured correctly
+      - Test: Volumes defined for persistence
+      - Test: Port mappings correct
+      - Test: Environment variables passed through
+
+    technicalApproach:
+      - Mock architecture.yaml and context config
+      - Call generateDockerCompose()
+      - Parse resulting YAML
+      - Assert on service definitions, commands, health checks
+      - Test both agent-dev and local contexts
+
+    testPlan:
+      - Unit tests for each acceptance criterion
+      - Snapshot test for full generated compose
+      - Negative test: Missing infrastructure should be detectable
+
+    files:
+      - tools/brat/src/context/__tests__/compose-generation.test.ts (new/extend)
+
+  - id: T4.2
+    title: Add environment generation unit tests
+    priority: P1
+    status: completed
+    phase: 4
+    category: testing
+    estimatedHours: 1
+    actualHours: 1
+    blockedBy: [T2.2]
+    blocks: []
+    description: |
+      Unit tests for .env.brat generation to ensure required variables
+      are always included.
+
+    acceptanceCriteria:
+      - Test: Template parsed correctly
+      - Test: Required variables have defaults
+      - Test: User overrides applied
+      - Test: Context-specific values added
+      - Test: Merge precedence correct
+      - Test: Missing template handled gracefully
+
+    technicalApproach:
+      - Mock .env.agent-dev.template
+      - Call generateEnvironmentFile()
+      - Parse resulting .env.brat
+      - Assert required variables present with correct values
+      - Test merge scenarios (default vs override vs context-specific)
+
+    testPlan:
+      - Unit test for each merge scenario
+      - Test with missing template (fallback behavior)
+      - Test with user overrides
+      - Test with context-specific values
+
+    files:
+      - tools/brat/src/dev-mcp/__tests__/environment-generation.test.ts (new)
+
+  - id: T4.3
+    title: Add agent-dev tests to CI pipeline
+    priority: P1
+    status: pending
+    phase: 4
+    category: ci
+    estimatedHours: 1
+    blockedBy: [T3.1, T4.1, T4.2]
+    blocks: []
+    description: |
+      Integrate agent-dev tests into CI pipeline to catch regressions
+      before they reach main branch.
+
+    acceptanceCriteria:
+      - Unit tests run on every PR
+      - Integration tests run on every PR
+      - E2E test runs on every PR (or nightly if too slow)
+      - CI fails if any agent-dev test fails
+      - Test results visible in PR status checks
+
+    technicalApproach:
+      - Add agent-dev test job to .github/workflows/ci.yml
+      - Install Docker in CI environment
+      - Run npm test with agent-dev test filter
+      - Upload test results as artifacts
+      - Configure job timeout (10 minutes)
+
+    testPlan:
+      - Trigger CI manually and verify tests run
+      - Break a test intentionally and verify CI fails
+      - Fix test and verify CI passes
+
+    files:
+      - .github/workflows/ci.yml (modify)
+
+  # === PHASE 5: DEVELOPER EXPERIENCE (P2) ===
+
+  - id: T5.1
+    title: Implement pre-flight validation
+    priority: P2
+    status: pending
+    phase: 5
+    category: dx
+    estimatedHours: 3
+    blockedBy: []
+    blocks: [T5.2]
+    description: |
+      Add validation that runs before agent_dev.start() to catch common
+      issues and provide clear error messages.
+
+      Checks:
+      - Compose file exists and is valid YAML
+      - No undefined service references
+      - No port conflicts
+      - Required environment variables present
+
+    acceptanceCriteria:
+      - validateBeforeStart() function performs all checks
+      - Function returns { valid: boolean, errors: string[], warnings: string[] }
+      - Errors include remediation steps
+      - Warnings are non-blocking
+      - agent_dev.start() calls validator before attempting Docker start
+
+    technicalApproach:
+      - Create agent-dev-validator.ts module
+      - Implement checks:
+        1. Compose file existence + YAML validity
+        2. Service dependency resolution (detect undefined refs)
+        3. Port conflict detection (docker ps + compose ports)
+        4. Environment variable validation (.env.brat parsing)
+      - Return structured result with errors and warnings
+      - Integrate into agent_dev.start() before Docker Compose call
+
+    testPlan:
+      - Unit test: Each validation check
+      - Integration test: Validation catches real issues
+      - Negative test: Missing compose file detected
+      - Negative test: Port conflict detected
+      - Negative test: Missing env var detected
+
+    files:
+      - tools/brat/src/dev-mcp/agent-dev-validator.ts (new)
+      - tools/brat/src/dev-mcp/__tests__/validator.test.ts (new)
+      - tools/brat/src/dev-mcp/agent-dev-context-manager.ts (modify)
+
+  - id: T5.2
+    title: Improve error messages with remediation steps
+    priority: P2
+    status: pending
+    phase: 5
+    category: dx
+    estimatedHours: 2
+    blockedBy: [T5.1]
+    blocks: []
+    description: |
+      Parse Docker Compose errors and provide context-specific remediation
+      guidance instead of raw Docker output.
+
+    acceptanceCriteria:
+      - parseDockerError() extracts error type and details
+      - Known errors mapped to remediation steps:
+        - undefined_service → re-provision instructions
+        - port_conflict → how to find and stop conflicting container
+        - missing_image → run docker compose build
+        - health_check_failed → check logs for specific service
+      - Unknown errors show original message + link to docs
+      - Error messages are actionable (tell user exactly what to do)
+
+    technicalApproach:
+      - Create docker-error-parser.ts module
+      - Define error patterns (regex for common Docker errors)
+      - Map each pattern to { type, details, remediation }
+      - Wrap agent_dev.start() Docker calls with error parser
+      - Format errors with clear structure:
+        ❌ What went wrong
+        🔍 Root cause
+        💡 How to fix
+
+    testPlan:
+      - Unit test: Parse each known error type
+      - Unit test: Unknown errors fall through to default handler
+      - Integration test: Trigger each error scenario and verify message
+      - Manual test: Review error messages for clarity
+
+    files:
+      - tools/brat/src/utils/docker-error-parser.ts (new)
+      - tools/brat/src/utils/__tests__/docker-error-parser.test.ts (new)
+      - tools/brat/src/dev-mcp/agent-dev-context-manager.ts (modify)
+
+  # === PHASE 6: DOCUMENTATION (P3) ===
+
+  - id: T6.1
+    title: Write agent-dev troubleshooting guide
+    priority: P3
+    status: pending
+    phase: 6
+    category: documentation
+    estimatedHours: 2
+    blockedBy: [T3.1, T5.1, T5.2]
+    blocks: []
+    description: |
+      Comprehensive troubleshooting guide based on real issues discovered
+      during Sprint 25 and Sprint 26 development.
+
+    acceptanceCriteria:
+      - Guide covers common errors and solutions
+      - Includes troubleshooting flowchart (text-based)
+      - Documents Sprint 25 issues (infrastructure missing, JetStream, env vars)
+      - Provides debugging commands (docker ps, docker logs, etc.)
+      - Links to relevant code and configuration
+      - Reviewed by peer for clarity
+
+    technicalApproach:
+      - Structure: Problem → Diagnosis → Solution
+      - Include real error messages from testing
+      - Provide copy-paste commands for fixes
+      - Add "Quick Checklist" at top for common issues
+      - Add "Advanced Debugging" section for complex issues
+
+    testPlan:
+      - Manual review by peer
+      - Verify all links work
+      - Test commands on fresh system
+
+    files:
+      - documentation/guides/agent-dev-troubleshooting.md (new)
+
+  - id: T6.2
+    title: Update agent-dev contexts documentation
+    priority: P3
+    status: pending
+    phase: 6
+    category: documentation
+    estimatedHours: 1
+    blockedBy: [T3.1]
+    blocks: []
+    description: |
+      Update existing agent-dev documentation to reflect Sprint 25 and 26
+      improvements.
+
+    acceptanceCriteria:
+      - Documentation reflects current behavior
+      - Includes examples of provision, start, test, destroy
+      - Documents environment variable customization
+      - Links to troubleshooting guide
+      - Reviewed by peer
+
+    technicalApproach:
+      - Update documentation/guides/agent-dev-contexts.md
+      - Add "What's New" section mentioning Sprint 25/26 fixes
+      - Update examples to show latest API
+      - Add section on customizing environment variables
+      - Link to troubleshooting guide
+
+    testPlan:
+      - Manual review
+      - Verify examples work
+
+    files:
+      - documentation/guides/agent-dev-contexts.md (modify)
+
+  # === PHASE 7: OBSERVABILITY (P3) ===
+
+  - id: T7.1
+    title: Add real-time health check feedback
+    priority: P3
+    status: pending
+    phase: 7
+    category: dx
+    estimatedHours: 3
+    blockedBy: []
+    blocks: []
+    description: |
+      Show real-time progress as services start and health checks pass,
+      improving visibility into long startup times.
+
+    acceptanceCriteria:
+      - agent_dev.start() shows progress updates
+      - Each service shows: starting → unhealthy → healthy
+      - Progress updates every 2 seconds
+      - Shows time elapsed for each service
+      - Final summary shows total startup time
+      - Optional --quiet flag to suppress progress
+
+    technicalApproach:
+      - Start Docker Compose in background (detached mode)
+      - Poll docker ps for service status every 2 seconds
+      - Parse health check state from Docker API
+      - Display updates with status icons (⋯ starting, ✗ unhealthy, ✓ healthy)
+      - Stop polling when all healthy or any failed
+      - Respect --quiet flag from MCP call
+
+    testPlan:
+      - Manual test: Observe progress during startup
+      - Test: Verify accurate health status
+      - Test: --quiet flag suppresses progress
+      - Test: Progress stops when all healthy
+
+    files:
+      - tools/brat/src/dev-mcp/agent-dev-context-manager.ts (modify)
+      - tools/brat/src/utils/docker-health-checker.ts (new)
+
+# === SPRINT COMPLETION CRITERIA ===
+
+completionCriteria:
+  minimumViable:
+    - T1.2: JetStream auto-configured from architecture.yaml
+    - T2.2: Environment variables defaulted from template
+    - T3.1: "!ping E2E test passes"
+    - T4.1: Compose generation tests prevent regression
+    - T4.2: Environment generation tests prevent regression
+
+  recommended:
+    - T4.3: Tests run in CI pipeline
+    - T5.1: Pre-flight validation catches issues
+    - T5.2: Error messages provide remediation
+    - T6.1: Troubleshooting guide written
+
+  stretchGoals:
+    - T6.2: Documentation updated
+    - T7.1: Real-time health feedback
+
+# === RISK ASSESSMENT ===
+
+risks:
+  - risk: JetStream command translation more complex than expected
+    impact: high
+    probability: low
+    mitigation: Start with NATS-only hardcoded solution, generalize later
+    taskId: T1.1
+
+  - risk: Environment template gets out of sync with architecture.yaml
+    impact: medium
+    probability: high
+    mitigation: Document sync requirement in CLAUDE.md, consider auto-generation later
+    taskId: T2.1
+
+  - risk: E2E test flaky due to timing/resources
+    impact: medium
+    probability: medium
+    mitigation: Generous timeouts, retry logic, skip in resource-constrained CI
+    taskId: T3.1
+
+  - risk: Pre-flight validation has false positives
+    impact: low
+    probability: medium
+    mitigation: Make validation warnings non-blocking, provide override flag
+    taskId: T5.1
+
+  - risk: Documentation lag behind implementation
+    impact: low
+    probability: high
+    mitigation: Update docs in same PR as code changes
+    taskId: T6.1
+
+# === DEPENDENCIES ===
+
+dependencies:
+  external:
+    - Docker Compose V2 (already required)
+    - NATS 2.10+ with JetStream support (already used)
+    - PostgreSQL 15+ (already used)
+    - WebSocket client for testing (ws npm package)
+
+  internal:
+    - Sprint 25 fixes merged to main
+    - architecture.yaml infrastructure definitions stable
+    - Bit base class supports agent-dev contexts
+
+  blocking: []
+
+# === SUCCESS METRICS ===
+
+metrics:
+  quantitative:
+    - Zero "undefined service" errors in agent-dev: true
+    - Zero environment variable warnings during build: true
+    - E2E test passes in < 120 seconds: true
+    - Code coverage for agent-dev modules: ">= 90%"
+    - CI passes with agent-dev smoke test: true
+
+  qualitative:
+    - Developer can provision and start agent-dev without errors: true
+    - Error messages provide clear remediation steps: true
+    - Documentation answers common questions: true
+    - Agent-dev behavior matches local environment: true
+
+# === IMPLEMENTATION SEQUENCE ===
+
+sequence:
+  week1:
+    days: [1, 2, 3, 4]
+    focus: Core Functionality
+    tasks: [T1.1, T1.2, T1.3, T2.1, T2.2, T2.3, T3.1]
+    deliverable: Fully functional agent-dev environments
+
+  week2:
+    days: [5, 6]
+    focus: Quality & Testing
+    tasks: [T4.1, T4.2, T4.3, T5.1, T5.2]
+    deliverable: Regression prevention and improved DX
+
+  optional:
+    day: 7
+    focus: Documentation & Polish
+    tasks: [T6.1, T6.2, T7.1]
+    deliverable: Documentation and observability
+
+# === ROLLBACK PLAN ===
+
+rollback:
+  scenario: JetStream fix fails
+  options:
+    - Hardcode NATS command in agent-dev compose generation
+    - Document manual step to edit compose file
+    - Defer to future sprint, use workaround
+
+  scenario: Environment variable fix fails
+  options:
+    - Provide checklist of required variables
+    - Script to validate .env.brat completeness
+    - Pre-populate with working examples
+
+  scenario: E2E test fails
+  options:
+    - Manual testing checklist
+    - Document known issues
+    - Mark test as flaky, investigate separately
+
+# === POST-SPRINT ACTIONS ===
+
+postSprint:
+  immediate:
+    - Monitor agent-dev usage for issues
+    - Gather developer feedback
+    - Fix any critical bugs discovered
+
+  shortTerm:
+    - Auto-generate .env template from architecture.yaml
+    - Support custom infrastructure overrides
+    - Add agent-dev context sharing (export/import)
+
+  longTerm:
+    - Remote agent-dev contexts (deploy to cloud)
+    - Agent-dev context snapshots (save/restore state)
+    - Performance profiling in agent-dev
+    - Integration with CI/CD pipelines
+
+# === NOTES ===
+
+notes:
+  - Sprint 26 builds on Sprint 25's infrastructure inclusion fix
+  - Focus is on making agent-dev fully functional for daily development
+  - Phases 1-5 are core functionality (12-14 hours)
+  - Phases 6-7 are optional polish (3-4 hours)
+  - All tasks are independently valuable and can be scoped flexibly
+  - Success = developers use agent-dev confidently for testing

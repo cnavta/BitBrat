@@ -7,6 +7,7 @@ owner: christophernavta
 createdAt: 2026-08-16T20:15:19.650Z
 completedAt: 2026-08-16T23:45:00.000Z
 status: complete
+completionMode: normal
 links:
   branch: feature/sprint-16-aalwmj-twitch-eventsub-full-integrati
 notes: |

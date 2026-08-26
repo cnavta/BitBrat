@@ -18,6 +18,7 @@ import { getRequiredInfrastructure } from '../../context/parse-dependencies';
 import { generateAndWriteDockerCompose } from '../../context/generate-docker-compose';
 import { HealthGate } from '../../infrastructure/health-gate';
 import { InfrastructureRegistry } from '../../infrastructure/registry';
+import { parseEnvFile, mergeEnv, serializeEnvFile } from '../../utils/env-parser';
 
 export interface ContextCreateOptions {
   /** Non-interactive mode with all values from flags */
@@ -391,6 +392,11 @@ export async function buildNonInteractive(options: ContextCreateOptions): Promis
         driver: options.persistenceDriver || 'postgres',
       },
     },
+    // Sprint 25: Agent-dev contexts need infrastructure provider
+    // Default to 'docker' for docker-compose deployments
+    infrastructure: {
+      provider: deploymentType === 'docker-compose' ? 'docker' : deploymentType,
+    },
   };
 
   if (options.description) {
@@ -518,7 +524,7 @@ export async function scaffoldEnvironment(repoRoot: string, contextName: string,
     console.log('Generating Docker Compose configuration...');
 
     const activeServices = getActiveServicesArray(repoRoot);
-    const infrastructure = getRequiredInfrastructure(repoRoot, activeServices);
+    const infrastructure = getRequiredInfrastructure(repoRoot, activeServices, contextName);
 
     const composePath = generateAndWriteDockerCompose({
       repoRoot,
@@ -530,6 +536,15 @@ export async function scaffoldEnvironment(repoRoot: string, contextName: string,
     console.log(`   Generated: ${composePath}`);
     console.log(`   Services: ${activeServices.length} application services`);
     console.log(`   Infrastructure: ${Array.from(infrastructure).join(', ')}`);
+
+    // Sprint 25: Generate .env.brat file with required defaults for Docker Compose
+    // Place at project root since Docker Compose runs with --project-directory .
+    console.log();
+    console.log('Generating .env.brat file...');
+    const envBratPath = path.join(repoRoot, '.env.brat');
+    const envBratContent = generateEnvBrat(contextName, contextConfig);
+    fs.writeFileSync(envBratPath, envBratContent, 'utf8');
+    console.log(`   Generated: ${envBratPath}`);
   }
 }
 
@@ -642,6 +657,97 @@ export function generateInfraYaml(contextName: string, contextConfig: any): stri
 # Customize as needed for your infrastructure
 
 ${content}`;
+}
+
+/**
+ * Generate .env.brat file from template
+ * Sprint 26 T2.2: Template-based .env generation with merge strategy
+ *
+ * Merge precedence (highest to lowest):
+ * 1. Context-specific values (contextName, generated passwords)
+ * 2. User overrides (from contextConfig if provided)
+ * 3. Template defaults (.env.agent-dev.template)
+ *
+ * @param contextName - Context name
+ * @param contextConfig - Context configuration
+ * @param userOverrides - Optional user-provided overrides
+ * @returns .env.brat file content
+ */
+export function generateEnvBrat(
+  contextName: string,
+  contextConfig: any,
+  userOverrides?: Record<string, string>
+): string {
+  // Try to read template file (fallback to empty if not found)
+  // From tools/brat/dist/commands/context, go up to repo root: ../../../../
+  const templatePath = path.join(path.dirname(__dirname), '../../../../.env.agent-dev.template');
+  let templateEnv = new Map<string, string>();
+
+  if (fs.existsSync(templatePath)) {
+    const templateContent = fs.readFileSync(templatePath, 'utf-8');
+    templateEnv = parseEnvFile(templateContent);
+  } else {
+    console.warn(`[generateEnvBrat] Template not found at ${templatePath}, using minimal defaults`);
+  }
+
+  // Build context-specific overrides
+  const persistenceDriver = contextConfig.runtime?.persistence?.driver || 'postgres';
+  const conn = contextConfig.runtime?.persistence?.connection;
+
+  const contextSpecific = new Map<string, string>([
+    ['BITBRAT_CONTEXT', contextName],
+    ['NODE_ENV', 'development'],
+    ['PERSISTENCE_DRIVER', persistenceDriver],
+  ]);
+
+  // Add PostgreSQL-specific config
+  if (persistenceDriver === 'postgres') {
+    if (conn) {
+      const dbUrl = `postgresql://${conn.username}:${conn.password}@${conn.host}:${conn.port}/${conn.database}`;
+      contextSpecific.set('DATABASE_URL', dbUrl);
+      contextSpecific.set('POSTGRES_PASSWORD', conn.password);
+      contextSpecific.set('POSTGRES_USER', conn.username);
+      contextSpecific.set('POSTGRES_DB', conn.database);
+    } else {
+      // Default for Docker Compose deployments
+      contextSpecific.set('DATABASE_URL', 'postgresql://bitbrat:bitbrat@postgres:5432/bitbrat');
+      contextSpecific.set('POSTGRES_PASSWORD', 'bitbrat');
+      contextSpecific.set('POSTGRES_USER', 'bitbrat');
+      contextSpecific.set('POSTGRES_DB', 'bitbrat');
+    }
+  }
+
+  // Convert user overrides to Map
+  const userOverridesMap = new Map<string, string>();
+  if (userOverrides) {
+    for (const [key, value] of Object.entries(userOverrides)) {
+      userOverridesMap.set(key, value);
+    }
+  }
+
+  // Merge: template defaults + user overrides + context-specific
+  const merged = mergeEnv(templateEnv, userOverridesMap, contextSpecific);
+
+  // Serialize with custom header
+  const header = `# .env.brat - Environment Variables for ${contextName}
+# Auto-generated from .env.agent-dev.template
+# Sprint 26 T2.2: Template-based environment generation
+# Generated: ${new Date().toISOString()}
+
+`;
+
+  const body = Array.from(merged.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map((entry) => {
+      const [key, value] = entry;
+      // Quote values with spaces
+      const needsQuoting = /[\s#]/.test(value);
+      const quotedValue = needsQuoting ? `"${value}"` : value;
+      return `${key}=${quotedValue}`;
+    })
+    .join('\n');
+
+  return header + body + '\n';
 }
 
 /**
