@@ -242,6 +242,12 @@ export function generateInfrastructureCompose(
         });
       }
 
+      // Sprint 26 T1.2: Add command if infrastructure needs special startup args
+      const command = buildInfrastructureCommand(infraName, spec.config || {});
+      if (command) {
+        composeDef.command = command;
+      }
+
       services[infraName] = composeDef;
     }
   } catch (error) {
@@ -297,6 +303,74 @@ export function generateDockerCompose(options: GenerateComposeOptions): ComposeC
   }
 
   return config;
+}
+
+/**
+ * Build Docker command array from infrastructure configuration
+ * Sprint 26 T1.1: Translates declarative config to runtime command arguments
+ *
+ * @param serviceName - Infrastructure service name (e.g., 'nats', 'redis')
+ * @param config - Merged configuration from architecture.yaml
+ * @returns Command array if service needs special startup args, undefined otherwise
+ *
+ * @example
+ * ```typescript
+ * // NATS with JetStream
+ * buildInfrastructureCommand('nats', { jetstream: true })
+ * // Returns: ['-js', '-sd', '/data', '-m', '8222']
+ *
+ * // Redis with AOF persistence
+ * buildInfrastructureCommand('redis', { appendonly: 'yes', appendfsync: 'everysec' })
+ * // Returns: ['redis-server', '--appendonly', 'yes', '--appendfsync', 'everysec']
+ *
+ * // PostgreSQL (no special command needed)
+ * buildInfrastructureCommand('postgres', {})
+ * // Returns: undefined
+ * ```
+ */
+function buildInfrastructureCommand(
+  serviceName: string,
+  config: Record<string, any>
+): string[] | undefined {
+  // NATS: Enable JetStream and monitoring
+  if (serviceName === 'nats' && config.jetstream === true) {
+    const cmd: string[] = [
+      '-js',            // Enable JetStream
+      '-sd', '/data',   // Store directory for JetStream persistence
+      '-m', '8222',     // Enable HTTP monitoring on port 8222
+    ];
+    return cmd;
+  }
+
+  // Redis: Configure persistence and eviction
+  if (serviceName === 'redis') {
+    const cmd: string[] = ['redis-server'];
+
+    // Append-only file (AOF) persistence
+    if (config.appendonly === 'yes' || config.appendonly === true) {
+      cmd.push('--appendonly', 'yes');
+
+      // AOF fsync mode (default: everysec)
+      const appendfsync = config.appendfsync || 'everysec';
+      cmd.push('--appendfsync', appendfsync);
+    }
+
+    // Memory management
+    if (config.maxmemory) {
+      cmd.push('--maxmemory', config.maxmemory);
+    }
+
+    if (config.evictionPolicy) {
+      cmd.push('--maxmemory-policy', config.evictionPolicy);
+    }
+
+    // Only return command if we added config beyond the base 'redis-server'
+    return cmd.length > 1 ? cmd : undefined;
+  }
+
+  // PostgreSQL, and other services don't need custom commands
+  // (they use environment variables for configuration)
+  return undefined;
 }
 
 /**
