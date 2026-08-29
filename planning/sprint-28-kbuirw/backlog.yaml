@@ -823,12 +823,21 @@ phases:
       - id: "6.4"
         title: Smoke test - Tool discovery
         priority: P0
-        status: pending
+        status: completed
+        completedNote: "Tool discovery verified: 251+ tools from 20 services"
         estimate: 15 min
         assignee: implementor
         dependencies: ["6.3"]
         test: tools/list via tool-gateway
         expected: Same count as agent-dev (150+)
+        actualResult:
+          - "21 services registered (20 BitBrat + 1 external MCP)"
+          - "auth: 14 tools, scheduler: 16, claim-check: 17, reflex: 17"
+          - "utility: 17, event-stream-analyzer: 17, tool-gateway: 12"
+          - "Total from BitBrat services: 249 tools"
+          - "Tavily external MCP: 2 tools (tavily-search, tavily-extract)"
+          - "obs-mcp: Running (tools not logged)"
+          - "Total verified: 251+ tools (exceeds 150+ baseline)"
         validation:
           - Tool count matches
         tags: [staging, smoke-test]
