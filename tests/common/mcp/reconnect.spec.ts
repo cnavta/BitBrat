@@ -1,5 +1,6 @@
 import { McpClientManager } from '../../../src/common/mcp/client-manager';
-import { Client, SSEClientTransport } from "@modelcontextprotocol/client";
+// Sprint 28: MCP SDK 2.0 - Use StreamableHTTPClientTransport
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 
 jest.mock('@modelcontextprotocol/client');
 jest.mock('@modelcontextprotocol/client');

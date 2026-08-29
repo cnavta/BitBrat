@@ -49,11 +49,12 @@ describe('McpBridge', () => {
 
     const result = await tool.execute!({ message: 'hello' }, { userRoles: [] });
 
+    // Sprint 28: MCP SDK 2.0 - callTool now takes only params (no schema argument)
     expect(mockClient.callTool).toHaveBeenCalledWith({
       name: 'echo',
       arguments: { message: 'hello' },
       _meta: { userRoles: [], userId: undefined }
-    }, expect.anything());
+    });
     expect(result).toBe('hello');
 
     const sStats = stats.getServerStats('test-server');

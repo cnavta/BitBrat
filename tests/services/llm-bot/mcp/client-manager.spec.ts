@@ -1,6 +1,7 @@
 import { McpClientManager } from '../../../../src/common/mcp/client-manager';
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
-import { Client, SSEClientTransport } from "@modelcontextprotocol/client";
+// Sprint 28: MCP SDK 2.0 - Use StreamableHTTPClientTransport
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { getFirestore } from '../../../../src/common/firebase';
 import { RegistryWatcher } from '../../../../src/common/mcp/registry-watcher';
 
@@ -99,6 +100,7 @@ describe('McpClientManager', () => {
     expect(stats?.transport).toBe('stdio');
   });
 
+  // Sprint 28: MCP SDK 2.0 - Test StreamableHTTPClientTransport instead of deprecated SSEClientTransport
   it('should connect to SSE servers', async () => {
     await manager.connectServer({
       name: 'sse-server',
@@ -106,7 +108,7 @@ describe('McpClientManager', () => {
       url: 'https://mcp.example.com/sse'
     });
 
-    expect(SSEClientTransport).toHaveBeenCalledWith(
+    expect(StreamableHTTPClientTransport).toHaveBeenCalledWith(
       new URL('https://mcp.example.com/sse'),
       expect.objectContaining({
         requestInit: { headers: undefined }

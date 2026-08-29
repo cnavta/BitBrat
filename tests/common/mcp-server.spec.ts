@@ -2,18 +2,8 @@ import request from "supertest";
 import { McpServer } from "../../src/common/mcp-server";
 import { z } from "zod";
 
-// Mock SSEServerTransport to avoid hanging SSE streams
-jest.mock("@modelcontextprotocol/server-legacy/sse", () => ({
-  SSEServerTransport: jest.fn().mockImplementation((_path, res) => {
-    // Immediately end the response to avoid hanging supertest
-    res.end();
-    return {
-      sessionId: "test-session",
-      onclose: jest.fn(),
-      handlePostMessage: jest.fn().mockResolvedValue(undefined),
-    };
-  }),
-}));
+// Sprint 28: MCP SDK 2.0 - No need to mock SSEServerTransport (stateless per-request architecture)
+// The v2.0 server doesn't use persistent SSE sessions, so these mocks are obsolete
 
 describe("McpServer", () => {
   let server: McpServer;

@@ -11,8 +11,9 @@
  * This solves the startup race condition without requiring manual restarts.
  */
 import { ToolListChangedNotificationSchema, ListToolsRequestSchema } from "@modelcontextprotocol/core";
-import { Server } from "@modelcontextprotocol/server";
-import { Client, SSEClientTransport } from "@modelcontextprotocol/client";
+// Sprint 28: MCP SDK 2.0 - Updated imports
+import { McpServer } from "@modelcontextprotocol/server";
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 
 describe('MCP Notification Flow Integration', () => {
   // This is a conceptual integration test. In practice, we'd need to:

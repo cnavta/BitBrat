@@ -1,5 +1,6 @@
 // Mock message bus to avoid NATS connection
-import { Client, SSEClientTransport } from "@modelcontextprotocol/client";
+// Sprint 28: MCP SDK 2.0 - Use StreamableHTTPClientTransport instead of deprecated SSEClientTransport
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 
 jest.mock('../../src/services/message-bus', () => ({
   createMessagePublisher: jest.fn(() => ({
@@ -41,12 +42,11 @@ describe('Tool Gateway MCP RBAC (Dynamic)', () => {
     }
   });
 
-  // FIXME: SSEClientTransport from @modelcontextprotocol/sdk doesn't properly pass auth token
-  // to the /sse endpoint. EventSource doesn't support custom headers for the initial GET request.
-  // Need to investigate proper auth mechanism for SSE connections or use a different transport.
+  // Sprint 28: MCP SDK 2.0 - StreamableHTTPClientTransport uses HTTP/SSE hybrid transport
+  // Auth token can be passed via headers (Authorization) or query param for backward compatibility
   it.skip('should enforce dynamic RBAC over shared MCP session', async () => {
     const registry = (gateway as any).registry as ToolRegistry;
-    
+
     // Register an admin tool
     const adminTool: BitBratTool = {
       id: 'admin-only-tool',
@@ -59,10 +59,12 @@ describe('Tool Gateway MCP RBAC (Dynamic)', () => {
     };
     registry.registerTool(adminTool);
 
-    // 1. Connect as a "bot" with minimal roles (provide auth token as query param)
-    const transport = new SSEClientTransport(new URL(`${gatewayUrl}/sse?token=test-token`), {
+    // 1. Connect as a "bot" with minimal roles (provide auth token in headers)
+    const transport = new StreamableHTTPClientTransport(new URL(`${gatewayUrl}/mcp`), {
       requestInit: {
         headers: {
+          'Authorization': 'Bearer test-token',
+          'x-mcp-token': 'test-token',
           'x-roles': 'bot',
           'x-agent-name': 'llm-bot'
         }

@@ -10,17 +10,8 @@ import {
   BitProfile,
 } from "../../src/common/profiles";
 
-// Mock SSEServerTransport so /sse does not hang the test runner (same pattern as bit-conformance).
-jest.mock("@modelcontextprotocol/server-legacy/sse", () => ({
-  SSEServerTransport: jest.fn().mockImplementation((_path, res) => {
-    res.end();
-    return {
-      sessionId: "profiles-session",
-      onclose: jest.fn(),
-      handlePostMessage: jest.fn().mockResolvedValue(undefined),
-    };
-  }),
-}));
+// Sprint 28: MCP SDK 2.0 - No need to mock SSEServerTransport (stateless per-request architecture)
+// The v2.0 server doesn't use persistent SSE sessions, so these mocks are obsolete
 
 /**
  * Bit model (sprint-324, Phase 2) — capability composition (ADR-002) unit tests.
