@@ -7,8 +7,7 @@
  * This solves the startup race condition where llm-bot connects before tool-gateway has discovered
  * all Bits, enabling automatic tool discovery without manual restarts.
  */
-
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { Server } from "@modelcontextprotocol/server";
 
 // Mock Firestore
 const setMock = jest.fn(async () => {});

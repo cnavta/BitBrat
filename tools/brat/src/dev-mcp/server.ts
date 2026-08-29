@@ -1,17 +1,5 @@
-/**
- * Dev MCP Server - Main server implementation
- *
- * Provides MCP server functionality for development tooling access.
- * Supports stdio transport for agent integration.
- */
-
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
-
+import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
+import { Server } from "@modelcontextprotocol/server";
 import { DevMcpServerOptions } from './types.js';
 import { TargetConnectionManager } from './target-manager.js';
 import { ToolRouter } from './tool-router.js';
@@ -162,14 +150,14 @@ export class DevMcpServer {
    */
   private registerHandlers(): void {
     // Handle tools/list
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+    this.server.setRequestHandler('tools/list', async () => {
       const tools = this.toolRouter.listTools();
       this.logger.debug({ count: tools.length }, 'Listed tools');
       return { tools };
     });
 
     // Handle tools/call
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    this.server.setRequestHandler('tools/call', async (request) => {
       const startTime = Date.now();
       const { name, arguments: args = {} } = request.params;
 

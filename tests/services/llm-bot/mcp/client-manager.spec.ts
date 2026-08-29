@@ -1,13 +1,12 @@
 import { McpClientManager } from '../../../../src/common/mcp/client-manager';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
+import { Client, SSEClientTransport } from "@modelcontextprotocol/client";
 import { getFirestore } from '../../../../src/common/firebase';
 import { RegistryWatcher } from '../../../../src/common/mcp/registry-watcher';
 
-jest.mock('@modelcontextprotocol/sdk/client/index.js');
-jest.mock('@modelcontextprotocol/sdk/client/stdio.js');
-jest.mock('@modelcontextprotocol/sdk/client/sse.js');
+jest.mock('@modelcontextprotocol/client');
+jest.mock('@modelcontextprotocol/client/stdio');
+jest.mock('@modelcontextprotocol/client');
 jest.mock('../../../../src/common/firebase');
 
 describe('McpClientManager', () => {

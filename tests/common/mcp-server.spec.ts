@@ -3,7 +3,7 @@ import { McpServer } from "../../src/common/mcp-server";
 import { z } from "zod";
 
 // Mock SSEServerTransport to avoid hanging SSE streams
-jest.mock("@modelcontextprotocol/sdk/server/sse.js", () => ({
+jest.mock("@modelcontextprotocol/server-legacy/sse", () => ({
   SSEServerTransport: jest.fn().mockImplementation((_path, res) => {
     // Immediately end the response to avoid hanging supertest
     res.end();

@@ -1,5 +1,4 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { Client, SSEClientTransport } from "@modelcontextprotocol/client";
 import type { Logger } from '../../orchestration/logger';
 import { ConfigurationError } from '../../orchestration/errors';
 import { FleetIdentity, FleetTool, FleetTransport, RegistryReader } from '../types';

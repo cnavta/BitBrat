@@ -1,5 +1,5 @@
 import { McpBridge } from '../../../../src/common/mcp/bridge';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { Client } from "@modelcontextprotocol/client";
 import { McpStatsCollector } from '../../../../src/common/mcp/stats-collector';
 
 describe('McpBridge', () => {

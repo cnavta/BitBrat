@@ -11,7 +11,7 @@ import {
 } from "../../src/common/profiles";
 
 // Mock SSEServerTransport so /sse does not hang the test runner (same pattern as bit-conformance).
-jest.mock("@modelcontextprotocol/sdk/server/sse.js", () => ({
+jest.mock("@modelcontextprotocol/server-legacy/sse", () => ({
   SSEServerTransport: jest.fn().mockImplementation((_path, res) => {
     res.end();
     return {

@@ -1,11 +1,10 @@
 import { McpClientManager } from '../../../src/common/mcp/client-manager';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
+import { Client, SSEClientTransport } from "@modelcontextprotocol/client";
 
-jest.mock('@modelcontextprotocol/sdk/client/index.js');
-jest.mock('@modelcontextprotocol/sdk/client/sse.js');
-jest.mock('@modelcontextprotocol/sdk/client/stdio.js');
+jest.mock('@modelcontextprotocol/client');
+jest.mock('@modelcontextprotocol/client');
+jest.mock('@modelcontextprotocol/client/stdio');
 
 const SECRET = 'sk-super-secret-value-XYZ';
 

@@ -2,7 +2,7 @@ import request from "supertest";
 import { Bit } from "../../src/common/base-server";
 
 // Mock SSEServerTransport so /sse does not hang the test runner.
-jest.mock("@modelcontextprotocol/sdk/server/sse.js", () => ({
+jest.mock("@modelcontextprotocol/server-legacy/sse", () => ({
   SSEServerTransport: jest.fn().mockImplementation((_path, res) => {
     res.end();
     return {

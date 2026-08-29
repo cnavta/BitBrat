@@ -1,6 +1,6 @@
 import { BitBratTool, BitBratResource, BitBratPrompt } from '../../types/tools';
 import { jsonSchema } from 'ai';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { Client } from "@modelcontextprotocol/client";
 import { McpStatsCollector } from './stats-collector';
 import { ProxyInvoker, ProxyInvokerOptions } from './proxy-invoker';
 import { normalizeError } from './error-utils';
@@ -68,7 +68,7 @@ export class McpBridge {
                 name: mcpTool.name,
                 arguments: args,
                 _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
-              } as any, (await import('@modelcontextprotocol/sdk/types.js')).CallToolResultSchema);
+              } as any, (await import('@modelcontextprotocol/client')).CallToolResultSchema);
 
           if (result.isError) {
             error = true;

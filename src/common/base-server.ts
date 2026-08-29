@@ -32,24 +32,14 @@ import { initializeTracing, shutdownTracing, getTracer, startActiveSpan, api } f
 import type { InternalEventV2, RoutingStep, RoutingStatus, SnapshotDeadletterV1, SnapshotDeliveryV1, SnapshotKind } from '../types/events';
 import { markSelectedCandidate } from './events/selection';
 import { features } from './feature-flags';
+// MCP SDK 2.0 imports (Sprint 28)
+import { Server as McpServer, CallToolResult, GetPromptResult, ReadResourceResult } from "@modelcontextprotocol/server";
+import { toNodeHandler } from "@modelcontextprotocol/node";
+import type { McpContext } from "@modelcontextprotocol/server";
 import { publishPersistenceSnapshot } from './events/persistence-snapshots';
 import { FeedbackMiddleware } from './middleware/feedback-middleware';
 import type { PublisherResource } from './resources/publisher-manager';
 // Bit model (sprint-324): MCP control-plane machinery folded down into the base abstraction.
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import {
-  CallToolResult,
-  GetPromptResult,
-  ListPromptsRequestSchema,
-  ListResourcesRequestSchema,
-  ListToolsRequestSchema,
-  ReadResourceResult,
-  CallToolRequestSchema,
-  ReadResourceRequestSchema,
-  GetPromptRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
 import { INTERNAL_MCP_REGISTRATION_V1 } from '../types/events';
 import { collectProfiles, enforceProfileContract } from './profiles/registry';
 import type { ContextBinding, ContextPack, ContextProvider } from './context/types';
@@ -122,9 +112,9 @@ export class Bit {
   protected mcpExposure?: McpExposure;
   /** The MCP Server instance. Always constructed; transport is only wired when enabled. */
   protected mcpServer!: Server;
-  protected readonly transports: Map<string, SSEServerTransport | StreamableHTTPServerTransport> = new Map();
+  protected readonly transports: Map<string, SSEServerTransport | NodeStreamableHTTPServerTransport> = new Map();
   /** Sprint 27: Single StreamableHTTPServerTransport instance (created once, reused for all requests) */
-  private streamableHttpTransport?: StreamableHTTPServerTransport;
+  private streamableHttpTransport?: NodeStreamableHTTPServerTransport;
   private readonly registeredTools: Map<string, { description: string; schema: any; handler: (args: any, extra?: any) => Promise<CallToolResult>; scopes?: string[] }> = new Map();
   private readonly registeredResources: Map<string, { name: string; description: string; handler: (uri: string, extra?: any) => Promise<ReadResourceResult> }> = new Map();
   private readonly registeredPrompts: Map<string, { description: string; args: { name: string; description?: string; required?: boolean }[]; handler: (name: string, args: Record<string, string>, extra?: any) => Promise<GetPromptResult> }> = new Map();
@@ -1795,16 +1785,16 @@ export class Bit {
     options?: { scopes?: string[] }
   ) {
     this.registeredTools.set(name, { description, schema, handler, scopes: options?.scopes });
-    this.mcpServer.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
+    this.mcpServer.setRequestHandler('tools/call', async (request, ctx) => {
       const tool = this.registeredTools.get(request.params.name);
       if (!tool) throw new Error(`Tool not found: ${request.params.name}`);
       const args = tool.schema.parse(request.params.arguments);
 
       const meta = (request.params as any)._meta;
       const combinedExtra = {
-        ...extra,
-        userId: meta?.userId || extra?.requestInfo?.headers?.['x-user-id'] || extra?.requestInfo?.headers?.['x-bitbrat-user-id'],
-        userRoles: meta?.userRoles || extra?.requestInfo?.headers?.['x-roles'] || extra?.requestInfo?.headers?.['x-bitbrat-roles']
+        ...ctx,
+        userId: meta?.userId || ctx?.http?.req?.headers?.['x-user-id'] || ctx?.http?.req?.headers?.['x-bitbrat-user-id'],
+        userRoles: meta?.userRoles || ctx?.http?.req?.headers?.['x-roles'] || ctx?.http?.req?.headers?.['x-bitbrat-roles']
       };
 
       return await this.traceMcpOperation(`tool:${request.params.name}`, () => tool.handler(args, combinedExtra));
@@ -1822,15 +1812,15 @@ export class Bit {
     handler: (uri: string, extra?: any) => Promise<ReadResourceResult>
   ) {
     this.registeredResources.set(uri, { name, description, handler });
-    this.mcpServer.setRequestHandler(ReadResourceRequestSchema, async (request, extra) => {
+    this.mcpServer.setRequestHandler('resources/read', async (request, ctx) => {
       const resource = this.registeredResources.get(request.params.uri);
       if (!resource) throw new Error(`Resource not found: ${request.params.uri}`);
 
       const meta = (request.params as any)._meta;
       const combinedExtra = {
-        ...extra,
-        userId: meta?.userId || extra?.requestInfo?.headers?.['x-user-id'] || extra?.requestInfo?.headers?.['x-bitbrat-user-id'],
-        userRoles: meta?.userRoles || extra?.requestInfo?.headers?.['x-roles'] || extra?.requestInfo?.headers?.['x-bitbrat-roles']
+        ...ctx,
+        userId: meta?.userId || ctx?.http?.req?.headers?.['x-user-id'] || ctx?.http?.req?.headers?.['x-bitbrat-user-id'],
+        userRoles: meta?.userRoles || ctx?.http?.req?.headers?.['x-roles'] || ctx?.http?.req?.headers?.['x-bitbrat-roles']
       };
 
       return await this.traceMcpOperation(`resource:${resource.name}`, () => resource.handler(request.params.uri, combinedExtra));
@@ -1923,15 +1913,15 @@ export class Bit {
     ) => Promise<GetPromptResult>
   ) {
     this.registeredPrompts.set(name, { description, args, handler });
-    this.mcpServer.setRequestHandler(GetPromptRequestSchema, async (request, extra) => {
+    this.mcpServer.setRequestHandler('prompts/get', async (request, ctx) => {
       const prompt = this.registeredPrompts.get(request.params.name);
       if (!prompt) throw new Error(`Prompt not found: ${request.params.name}`);
 
       const meta = (request.params as any)._meta;
       const combinedExtra = {
-        ...extra,
-        userId: meta?.userId || extra?.requestInfo?.headers?.['x-user-id'] || extra?.requestInfo?.headers?.['x-bitbrat-user-id'],
-        userRoles: meta?.userRoles || extra?.requestInfo?.headers?.['x-roles'] || extra?.requestInfo?.headers?.['x-bitbrat-roles']
+        ...ctx,
+        userId: meta?.userId || ctx?.http?.req?.headers?.['x-user-id'] || ctx?.http?.req?.headers?.['x-bitbrat-user-id'],
+        userRoles: meta?.userRoles || ctx?.http?.req?.headers?.['x-roles'] || ctx?.http?.req?.headers?.['x-bitbrat-roles']
       };
 
       return await this.traceMcpOperation(`prompt:${request.params.name}`, () =>
@@ -2020,7 +2010,7 @@ export class Bit {
 
   private setupDiscoveryHandlers() {
     // tools/list
-    this.mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
+    this.mcpServer.setRequestHandler('tools/list', async () => {
       const tools = Array.from(this.registeredTools.entries()).map(([name, { description, schema, scopes }]) => {
         const jsonSchema = zodToJsonSchema(schema);
         return {
@@ -2034,7 +2024,7 @@ export class Bit {
     });
 
     // resources/list
-    this.mcpServer.setRequestHandler(ListResourcesRequestSchema, async () => {
+    this.mcpServer.setRequestHandler('resources/list', async () => {
       const resources = Array.from(this.registeredResources.entries()).map(([uri, { name, description }]) => ({
         uri,
         name,
@@ -2044,7 +2034,7 @@ export class Bit {
     });
 
     // prompts/list
-    this.mcpServer.setRequestHandler(ListPromptsRequestSchema, async () => {
+    this.mcpServer.setRequestHandler('prompts/list', async () => {
       const prompts = Array.from(this.registeredPrompts.entries()).map(([name, { description, args }]) => ({
         name,
         description,
@@ -2132,7 +2122,7 @@ export class Bit {
         // Sprint 27: Use stateless mode (sessionIdGenerator: undefined) to avoid initialization requirement
         if (!this.streamableHttpTransport) {
           try {
-            this.streamableHttpTransport = new StreamableHTTPServerTransport({
+            this.streamableHttpTransport = new NodeStreamableHTTPServerTransport({
               sessionIdGenerator: undefined,  // Stateless mode - no session validation
             });
 

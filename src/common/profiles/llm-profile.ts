@@ -1,7 +1,7 @@
 import type { Bit } from '../base-server';
 import { BitProfile } from './types';
 import { z } from 'zod';
-import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolResult } from "@modelcontextprotocol/server";
 import { getLlmProvider, LlmProviderConfig } from '../llm/provider-factory';
 import { assemble } from '../prompt-assembly/assemble';
 import { redactText } from '../prompt-assembly/redaction';

@@ -1,12 +1,5 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import {
-  ToolListChangedNotificationSchema,
-  ResourceListChangedNotificationSchema,
-  PromptListChangedNotificationSchema
-} from '@modelcontextprotocol/sdk/types.js';
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
+import { Client, SSEClientTransport, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { McpBridge } from './bridge';
 import { IToolRegistry } from '../../types/tools';
 import { Bit } from '../base-server';
@@ -609,15 +602,15 @@ export class McpClientManager {
 
     // Register handlers for each notification type
     try {
-      client.setNotificationHandler(ToolListChangedNotificationSchema, async () => {
+      client.setNotificationHandler('notifications/tools/list_changed', async () => {
         await scheduleRefresh('tools');
       });
 
-      client.setNotificationHandler(ResourceListChangedNotificationSchema, async () => {
+      client.setNotificationHandler('notifications/resources/list_changed', async () => {
         await scheduleRefresh('resources');
       });
 
-      client.setNotificationHandler(PromptListChangedNotificationSchema, async () => {
+      client.setNotificationHandler('notifications/prompts/list_changed', async () => {
         await scheduleRefresh('prompts');
       });
 

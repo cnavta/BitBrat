@@ -1,4 +1,6 @@
 // Mock message bus to avoid NATS connection
+import { Client, SSEClientTransport } from "@modelcontextprotocol/client";
+
 jest.mock('../../src/services/message-bus', () => ({
   createMessagePublisher: jest.fn(() => ({
     publishJson: jest.fn(async () => 'msg-id'),
@@ -10,13 +12,9 @@ jest.mock('../../src/services/message-bus', () => ({
 }));
 
 import { ToolGatewayServer } from '../../src/apps/tool-gateway';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { BitBratTool, BitBratResource } from '../../src/types/tools';
 import { z } from 'zod';
 import { ToolRegistry } from '../../src/services/llm-bot/tools/registry';
-import { CallToolResultSchema, ReadResourceResultSchema } from '@modelcontextprotocol/sdk/types.js';
-
 describe('Tool Gateway MCP RBAC (Dynamic)', () => {
   let gateway: ToolGatewayServer;
   let port: number = 3334; // Use a different port to avoid conflicts
@@ -91,8 +89,7 @@ describe('Tool Gateway MCP RBAC (Dynamic)', () => {
           arguments: {},
           _meta: { userRoles: ['admin'] }
         }
-      },
-      CallToolResultSchema
+      }
     );
 
     expect(result.content[0].text).toBe('Secret Data');
@@ -105,7 +102,7 @@ describe('Tool Gateway MCP RBAC (Dynamic)', () => {
         arguments: {},
         _meta: { userRoles: ['user'] }
       }
-    }, CallToolResultSchema)).rejects.toThrow(/Forbidden/);
+    })).rejects.toThrow(/Forbidden/);
 
     // 6. Test ReadResource with RBAC
     const adminResource: BitBratResource = {
@@ -128,7 +125,7 @@ describe('Tool Gateway MCP RBAC (Dynamic)', () => {
         uri: 'admin://secret',
         _meta: { userRoles: ['admin'] }
       }
-    }, ReadResourceResultSchema);
+    });
     expect(resResult.contents[0].text).toBe('top secret content');
 
     await client.close();

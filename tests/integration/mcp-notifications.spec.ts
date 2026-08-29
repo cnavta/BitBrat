@@ -10,14 +10,9 @@
  *
  * This solves the startup race condition without requiring manual restarts.
  */
-
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import {
-  ToolListChangedNotificationSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
+import { ToolListChangedNotificationSchema, ListToolsRequestSchema } from "@modelcontextprotocol/core";
+import { Server } from "@modelcontextprotocol/server";
+import { Client, SSEClientTransport } from "@modelcontextprotocol/client";
 
 describe('MCP Notification Flow Integration', () => {
   // This is a conceptual integration test. In practice, we'd need to:

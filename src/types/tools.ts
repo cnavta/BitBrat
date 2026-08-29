@@ -1,6 +1,5 @@
 import { z } from 'zod';
-
-import { ReadResourceResult, GetPromptResult } from '@modelcontextprotocol/sdk/types.js';
+import { ReadResourceResult, GetPromptResult } from "@modelcontextprotocol/server";
 
 export type ToolSource = 'internal' | 'mcp' | 'firestore';
 
