@@ -2057,7 +2057,10 @@ export class Bit {
     // MCP SDK 2.0: Single /mcp endpoint using createMcpHandler + toNodeHandler
     // createMcpHandler wraps the server factory with a .fetch method compatible with toNodeHandler
     const mcpHandler = toNodeHandler(createMcpHandler(() => this.getMcpServer()));
-    this.app.post("/mcp", authMiddleware, mcpHandler);
+    // Pass req.body (parsed by express.json()) as the third argument to toNodeHandler
+    this.app.post("/mcp", authMiddleware, (req, res) => {
+      mcpHandler(req, res, req.body);
+    });
 
     this.getLogger().info("mcp_server.routes_initialized", {
       endpoint: "/mcp",
