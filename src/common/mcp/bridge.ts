@@ -68,7 +68,7 @@ export class McpBridge {
                 name: mcpTool.name,
                 arguments: args,
                 _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
-              } as any, (await import('@modelcontextprotocol/client')).CallToolResultSchema);
+              } as any);
 
           if (result.isError) {
             error = true;

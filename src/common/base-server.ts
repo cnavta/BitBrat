@@ -33,7 +33,7 @@ import type { InternalEventV2, RoutingStep, RoutingStatus, SnapshotDeadletterV1,
 import { markSelectedCandidate } from './events/selection';
 import { features } from './feature-flags';
 // MCP SDK 2.0 imports (Sprint 28)
-import { McpServer, CallToolResult, GetPromptResult, ReadResourceResult } from "@modelcontextprotocol/server";
+import { McpServer, CallToolResult, GetPromptResult, ReadResourceResult, ServerContext, createMcpHandler } from "@modelcontextprotocol/server";
 import { toNodeHandler } from "@modelcontextprotocol/node";
 import { publishPersistenceSnapshot } from './events/persistence-snapshots';
 import { FeedbackMiddleware } from './middleware/feedback-middleware';
@@ -1751,10 +1751,9 @@ export class Bit {
 
     // Register all resources from the Map using MCP SDK 2.0 API
     for (const [uri, resource] of this.registeredResources.entries()) {
-      server.registerResource(uri, {
-        name: resource.name,
+      server.registerResource(resource.name, uri, {
         description: resource.description,
-      }, async (ctx) => {
+      }, async (uriParam: URL, ctx: ServerContext) => {
         const combinedExtra = {
           ...ctx,
           userId: (ctx as any)?.http?.req?.headers?.['x-user-id'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-user-id'],
@@ -2055,9 +2054,9 @@ export class Bit {
       next();
     };
 
-    // MCP SDK 2.0: Single /mcp endpoint using toNodeHandler()
-    // Creates a new stateless server instance per request via getMcpServer()
-    const mcpHandler = toNodeHandler(() => this.getMcpServer()) as any;
+    // MCP SDK 2.0: Single /mcp endpoint using createMcpHandler + toNodeHandler
+    // createMcpHandler wraps the server factory with a .fetch method compatible with toNodeHandler
+    const mcpHandler = toNodeHandler(createMcpHandler(() => this.getMcpServer()));
     this.app.post("/mcp", authMiddleware, mcpHandler);
 
     this.getLogger().info("mcp_server.routes_initialized", {
