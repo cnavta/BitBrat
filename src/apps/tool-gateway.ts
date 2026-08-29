@@ -102,6 +102,9 @@ export class ToolGatewayServer extends Bit {
   constructor() {
     super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
 
+    // Sprint 27: Inject logger into ToolRegistry for TRACE debugging
+    this.registry.setLogger(this.getLogger());
+
     // Initialize repositories (backend auto-detection via factory)
     // Use documentStore for PostgreSQL or fallback to Firestore
     const documentStore = this.getResource('documentStore');
@@ -454,9 +457,10 @@ export class ToolGatewayServer extends Bit {
           // After connecting to a new Bit and discovering its tools, notify all connected clients
           // that the tool/resource/prompt lists have changed. This ensures clients like llm-bot
           // refresh their tool registries without requiring manual restarts.
-          // Wrap in try-catch to prevent crashes from notification failures
+          // Sprint 27: MUST await async broadcastListChangedNotifications() to prevent
+          // unhandled promise rejections that crash the process
           try {
-            this.broadcastListChangedNotifications();
+            await this.broadcastListChangedNotifications();
           } catch (notifyError: any) {
             this.getLogger().warn('tool_gateway.registry_watcher.broadcast_failed', {
               name: config.name,
@@ -477,9 +481,10 @@ export class ToolGatewayServer extends Bit {
           this.serverConfigs.delete(name);
           await this.mcpManager.disconnectServer(name);
           // Also notify when a server becomes inactive, as tool/resource/prompt lists have changed
-          // Wrap in try-catch to prevent crashes from notification failures
+          // Sprint 27: MUST await async broadcastListChangedNotifications() to prevent
+          // unhandled promise rejections that crash the process
           try {
-            this.broadcastListChangedNotifications();
+            await this.broadcastListChangedNotifications();
           } catch (notifyError: any) {
             this.getLogger().warn('tool_gateway.registry_watcher.broadcast_failed_inactive', {
               name,
@@ -751,7 +756,7 @@ export class ToolGatewayServer extends Bit {
    * solving the startup race condition where clients connect before tool-gateway has discovered
    * all Bits.
    */
-  private broadcastListChangedNotifications(): void {
+  private async broadcastListChangedNotifications(): Promise<void> {
     const logger = this.getLogger();
     const sessionCount = this.sessionServers.size;
 
@@ -773,25 +778,26 @@ export class ToolGatewayServer extends Bit {
     // Convert to array to avoid modification-during-iteration issues
     const sessions = Array.from(this.sessionServers.entries());
 
-    for (const [sessionId, server] of sessions) {
+    // Sprint 27: Use Promise.allSettled to handle async notifications safely
+    // notification() is async and throws synchronously before async machinery,
+    // causing unhandled promise rejections if not awaited
+    const notificationPromises = sessions.map(async ([sessionId, server]) => {
       try {
-        // Send tools list changed notification
-        server.notification({
-          method: 'notifications/tools/list_changed',
-          params: {}
-        });
-
-        // Send resources list changed notification
-        server.notification({
-          method: 'notifications/resources/list_changed',
-          params: {}
-        });
-
-        // Send prompts list changed notification
-        server.notification({
-          method: 'notifications/prompts/list_changed',
-          params: {}
-        });
+        // Send all three notifications concurrently for this session
+        await Promise.allSettled([
+          server.notification({
+            method: 'notifications/tools/list_changed',
+            params: {}
+          }),
+          server.notification({
+            method: 'notifications/resources/list_changed',
+            params: {}
+          }),
+          server.notification({
+            method: 'notifications/prompts/list_changed',
+            params: {}
+          })
+        ]);
 
         successCount++;
         logger.debug('tool_gateway.notifications.sent', { sessionId });
@@ -815,7 +821,10 @@ export class ToolGatewayServer extends Bit {
           });
         }
       }
-    }
+    });
+
+    // Wait for all notification attempts to complete
+    await Promise.allSettled(notificationPromises);
 
     logger.info('tool_gateway.notifications.broadcast_complete', {
       sessionCount,

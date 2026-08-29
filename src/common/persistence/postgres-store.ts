@@ -234,35 +234,131 @@ export class PostgresDocumentStore implements IDocumentStore {
   ): () => void {
     let stopped = false;
     let lastSnapshot: string | null = null;
+    let pollCount = 0;
+
+    // Sprint 27: Log watch subscription start
+    this.logger.info?.(`[PostgresDocumentStore] watch.start`, {
+      collection,
+      pollInterval,
+    });
 
     const poll = async () => {
-      if (stopped) return;
+      if (stopped) {
+        this.logger.trace?.(`[PostgresDocumentStore] watch.poll.stopped`, {
+          collection,
+          pollCount,
+        });
+        return;
+      }
+
+      pollCount++;
+      const pollStartTime = Date.now();
+
+      this.logger.trace?.(`[PostgresDocumentStore] watch.poll.start`, {
+        collection,
+        pollCount,
+      });
 
       try {
         const docs = await this.query<T>(collection, {});
+        const queryLatency = Date.now() - pollStartTime;
         const currentSnapshot = JSON.stringify(docs);
+        const snapshotChanged = currentSnapshot !== lastSnapshot;
+
+        // Sprint 27: Log query results and snapshot comparison
+        this.logger.trace?.(`[PostgresDocumentStore] watch.poll.queried`, {
+          collection,
+          pollCount,
+          docCount: docs.length,
+          queryLatency,
+          snapshotChanged,
+          isFirstPoll: lastSnapshot === null,
+        });
 
         // Only trigger callback if data changed
-        if (currentSnapshot !== lastSnapshot) {
+        if (snapshotChanged) {
           lastSnapshot = currentSnapshot;
-          callback(docs);
+
+          // Sprint 27: Log BEFORE callback to detect callback errors
+          this.logger.debug?.(`[PostgresDocumentStore] watch.callback.invoking`, {
+            collection,
+            pollCount,
+            docCount: docs.length,
+            isFirstPoll: pollCount === 1,
+          });
+
+          try {
+            callback(docs);
+
+            // Sprint 27: Log successful callback
+            this.logger.debug?.(`[PostgresDocumentStore] watch.callback.success`, {
+              collection,
+              pollCount,
+              docCount: docs.length,
+            });
+          } catch (callbackError) {
+            // Sprint 27: Catch and log callback errors (don't break polling)
+            this.logger.error?.(`[PostgresDocumentStore] watch.callback.error`, {
+              collection,
+              pollCount,
+              error: callbackError,
+            });
+          }
+        } else {
+          this.logger.trace?.(`[PostgresDocumentStore] watch.poll.unchanged`, {
+            collection,
+            pollCount,
+          });
         }
       } catch (error) {
-        this.logger.error?.(`[PostgresDocumentStore] watch error:`, error);
+        // Sprint 27: Enhanced error logging
+        this.logger.error?.(`[PostgresDocumentStore] watch.poll.error`, {
+          collection,
+          pollCount,
+          error,
+        });
       }
 
       if (!stopped) {
-        setTimeout(poll, pollInterval);
+        const pollTotalLatency = Date.now() - pollStartTime;
+        this.logger.trace?.(`[PostgresDocumentStore] watch.poll.complete`, {
+          collection,
+          pollCount,
+          totalLatency: pollTotalLatency,
+          nextPollIn: pollInterval,
+        });
+
+        // Sprint 27: Wrap recursive poll in error handler
+        setTimeout(() => {
+          poll().catch((err) => {
+            this.logger.error?.(`[PostgresDocumentStore] watch.poll.fatal_error`, {
+              collection,
+              pollCount,
+              error: err,
+              stack: err?.stack,
+            });
+          });
+        }, pollInterval);
       }
     };
 
-    // Start polling immediately
-    poll();
+    // Start polling immediately (wrap in Promise to catch errors)
+    poll().catch((err) => {
+      // Sprint 27: Catch errors from initial poll
+      this.logger.error?.(`[PostgresDocumentStore] watch.initial_poll.fatal_error`, {
+        collection,
+        error: err,
+        stack: err?.stack,
+      });
+    });
 
     // Return unsubscribe function
     return () => {
       stopped = true;
-      this.logger.debug?.(`[PostgresDocumentStore] unsubscribed from ${collection}`);
+      this.logger.info?.(`[PostgresDocumentStore] watch.unsubscribe`, {
+        collection,
+        pollCount,
+      });
     };
   }
 

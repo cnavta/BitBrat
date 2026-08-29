@@ -11,7 +11,7 @@ services:
       - OBS_WEBSOCKET_PASSWORD=${OBS_WEBSOCKET_PASSWORD}
       - MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN}
     ports:
-      - "${OBS_MCP_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
+      - "${OBS_MCP_HOST_PORT:-3001}:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -20,7 +20,7 @@ services:
       tool-gateway:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:3000/healthz"]
+      test: ["CMD", "sh", "-c", "node -e \"const http = require('http'); const options = { hostname: 'localhost', port: 8080, path: '/sse', headers: { 'Authorization': 'Bearer ' + process.env.MCP_AUTH_TOKEN } }; http.get(options, (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => { process.exit(1); });\""]
       interval: 5s
       timeout: 3s
       retries: 10

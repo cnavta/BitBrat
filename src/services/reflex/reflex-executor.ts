@@ -84,11 +84,12 @@ export async function executeReflex(
       });
 
       // Execute MCP tool with user's roles for RBAC
+      // Sprint 27: Try user roles first (from auth enrichment), fallback to platform roles
       toolResult = await executeTool(reflex.action.tool, parameters, {
         authToken,
         timeout: reflex.action.timeout || 5000,
         correlationId,
-        userRoles: event.identity?.user?.roles || [],
+        userRoles: event.identity?.user?.roles || event.identity?.external?.roles || [],
       });
     } else {
       logger.debug('[reflex-executor] No action defined, skipping tool execution');
