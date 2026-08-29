@@ -1,17 +1,8 @@
 import request from "supertest";
 import { Bit } from "../../src/common/base-server";
 
-// Mock SSEServerTransport so /sse does not hang the test runner.
-jest.mock("@modelcontextprotocol/sdk/server/sse.js", () => ({
-  SSEServerTransport: jest.fn().mockImplementation((_path, res) => {
-    res.end();
-    return {
-      sessionId: "conformance-session",
-      onclose: jest.fn(),
-      handlePostMessage: jest.fn().mockResolvedValue(undefined),
-    };
-  }),
-}));
+// Sprint 28: MCP SDK 2.0 - No need to mock SSEServerTransport (stateless per-request architecture)
+// The v2.0 server doesn't use persistent SSE sessions, so these mocks are obsolete
 
 /**
  * Bit model (sprint-324) — Platform Ring conformance suite.

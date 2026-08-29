@@ -9,15 +9,7 @@ import {
   type ContextPackDocument
 } from './context-pack-service';
 import { Express, Request, Response } from 'express';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import {
-  ListToolsRequestSchema,
-  CallToolRequestSchema,
-  ListResourcesRequestSchema,
-  ReadResourceRequestSchema,
-  ListPromptsRequestSchema,
-  GetPromptRequestSchema
-} from '@modelcontextprotocol/sdk/types.js';
+import { Server } from "@modelcontextprotocol/server";
 import { ToolRegistry } from '../services/llm-bot/tools/registry';
 import { McpClientManager } from '../common/mcp/client-manager';
 import { RegistryWatcher } from '../common/mcp/registry-watcher';
@@ -1075,8 +1067,8 @@ export class ToolGatewayServer extends Bit {
     });
 
     // Discovery: listTools filtered by RBAC
-    sessionServer.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
-      logger.trace('Handling ListToolsRequestSchema', {headers: extra.requestInfo?.headers});
+    sessionServer.setRequestHandler('tools/list', async (request, ctx) => {
+      logger.trace('Handling ListToolsRequestSchema', {headers: ctx.http?.req?.headers});
       const trustedDiscovery = (context.agentName === 'llm-bot') || (Array.isArray(context.roles) && context.roles.includes('discovery'));
       const rawTools = Object.values(this.registry.getTools());
       const visibleTools = trustedDiscovery
@@ -1120,7 +1112,7 @@ export class ToolGatewayServer extends Bit {
     });
 
     // Discovery: listResources filtered by RBAC
-    sessionServer.setRequestHandler(ListResourcesRequestSchema, async () => {
+    sessionServer.setRequestHandler('resources/list', async () => {
       const trustedDiscovery = (context.agentName === 'llm-bot') || (Array.isArray(context.roles) && context.roles.includes('discovery'));
       const raw = Object.values(this.registry.getResources());
       const visible = trustedDiscovery
@@ -1136,7 +1128,7 @@ export class ToolGatewayServer extends Bit {
     });
 
     // Discovery: listPrompts filtered by RBAC
-    sessionServer.setRequestHandler(ListPromptsRequestSchema, async () => {
+    sessionServer.setRequestHandler('prompts/list', async () => {
       const trustedDiscovery = (context.agentName === 'llm-bot') || (Array.isArray(context.roles) && context.roles.includes('discovery'));
       const raw = Object.values(this.registry.getPrompts());
       const visible = trustedDiscovery
@@ -1151,7 +1143,7 @@ export class ToolGatewayServer extends Bit {
     });
 
     // Invocation: callTool
-    sessionServer.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
+    sessionServer.setRequestHandler('tools/call', async (request, ctx) => {
       // Request deduplication: The MCP SDK invokes this handler multiple times for the SAME request
       // CRITICAL BUG: The MCP SDK assigns DIFFERENT jsonRpcIds to duplicate invocations of the same
       // client request (e.g., jsonRpcId 13, 14, 15... for the same search query). This means we
@@ -1185,7 +1177,8 @@ export class ToolGatewayServer extends Bit {
       if (!tool) throw new Error(`Tool not found: ${id}`);
 
       // Extract dynamic request context (roles/user)
-      const reqContext = this.getRequestContext(request, extra, context);
+      /* @mcp-codemod-error The context object is forwarded to this.getRequestContext(…) — its property shape changed in v2 (e.g. extra.signal is now ctx.mcpReq.signal, extra.sendRequest is ctx.mcpReq.send). Update the helper's parameter type and property accesses. */
+      const reqContext = this.getRequestContext(request, ctx, context);
 
       // Defense-in-depth RBAC check at invocation time using request-level context
       const allowed = this.rbac.isAllowedTool(tool, tool.originServer ? this.serverConfigs.get(tool.originServer) : undefined, reqContext);
@@ -1237,12 +1230,13 @@ export class ToolGatewayServer extends Bit {
     });
 
     // Invocation: readResource
-    sessionServer.setRequestHandler(ReadResourceRequestSchema, async (request, extra) => {
+    sessionServer.setRequestHandler('resources/read', async (request, ctx) => {
       const uri = request.params.uri;
       const resource = this.registry.getResource(uri);
       if (!resource) throw new Error(`Resource not found: ${uri}`);
 
-      const reqContext = this.getRequestContext(request, extra, context);
+      /* @mcp-codemod-error The context object is forwarded to this.getRequestContext(…) — its property shape changed in v2 (e.g. extra.signal is now ctx.mcpReq.signal, extra.sendRequest is ctx.mcpReq.send). Update the helper's parameter type and property accesses. */
+      const reqContext = this.getRequestContext(request, ctx, context);
 
       const allowed = this.rbac.isAllowedResource(resource, resource.originServer ? this.serverConfigs.get(resource.originServer) : undefined, reqContext);
       if (!allowed) throw new Error('Forbidden');
@@ -1266,12 +1260,13 @@ export class ToolGatewayServer extends Bit {
     });
 
     // Invocation: getPrompt
-    sessionServer.setRequestHandler(GetPromptRequestSchema, async (request, extra) => {
+    sessionServer.setRequestHandler('prompts/get', async (request, ctx) => {
       const id = request.params.name;
       const prompt = this.registry.getPrompt(id);
       if (!prompt) throw new Error(`Prompt not found: ${id}`);
 
-      const reqContext = this.getRequestContext(request, extra, context);
+      /* @mcp-codemod-error The context object is forwarded to this.getRequestContext(…) — its property shape changed in v2 (e.g. extra.signal is now ctx.mcpReq.signal, extra.sendRequest is ctx.mcpReq.send). Update the helper's parameter type and property accesses. */
+      const reqContext = this.getRequestContext(request, ctx, context);
 
       const allowed = this.rbac.isAllowedPrompt(prompt, prompt.originServer ? this.serverConfigs.get(prompt.originServer) : undefined, reqContext);
       if (!allowed) throw new Error('Forbidden');

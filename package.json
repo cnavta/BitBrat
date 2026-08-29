@@ -1,6 +1,6 @@
 {
   "name": "bitbrat-platform",
-  "version": "0.34.4",
+  "version": "0.35.0",
   "description": "",
   "main": "dist/index.js",
   "types": "dist/src/common/prompt-assembly/index.d.ts",
@@ -43,11 +43,17 @@
   "keywords": [],
   "author": "chris@ix-n.com",
   "license": "MIT",
+  "engines": {
+    "node": ">=22.19.0"
+  },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.1",
     "@google-cloud/logging": "^11.0.0",
     "@google-cloud/pubsub": "^5.2.0",
-    "@modelcontextprotocol/sdk": "^1.25.1",
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/express": "^2.0.0",
+    "@modelcontextprotocol/node": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
     "@oclif/core": "^3.0.0",
     "@oclif/plugin-help": "^6.0.0",
     "@opentelemetry/api": "^1.9.0",
@@ -89,7 +95,8 @@
     "twilio": "^5.11.1",
     "uuid": "^11.1.1",
     "ws": "^8.19.0",
-    "zod": "^3.25.76"
+    "zod": "^4.5.2",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

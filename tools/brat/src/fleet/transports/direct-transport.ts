@@ -1,5 +1,4 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import type { Logger } from '../../orchestration/logger';
 import { ConfigurationError } from '../../orchestration/errors';
 import { FleetIdentity, FleetTool, FleetTransport, RegistryReader } from '../types';
@@ -116,7 +115,8 @@ export class DirectTransport implements FleetTransport {
 }
 
 async function defaultDirectClientFactory(url: string, identity: FleetIdentity): Promise<McpClientLike> {
-  const transport = new SSEClientTransport(new URL(url), {
+  // Sprint 28: MCP SDK 2.0 - Use StreamableHTTPClientTransport instead of deprecated SSEClientTransport
+  const transport = new StreamableHTTPClientTransport(new URL(url), {
     requestInit: {
       headers: {
         Authorization: `Bearer ${identity.token}`,
@@ -127,6 +127,7 @@ async function defaultDirectClientFactory(url: string, identity: FleetIdentity):
       },
     },
   });
+  // Sprint 28: MCP SDK 2.0 - Client constructor signature unchanged
   const client = new Client({ name: 'brat-fleet-direct', version: '1.0.0' }, { capabilities: {} });
   await client.connect(transport as any);
   return client as unknown as McpClientLike;

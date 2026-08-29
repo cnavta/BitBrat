@@ -4,8 +4,7 @@
  * Registers and dispatches MCP tool calls.
  * Validates arguments against schemas and handles errors.
  */
-
-import { Tool, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { Tool, CallToolResult } from "@modelcontextprotocol/server";
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 

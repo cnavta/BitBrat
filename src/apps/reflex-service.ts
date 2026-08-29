@@ -581,7 +581,7 @@ export class ReflexServer extends Bit {
         }).optional().describe('Optional conditions for reflex execution'),
         action: z.object({
           tool: z.string().describe('Sanitized MCP tool name as shown in your tools list (e.g., "mcp_obs-set-scene-item-enabled"). IMPORTANT: Tool names preserve hyphens from the original tool name. Only colons and dots are replaced with underscores. Use the EXACT name from your available tools list.'),
-          parameters: z.record(z.any()).describe('Tool parameters template (supports {{field.path}} interpolation)'),
+          parameters: z.record(z.string(), z.any()).describe('Tool parameters template (supports {{field.path}} interpolation)'),
           timeout: z.number().int().min(1000).max(60000).optional().describe('Tool execution timeout in milliseconds (default: 5000)'),
         }).optional().describe('Optional MCP tool invocation configuration. If omitted, reflex will only generate candidate response.'),
         candidateTemplate: z.union([
@@ -764,7 +764,7 @@ export class ReflexServer extends Bit {
         }).optional().describe('Updated conditions'),
         action: z.object({
           tool: z.string().optional().describe('Sanitized MCP tool name (e.g., "mcp_obs-set-scene-item-enabled"). Note: hyphens are preserved, only colons and dots become underscores.'),
-          parameters: z.record(z.any()).optional().describe('Tool parameters template'),
+          parameters: z.record(z.string(), z.any()).optional().describe('Tool parameters template'),
           timeout: z.number().int().min(1000).max(60000).optional().describe('Tool execution timeout in milliseconds'),
         }).optional().describe('Updated action configuration'),
         candidateTemplate: z.union([
@@ -887,7 +887,7 @@ export class ReflexServer extends Bit {
       'Test a reflex against a mock event to verify pattern matching and execution',
       z.object({
         id: z.string().describe('Reflex ID to test'),
-        mockEvent: z.record(z.any()).describe('Mock event object for testing (must include fields referenced by reflex)'),
+        mockEvent: z.record(z.string(), z.any()).describe('Mock event object for testing (must include fields referenced by reflex)'),
       }),
       async (args) => {
         try {

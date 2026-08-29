@@ -1,13 +1,13 @@
 import { McpClientManager } from '../../../../src/common/mcp/client-manager';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
+// Sprint 28: MCP SDK 2.0 - Use StreamableHTTPClientTransport
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { getFirestore } from '../../../../src/common/firebase';
 import { RegistryWatcher } from '../../../../src/common/mcp/registry-watcher';
 
-jest.mock('@modelcontextprotocol/sdk/client/index.js');
-jest.mock('@modelcontextprotocol/sdk/client/stdio.js');
-jest.mock('@modelcontextprotocol/sdk/client/sse.js');
+jest.mock('@modelcontextprotocol/client');
+jest.mock('@modelcontextprotocol/client/stdio');
+jest.mock('@modelcontextprotocol/client');
 jest.mock('../../../../src/common/firebase');
 
 describe('McpClientManager', () => {
@@ -100,6 +100,7 @@ describe('McpClientManager', () => {
     expect(stats?.transport).toBe('stdio');
   });
 
+  // Sprint 28: MCP SDK 2.0 - Test StreamableHTTPClientTransport instead of deprecated SSEClientTransport
   it('should connect to SSE servers', async () => {
     await manager.connectServer({
       name: 'sse-server',
@@ -107,7 +108,7 @@ describe('McpClientManager', () => {
       url: 'https://mcp.example.com/sse'
     });
 
-    expect(SSEClientTransport).toHaveBeenCalledWith(
+    expect(StreamableHTTPClientTransport).toHaveBeenCalledWith(
       new URL('https://mcp.example.com/sse'),
       expect.objectContaining({
         requestInit: { headers: undefined }

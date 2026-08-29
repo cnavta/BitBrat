@@ -1,12 +1,5 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import {
-  ToolListChangedNotificationSchema,
-  ResourceListChangedNotificationSchema,
-  PromptListChangedNotificationSchema
-} from '@modelcontextprotocol/sdk/types.js';
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { McpBridge } from './bridge';
 import { IToolRegistry } from '../../types/tools';
 import { Bit } from '../base-server';
@@ -240,7 +233,7 @@ export class McpClientManager {
         }
 
         // Sprint 27: Use StreamableHTTPClientTransport instead of deprecated SSEClientTransport
-        // StreamableHTTP uses same /sse endpoint path for backward compatibility
+        // Sprint 28: MCP SDK 2.0 - Still using StreamableHTTPClientTransport (compatible API)
         transport = new StreamableHTTPClientTransport(new URL(config.url), {
           requestInit: {
             headers: resolved.env
@@ -250,6 +243,7 @@ export class McpClientManager {
         if (!config.command) {
           throw new Error(`Stdio transport requires a command for server ${config.name}. Config: ${JSON.stringify(config)}`);
         }
+        // Sprint 28: MCP SDK 2.0 - StdioClientTransport from @modelcontextprotocol/client/stdio
         transport = new StdioClientTransport({
           command: config.command,
           args: resolved.args || [],
@@ -260,6 +254,7 @@ export class McpClientManager {
         });
       }
 
+      // Sprint 28: MCP SDK 2.0 - Client constructor signature updated
       const client = new Client({
         name: 'bitbrat-llm-bot',
         version: '1.0.0',
@@ -609,15 +604,15 @@ export class McpClientManager {
 
     // Register handlers for each notification type
     try {
-      client.setNotificationHandler(ToolListChangedNotificationSchema, async () => {
+      client.setNotificationHandler('notifications/tools/list_changed', async () => {
         await scheduleRefresh('tools');
       });
 
-      client.setNotificationHandler(ResourceListChangedNotificationSchema, async () => {
+      client.setNotificationHandler('notifications/resources/list_changed', async () => {
         await scheduleRefresh('resources');
       });
 
-      client.setNotificationHandler(PromptListChangedNotificationSchema, async () => {
+      client.setNotificationHandler('notifications/prompts/list_changed', async () => {
         await scheduleRefresh('prompts');
       });
 

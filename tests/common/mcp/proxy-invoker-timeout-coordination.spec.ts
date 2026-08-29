@@ -1,5 +1,5 @@
 import { ProxyInvoker } from '../../../src/common/mcp/proxy-invoker';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { Client } from "@modelcontextprotocol/client";
 
 describe('ProxyInvoker Timeout Coordination', () => {
   let mockClient: jest.Mocked<Client>;

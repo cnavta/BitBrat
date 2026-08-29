@@ -3,7 +3,7 @@
  */
 
 import { Firestore } from 'firebase-admin/firestore';
-import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolResult } from "@modelcontextprotocol/server";
 import { z } from 'zod';
 
 /**

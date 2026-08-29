@@ -263,7 +263,7 @@ export const ExecutionContextSchema = z.object({
  * Execution Contexts map
  * Record of context name → ExecutionContext
  */
-export const ExecutionContextsSchema = z.record(ExecutionContextSchema);
+export const ExecutionContextsSchema = z.record(z.string(), ExecutionContextSchema);
 
 // ============================================================================
 // TypeScript Types (exported for use in application code)

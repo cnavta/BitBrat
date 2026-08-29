@@ -8,13 +8,8 @@
  * This solves the startup race condition where llm-bot connects before tool-gateway
  * has discovered all Bits.
  */
-
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import {
-  ToolListChangedNotificationSchema,
-  ResourceListChangedNotificationSchema,
-  PromptListChangedNotificationSchema
-} from '@modelcontextprotocol/sdk/types.js';
+import { ToolListChangedNotificationSchema, ResourceListChangedNotificationSchema, PromptListChangedNotificationSchema } from "@modelcontextprotocol/core";
+import { Client } from "@modelcontextprotocol/client";
 import { McpClientManager } from '../client-manager';
 import { ToolRegistry } from '../../../services/llm-bot/tools/registry';
 
@@ -91,14 +86,17 @@ describe('McpClientManager Notification Handling', () => {
       // Verify handlers were registered
       expect(mockClient.setNotificationHandler).toHaveBeenCalledTimes(3);
       expect(mockClient.setNotificationHandler).toHaveBeenCalledWith(
+        /* @mcp-codemod-error ToolListChangedNotificationSchema is no longer the setRequestHandler/setNotificationHandler key in v2 — handlers register by the method string 'notifications/tools/list_changed'. Update registration assertions/lookups (e.g. against a setRequestHandler mock) to compare against 'notifications/tools/list_changed'. */
         ToolListChangedNotificationSchema,
         expect.any(Function)
       );
       expect(mockClient.setNotificationHandler).toHaveBeenCalledWith(
+        /* @mcp-codemod-error ResourceListChangedNotificationSchema is no longer the setRequestHandler/setNotificationHandler key in v2 — handlers register by the method string 'notifications/resources/list_changed'. Update registration assertions/lookups (e.g. against a setRequestHandler mock) to compare against 'notifications/resources/list_changed'. */
         ResourceListChangedNotificationSchema,
         expect.any(Function)
       );
       expect(mockClient.setNotificationHandler).toHaveBeenCalledWith(
+        /* @mcp-codemod-error PromptListChangedNotificationSchema is no longer the setRequestHandler/setNotificationHandler key in v2 — handlers register by the method string 'notifications/prompts/list_changed'. Update registration assertions/lookups (e.g. against a setRequestHandler mock) to compare against 'notifications/prompts/list_changed'. */
         PromptListChangedNotificationSchema,
         expect.any(Function)
       );

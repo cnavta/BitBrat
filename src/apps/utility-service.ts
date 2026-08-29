@@ -193,7 +193,7 @@ export class UtilityService extends Bit {
         initialValue: z.number().default(0).describe('Initial counter value'),
         ttlSeconds: z.number().positive().optional()
           .describe('Time-to-live in seconds (omit for permanent counter)'),
-        metadata: z.record(z.any()).optional()
+        metadata: z.record(z.string(), z.any()).optional()
           .describe('Optional metadata (description, icon, category, etc.)'),
         createdBy: z.string().optional().describe('Creator identifier'),
       }),

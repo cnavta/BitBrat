@@ -1,11 +1,11 @@
 import { McpClientManager } from '../../../src/common/mcp/client-manager';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
+// Sprint 28: MCP SDK 2.0 - Use StreamableHTTPClientTransport
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 
-jest.mock('@modelcontextprotocol/sdk/client/index.js');
-jest.mock('@modelcontextprotocol/sdk/client/sse.js');
-jest.mock('@modelcontextprotocol/sdk/client/stdio.js');
+jest.mock('@modelcontextprotocol/client');
+jest.mock('@modelcontextprotocol/client');
+jest.mock('@modelcontextprotocol/client/stdio');
 
 const SECRET = 'sk-super-secret-value-XYZ';
 
@@ -88,6 +88,7 @@ describe('McpClientManager env/args ${VAR} resolution', () => {
     expect(opts.env.REGION).toBe('us-east1');
   });
 
+  // Sprint 28: MCP SDK 2.0 - Test StreamableHTTPClientTransport header resolution
   it('resolves SSE header references into requestInit.headers', async () => {
     process.env.AUTH_TOKEN = SECRET;
 
@@ -98,7 +99,7 @@ describe('McpClientManager env/args ${VAR} resolution', () => {
       env: { Authorization: 'Bearer ${AUTH_TOKEN}' },
     } as any);
 
-    const headers = (SSEClientTransport as unknown as jest.Mock).mock.calls[0][1]
+    const headers = (StreamableHTTPClientTransport as unknown as jest.Mock).mock.calls[0][1]
       .requestInit.headers;
     expect(headers.Authorization).toBe(`Bearer ${SECRET}`);
   });
@@ -197,7 +198,8 @@ describe('McpClientManager env/args ${VAR} resolution', () => {
 
     expect(mockClientInstance.close).toHaveBeenCalledTimes(1);
     expect(mockClientInstance.connect).toHaveBeenCalledTimes(2);
-    const lastHeaders = (SSEClientTransport as unknown as jest.Mock).mock.calls.at(-1)![1]
+    // Sprint 28: MCP SDK 2.0 - Check StreamableHTTPClientTransport mock calls
+    const lastHeaders = (StreamableHTTPClientTransport as unknown as jest.Mock).mock.calls.at(-1)![1]
       .requestInit.headers;
     expect(lastHeaders.Authorization).toBe(`Bearer ${ROTATED}`);
   });

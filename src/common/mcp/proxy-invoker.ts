@@ -1,5 +1,5 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { CallToolResult, CallToolResultSchema, ReadResourceResult, ReadResourceResultSchema, GetPromptResult, GetPromptResultSchema } from '@modelcontextprotocol/sdk/types.js';
+import { ReadResourceResultSchema, GetPromptResultSchema } from "@modelcontextprotocol/core";
+import { Client, CallToolResult, ReadResourceResult, GetPromptResult } from "@modelcontextprotocol/client";
 import { ToolExecutionContext } from '../../types/tools';
 import { McpObservability } from './observability';
 
@@ -56,7 +56,7 @@ export class ProxyInvoker {
           name: toolName, 
           arguments: args,
           _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
-        } as any, CallToolResultSchema),
+        } as any),
         optionsOverride,
         context
       );
