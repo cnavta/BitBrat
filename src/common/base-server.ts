@@ -35,7 +35,6 @@ import { features } from './feature-flags';
 // MCP SDK 2.0 imports (Sprint 28)
 import { Server as McpServer, CallToolResult, GetPromptResult, ReadResourceResult } from "@modelcontextprotocol/server";
 import { toNodeHandler } from "@modelcontextprotocol/node";
-import type { McpContext } from "@modelcontextprotocol/server";
 import { publishPersistenceSnapshot } from './events/persistence-snapshots';
 import { FeedbackMiddleware } from './middleware/feedback-middleware';
 import type { PublisherResource } from './resources/publisher-manager';
@@ -110,11 +109,7 @@ export class Bit {
   // ---------- Bit model: MCP control-plane state (folded down from McpServer) ----------
   /** The Bit's effective MCP exposure; undefined means the transport is not wired. */
   protected mcpExposure?: McpExposure;
-  /** The MCP Server instance. Always constructed; transport is only wired when enabled. */
-  protected mcpServer!: Server;
-  protected readonly transports: Map<string, SSEServerTransport | NodeStreamableHTTPServerTransport> = new Map();
-  /** Sprint 27: Single StreamableHTTPServerTransport instance (created once, reused for all requests) */
-  private streamableHttpTransport?: NodeStreamableHTTPServerTransport;
+  /** MCP SDK 2.0: Tool/resource/prompt registrations stored in Maps. Server instances created per-request. */
   private readonly registeredTools: Map<string, { description: string; schema: any; handler: (args: any, extra?: any) => Promise<CallToolResult>; scopes?: string[] }> = new Map();
   private readonly registeredResources: Map<string, { name: string; description: string; handler: (uri: string, extra?: any) => Promise<ReadResourceResult> }> = new Map();
   private readonly registeredPrompts: Map<string, { description: string; args: { name: string; description?: string; required?: boolean }[]; handler: (name: string, args: Record<string, string>, extra?: any) => Promise<GetPromptResult> }> = new Map();
@@ -1604,29 +1599,8 @@ export class Bit {
    * historical McpServer ordering.
    */
   protected initializeMcp(opts: BaseServerOptions): void {
+    // MCP SDK 2.0: Store exposure setting. Server instances created per-request via getMcpServer().
     this.mcpExposure = this.resolveMcpExposure(opts);
-
-    const arch = (this.constructor as any).loadArchitectureYaml?.() || undefined;
-    const svcNode = arch?.services?.[this.serviceName] || {};
-    const description = svcNode.description || 'BitBrat MCP Server';
-    const version = arch?.project?.version || '1.0.0';
-
-    this.mcpServer = new Server(
-      {
-        name: this.serviceName,
-        version: version,
-        description: description,
-      } as any,
-      {
-        capabilities: {
-          tools: {},
-          resources: {},
-          prompts: {},
-        },
-      }
-    );
-
-    this.setupDiscoveryHandlers();
 
     if (this.isMcpEnabled()) {
       // Platform Ring: the mandatory bit.* control plane is registered before any Business-Ring
@@ -1734,27 +1708,21 @@ export class Bit {
   }
 
   /**
-   * Create a new Server instance for each SSE connection.
-   * The MCP SDK requires one Server instance per transport connection.
-   *
-   * This duplicates the registration logic from initializeMcp() but is necessary
-   * because each SSE connection needs its own Server instance.
+   * MCP SDK 2.0: Stateless server factory. Creates a new McpServer instance for each request,
+   * registering all tools/resources/prompts from the Maps. No session state is maintained.
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  protected async getMcpServerForConnection(_req: Request): Promise<Server> {
-    // Get version from architecture.yaml (same as initializeMcp)
+  protected getMcpServer(): McpServer {
     const arch = (this.constructor as any).loadArchitectureYaml?.() || undefined;
     const svcNode = arch?.services?.[this.serviceName] || {};
     const description = svcNode.description || 'BitBrat MCP Server';
     const version = arch?.project?.version || '1.0.0';
 
-    // Create a new Server instance for this connection
-    const server = new Server(
+    // Create a new stateless server instance
+    const server = new McpServer(
       {
         name: this.serviceName,
         version: version,
-        description: description,
-      } as any,
+      },
       {
         capabilities: {
           tools: this.registeredTools.size > 0 ? {} : undefined,
@@ -1764,18 +1732,65 @@ export class Bit {
       }
     );
 
-    // Copy all request handlers from the main server to this connection-specific server
-    // This ensures all registered tools, resources, and prompts are available
-    const mainServer = this.mcpServer as any;
-    if (mainServer._requestHandlers) {
-      server['_requestHandlers'] = new Map(mainServer._requestHandlers);
+    // Register discovery handlers (tools/list, resources/list, prompts/list)
+    this.setupDiscoveryHandlersOnServer(server);
+
+    // Register all tools from the Map
+    for (const [name, tool] of this.registeredTools.entries()) {
+      server.tool(name, tool.description, tool.schema, async (args, ctx) => {
+        // Extract context from MCP v2.0 ctx
+        const meta = (args as any)._meta;
+        const combinedExtra = {
+          ...ctx,
+          userId: meta?.userId || ctx?.http?.req?.headers?.['x-user-id'] || ctx?.http?.req?.headers?.['x-bitbrat-user-id'],
+          userRoles: meta?.userRoles || ctx?.http?.req?.headers?.['x-roles'] || ctx?.http?.req?.headers?.['x-bitbrat-roles']
+        };
+        return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(args, combinedExtra));
+      });
+    }
+
+    // Register all resources from the Map
+    for (const [uri, resource] of this.registeredResources.entries()) {
+      server.resource(uri, resource.description, async (ctx) => {
+        const meta = (ctx as any)._meta;
+        const combinedExtra = {
+          ...ctx,
+          userId: meta?.userId || ctx?.http?.req?.headers?.['x-user-id'] || ctx?.http?.req?.headers?.['x-bitbrat-user-id'],
+          userRoles: meta?.userRoles || ctx?.http?.req?.headers?.['x-roles'] || ctx?.http?.req?.headers?.['x-bitbrat-roles']
+        };
+        return await this.traceMcpOperation(`resource:${resource.name}`, () => resource.handler(uri, combinedExtra));
+      });
+    }
+
+    // Register all prompts from the Map
+    for (const [name, prompt] of this.registeredPrompts.entries()) {
+      server.prompt(name, prompt.description, async (promptArgs, ctx) => {
+        const meta = (promptArgs as any)._meta;
+        const combinedExtra = {
+          ...ctx,
+          userId: meta?.userId || ctx?.http?.req?.headers?.['x-user-id'] || ctx?.http?.req?.headers?.['x-bitbrat-user-id'],
+          userRoles: meta?.userRoles || ctx?.http?.req?.headers?.['x-roles'] || ctx?.http?.req?.headers?.['x-bitbrat-roles']
+        };
+        return await this.traceMcpOperation(`prompt:${name}`, () => prompt.handler(name, promptArgs, combinedExtra));
+      });
     }
 
     return server;
   }
 
   /**
-   * Register a tool with type-safe Zod schema validation.
+   * MCP SDK 2.0: Setup discovery handlers on a server instance.
+   * Called per-request to register tools/list, resources/list, prompts/list handlers.
+   */
+  private setupDiscoveryHandlersOnServer(server: McpServer) {
+    // In MCP SDK 2.0, discovery is handled automatically by the server based on
+    // registered tools/resources/prompts. No manual handler setup needed.
+    // This method kept for future custom discovery logic if needed.
+  }
+
+  /**
+   * MCP SDK 2.0: Register a tool with type-safe Zod schema validation.
+   * Stores tool definition in Map; actual registration happens in getMcpServer().
    */
   public registerTool<T extends z.ZodType>(
     name: string,
@@ -1784,26 +1799,18 @@ export class Bit {
     handler: (args: z.infer<T>, extra?: any) => Promise<CallToolResult>,
     options?: { scopes?: string[] }
   ) {
+    // MCP SDK 2.0: Validate schema is z.object() (required by v2.0)
+    if (schema._def.typeName !== 'ZodObject') {
+      throw new Error(`Tool "${name}": MCP SDK 2.0 requires z.object() schema. Primitive schemas must be wrapped: z.object({ value: ${schema._def.typeName} })`);
+    }
+
     this.registeredTools.set(name, { description, schema, handler, scopes: options?.scopes });
-    this.mcpServer.setRequestHandler('tools/call', async (request, ctx) => {
-      const tool = this.registeredTools.get(request.params.name);
-      if (!tool) throw new Error(`Tool not found: ${request.params.name}`);
-      const args = tool.schema.parse(request.params.arguments);
-
-      const meta = (request.params as any)._meta;
-      const combinedExtra = {
-        ...ctx,
-        userId: meta?.userId || ctx?.http?.req?.headers?.['x-user-id'] || ctx?.http?.req?.headers?.['x-bitbrat-user-id'],
-        userRoles: meta?.userRoles || ctx?.http?.req?.headers?.['x-roles'] || ctx?.http?.req?.headers?.['x-bitbrat-roles']
-      };
-
-      return await this.traceMcpOperation(`tool:${request.params.name}`, () => tool.handler(args, combinedExtra));
-    });
     this.getLogger().info("mcp_server.tool_registered", { name });
   }
 
   /**
-   * Register a resource.
+   * MCP SDK 2.0: Register a resource.
+   * Stores resource definition in Map; actual registration happens in getMcpServer().
    */
   public registerResource(
     uri: string,
@@ -1812,19 +1819,6 @@ export class Bit {
     handler: (uri: string, extra?: any) => Promise<ReadResourceResult>
   ) {
     this.registeredResources.set(uri, { name, description, handler });
-    this.mcpServer.setRequestHandler('resources/read', async (request, ctx) => {
-      const resource = this.registeredResources.get(request.params.uri);
-      if (!resource) throw new Error(`Resource not found: ${request.params.uri}`);
-
-      const meta = (request.params as any)._meta;
-      const combinedExtra = {
-        ...ctx,
-        userId: meta?.userId || ctx?.http?.req?.headers?.['x-user-id'] || ctx?.http?.req?.headers?.['x-bitbrat-user-id'],
-        userRoles: meta?.userRoles || ctx?.http?.req?.headers?.['x-roles'] || ctx?.http?.req?.headers?.['x-bitbrat-roles']
-      };
-
-      return await this.traceMcpOperation(`resource:${resource.name}`, () => resource.handler(request.params.uri, combinedExtra));
-    });
     this.getLogger().info("mcp_server.resource_registered", { name, uri });
   }
 
@@ -1900,7 +1894,8 @@ export class Bit {
   }
 
   /**
-   * Register a prompt.
+   * MCP SDK 2.0: Register a prompt.
+   * Stores prompt definition in Map; actual registration happens in getMcpServer().
    */
   public registerPrompt(
     name: string,
@@ -1913,21 +1908,6 @@ export class Bit {
     ) => Promise<GetPromptResult>
   ) {
     this.registeredPrompts.set(name, { description, args, handler });
-    this.mcpServer.setRequestHandler('prompts/get', async (request, ctx) => {
-      const prompt = this.registeredPrompts.get(request.params.name);
-      if (!prompt) throw new Error(`Prompt not found: ${request.params.name}`);
-
-      const meta = (request.params as any)._meta;
-      const combinedExtra = {
-        ...ctx,
-        userId: meta?.userId || ctx?.http?.req?.headers?.['x-user-id'] || ctx?.http?.req?.headers?.['x-bitbrat-user-id'],
-        userRoles: meta?.userRoles || ctx?.http?.req?.headers?.['x-roles'] || ctx?.http?.req?.headers?.['x-bitbrat-roles']
-      };
-
-      return await this.traceMcpOperation(`prompt:${request.params.name}`, () =>
-        prompt.handler(request.params.name, (request.params.arguments as Record<string, string>) || {}, combinedExtra)
-      );
-    });
     this.getLogger().info("mcp_server.prompt_registered", { name });
   }
 
@@ -2008,41 +1988,7 @@ export class Bit {
     }
   }
 
-  private setupDiscoveryHandlers() {
-    // tools/list
-    this.mcpServer.setRequestHandler('tools/list', async () => {
-      const tools = Array.from(this.registeredTools.entries()).map(([name, { description, schema, scopes }]) => {
-        const jsonSchema = zodToJsonSchema(schema);
-        return {
-          name,
-          description,
-          inputSchema: jsonSchema as any,
-          scopes,
-        };
-      });
-      return { tools };
-    });
-
-    // resources/list
-    this.mcpServer.setRequestHandler('resources/list', async () => {
-      const resources = Array.from(this.registeredResources.entries()).map(([uri, { name, description }]) => ({
-        uri,
-        name,
-        description,
-      }));
-      return { resources };
-    });
-
-    // prompts/list
-    this.mcpServer.setRequestHandler('prompts/list', async () => {
-      const prompts = Array.from(this.registeredPrompts.entries()).map(([name, { description, args }]) => ({
-        name,
-        description,
-        arguments: args,
-      }));
-      return { prompts };
-    });
-  }
+  // MCP SDK 2.0: setupDiscoveryHandlers removed - discovery handled automatically by the SDK
 
   /**
    * Helper to wrap MCP operations in OpenTelemetry spans if available.
@@ -2082,12 +2028,13 @@ export class Bit {
     return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(validatedArgs));
   }
 
+  /**
+   * MCP SDK 2.0: Setup HTTP routes for MCP server.
+   * Uses toNodeHandler() to create a stateless Express handler that creates a new server per request.
+   */
   private setupMcpRoutes() {
-    const authMiddleware = (
-      req: Request,
-      res: Response,
-      next: NextFunction
-    ) => {
+    // Auth middleware - support Bearer token and custom headers
+    const authMiddleware: RequestHandler = (req, res, next) => {
       const authToken = process.env.MCP_AUTH_TOKEN;
       if (authToken) {
         let providedToken = req.headers["x-mcp-token"] || req.query.token;
@@ -2103,66 +2050,20 @@ export class Bit {
             path: req.path,
             ip: req.ip,
           });
-          res.status(401).send("Unauthorized");
+          res.status(401).json({ error: "Unauthorized" });
           return;
         }
       }
       next();
     };
 
-    // Sprint 27: StreamableHTTP transport - single endpoint for both GET (SSE) and POST (requests)
-    this.onHTTPRequest("/sse", (req: Request, res: Response) => {
-      authMiddleware(req, res, async () => {
-        this.getLogger().trace("mcp_server.request_received", {
-          method: req.method,
-          path: req.path,
-        });
+    // MCP SDK 2.0: Single /mcp endpoint using toNodeHandler()
+    // Creates a new stateless server instance per request via getMcpServer()
+    this.app.post("/mcp", authMiddleware, toNodeHandler(() => this.getMcpServer()));
 
-        // Create and connect transport on first request
-        // Sprint 27: Use stateless mode (sessionIdGenerator: undefined) to avoid initialization requirement
-        if (!this.streamableHttpTransport) {
-          try {
-            this.streamableHttpTransport = new NodeStreamableHTTPServerTransport({
-              sessionIdGenerator: undefined,  // Stateless mode - no session validation
-            });
-
-            this.streamableHttpTransport.onclose = () => {
-              this.getLogger().trace("mcp_server.transport_closed");
-              this.streamableHttpTransport = undefined;
-            };
-
-            // Connect MCP server to transport
-            const sessionServer = await this.getMcpServerForConnection(req);
-            await sessionServer.connect(this.streamableHttpTransport);
-
-            this.getLogger().info("mcp_server.transport_initialized", {
-              sessionId: this.streamableHttpTransport.sessionId,
-            });
-          } catch (error) {
-            this.getLogger().error("mcp_server.transport_init_error", {
-              error: error instanceof Error ? error.message : String(error),
-              errorStack: error instanceof Error ? error.stack : undefined,
-            });
-            if (!res.headersSent) {
-              res.status(500).send("Transport initialization error");
-            }
-            return;
-          }
-        }
-
-        // Handle request using the shared transport
-        try {
-          await this.streamableHttpTransport.handleRequest(req, res, req.body);
-        } catch (error) {
-          this.getLogger().error("mcp_server.request_error", {
-            error: error instanceof Error ? error.message : String(error),
-            method: req.method,
-          });
-          if (!res.headersSent) {
-            res.status(500).send("Request handling error");
-          }
-        }
-      });
+    this.getLogger().info("mcp_server.routes_initialized", {
+      endpoint: "/mcp",
+      exposure: this.mcpExposure,
     });
   }
 }
