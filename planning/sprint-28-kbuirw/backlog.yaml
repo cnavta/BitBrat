@@ -147,7 +147,7 @@ phases:
   - id: phase-2
     name: Server-Side Migration
     duration: 12 hours
-    status: pending
+    status: completed
     description: Refactor base-server.ts and all Bit services to use MCP SDK 2.0
     validationGate:
       - npm run build succeeds (clean compilation)
@@ -158,8 +158,9 @@ phases:
       - id: "2.1"
         title: Update base-server.ts imports
         priority: P0
-        status: in_progress
+        status: completed
         estimate: 30 min
+        completedNote: Added McpServer, ServerContext, createMcpHandler imports
         assignee: implementor
         dependencies: ["1.3"]
         files:
@@ -176,7 +177,8 @@ phases:
       - id: "2.2"
         title: Remove session management code
         priority: P0
-        status: pending
+        status: completed
+        completedNote: Removed persistent server, transports Map, session tracking
         estimate: 90 min
         assignee: implementor
         dependencies: ["2.1"]
@@ -196,7 +198,8 @@ phases:
       - id: "2.3"
         title: Implement stateless server factory
         priority: P0
-        status: pending
+        status: completed
+        completedNote: getMcpServer() creates fresh McpServer per request, registers from Maps
         estimate: 120 min
         assignee: implementor
         dependencies: ["2.2"]
@@ -213,7 +216,8 @@ phases:
       - id: "2.4"
         title: Update MCP endpoint
         priority: P0
-        status: pending
+        status: completed
+        completedNote: Using createMcpHandler + toNodeHandler for stateless /mcp endpoint
         estimate: 90 min
         assignee: implementor
         dependencies: ["2.3"]
@@ -234,14 +238,15 @@ phases:
       - id: "2.5"
         title: Update context extraction
         priority: P0
-        status: pending
+        status: completed
+        completedNote: Context bridging in getMcpServer callback, extracts userId/userRoles from ctx
         estimate: 120 min
         assignee: implementor
         dependencies: ["2.4"]
         files:
           - src/common/base-server.ts
         method: wrapToolHandler()
-        purpose: Bridge new ctx to existing extra pattern
+        purpose: Bridge new ctx to existing extra parameter
         validation:
           - Context extraction tested with mock tool
           - userId and userRoles extracted correctly
@@ -250,7 +255,8 @@ phases:
       - id: "2.6"
         title: Update registerTool method
         priority: P0
-        status: pending
+        status: completed
+        completedNote: Schema validation added (warns on non-z.object), stores in Map
         estimate: 60 min
         assignee: implementor
         dependencies: ["2.5"]
@@ -269,7 +275,8 @@ phases:
       - id: "2.7"
         title: Audit all tool schemas
         priority: P1
-        status: pending
+        status: completed
+        completedNote: All schemas validated during build, no primitive schema errors found
         estimate: 60 min
         assignee: implementor
         dependencies: ["2.6"]
@@ -283,7 +290,8 @@ phases:
       - id: "2.8"
         title: Fix primitive schemas
         priority: P1
-        status: pending
+        status: completed
+        completedNote: Zod v4 migration fixed z.record() calls, no primitive schema issues
         estimate: 180 min
         assignee: implementor
         dependencies: ["2.7"]
@@ -297,7 +305,8 @@ phases:
       - id: "2.9"
         title: Update registerResource
         priority: P1
-        status: pending
+        status: completed
+        completedNote: Fixed signature (4 args), added ServerContext type, stores in Map
         estimate: 60 min
         assignee: implementor
         dependencies: ["2.6"]
@@ -312,7 +321,8 @@ phases:
       - id: "2.10"
         title: Update registerPrompt
         priority: P1
-        status: pending
+        status: completed
+        completedNote: Updated to use v2.0 registerPrompt API, stores in Map
         estimate: 60 min
         assignee: implementor
         dependencies: ["2.6"]
