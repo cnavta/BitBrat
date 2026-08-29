@@ -1,4 +1,4 @@
-import { Client, SSEClientTransport } from "@modelcontextprotocol/client";
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import type { Logger } from '../../orchestration/logger';
 import { FleetIdentity, FleetTool, FleetTransport } from '../types';
 
@@ -6,9 +6,9 @@ import { FleetIdentity, FleetTool, FleetTransport } from '../types';
  * BL-204 §4.3 / §5 — DEFAULT (fabric) transport.
  *
  * Drives the universal `bit.*` control plane through the `tool-gateway` fabric — the single
- * auth/RBAC/discovery chokepoint (ADR-003). Reuses the platform `@modelcontextprotocol/sdk`
- * `Client` + `SSEClientTransport` wrappers (exactly as `McpClientManager` does) rather than
- * re-implementing transport. When SSE is unavailable it falls back to the gateway's REST mirror
+ * auth/RBAC/discovery chokepoint (ADR-003). Reuses the platform `@modelcontextprotocol/client`
+ * `Client` + `StreamableHTTPClientTransport` wrappers (exactly as `McpClientManager` does) rather than
+ * re-implementing transport. When HTTP/SSE is unavailable it falls back to the gateway's REST mirror
  * (`GET /v1/tools`, `POST /v1/tools/:id`). Identity is forwarded via MCP `_meta.{userRoles,userId}`
  * and the `x-mcp-token`/`Authorization` header so RBAC (server-authoritative) can allow/deny.
  */
@@ -25,7 +25,7 @@ export interface GatewayTransportOptions {
   /** Base URL of the tool-gateway, e.g. `http://localhost:3000`. */
   baseUrl: string;
   logger?: Logger;
-  /** Override the MCP client factory (tests inject a mock). Default builds an SDK SSE client. */
+  /** Override the MCP client factory (tests inject a mock). Default builds an MCP SDK client with StreamableHTTP transport. */
   clientFactory?: (baseUrl: string, identity: FleetIdentity) => Promise<McpClientLike>;
   /** Override fetch (tests inject a mock). Defaults to global fetch. */
   fetchImpl?: typeof fetch;
@@ -173,7 +173,8 @@ function isForbidden(e: any): boolean {
 }
 
 async function defaultClientFactory(baseUrl: string, identity: FleetIdentity): Promise<McpClientLike> {
-  const transport = new SSEClientTransport(new URL(`${baseUrl}/sse`), {
+  // Sprint 28: MCP SDK 2.0 - Use StreamableHTTPClientTransport instead of deprecated SSEClientTransport
+  const transport = new StreamableHTTPClientTransport(new URL(`${baseUrl}/sse`), {
     requestInit: {
       headers: {
         Authorization: `Bearer ${identity.token}`,
@@ -184,6 +185,7 @@ async function defaultClientFactory(baseUrl: string, identity: FleetIdentity): P
       },
     },
   });
+  // Sprint 28: MCP SDK 2.0 - Client constructor signature unchanged
   const client = new Client({ name: 'brat-fleet', version: '1.0.0' }, { capabilities: {} });
   await client.connect(transport as any);
   return client as unknown as McpClientLike;
