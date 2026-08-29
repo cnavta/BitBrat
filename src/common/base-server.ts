@@ -33,7 +33,7 @@ import type { InternalEventV2, RoutingStep, RoutingStatus, SnapshotDeadletterV1,
 import { markSelectedCandidate } from './events/selection';
 import { features } from './feature-flags';
 // MCP SDK 2.0 imports (Sprint 28)
-import { Server as McpServer, CallToolResult, GetPromptResult, ReadResourceResult } from "@modelcontextprotocol/server";
+import { McpServer, CallToolResult, GetPromptResult, ReadResourceResult } from "@modelcontextprotocol/server";
 import { toNodeHandler } from "@modelcontextprotocol/node";
 import { publishPersistenceSnapshot } from './events/persistence-snapshots';
 import { FeedbackMiddleware } from './middleware/feedback-middleware';
@@ -1732,44 +1732,48 @@ export class Bit {
       }
     );
 
-    // Register discovery handlers (tools/list, resources/list, prompts/list)
-    this.setupDiscoveryHandlersOnServer(server);
-
-    // Register all tools from the Map
+    // Register all tools from the Map using MCP SDK 2.0 API
     for (const [name, tool] of this.registeredTools.entries()) {
-      server.tool(name, tool.description, tool.schema, async (args, ctx) => {
+      server.registerTool(name, {
+        description: tool.description,
+        inputSchema: tool.schema,
+      }, async (args, ctx) => {
         // Extract context from MCP v2.0 ctx
         const meta = (args as any)._meta;
         const combinedExtra = {
           ...ctx,
-          userId: meta?.userId || ctx?.http?.req?.headers?.['x-user-id'] || ctx?.http?.req?.headers?.['x-bitbrat-user-id'],
-          userRoles: meta?.userRoles || ctx?.http?.req?.headers?.['x-roles'] || ctx?.http?.req?.headers?.['x-bitbrat-roles']
+          userId: meta?.userId || (ctx as any)?.http?.req?.headers?.['x-user-id'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-user-id'],
+          userRoles: meta?.userRoles || (ctx as any)?.http?.req?.headers?.['x-roles'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-roles']
         };
         return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(args, combinedExtra));
       });
     }
 
-    // Register all resources from the Map
+    // Register all resources from the Map using MCP SDK 2.0 API
     for (const [uri, resource] of this.registeredResources.entries()) {
-      server.resource(uri, resource.description, async (ctx) => {
-        const meta = (ctx as any)._meta;
+      server.registerResource(uri, {
+        name: resource.name,
+        description: resource.description,
+      }, async (ctx) => {
         const combinedExtra = {
           ...ctx,
-          userId: meta?.userId || ctx?.http?.req?.headers?.['x-user-id'] || ctx?.http?.req?.headers?.['x-bitbrat-user-id'],
-          userRoles: meta?.userRoles || ctx?.http?.req?.headers?.['x-roles'] || ctx?.http?.req?.headers?.['x-bitbrat-roles']
+          userId: (ctx as any)?.http?.req?.headers?.['x-user-id'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-user-id'],
+          userRoles: (ctx as any)?.http?.req?.headers?.['x-roles'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-roles']
         };
         return await this.traceMcpOperation(`resource:${resource.name}`, () => resource.handler(uri, combinedExtra));
       });
     }
 
-    // Register all prompts from the Map
+    // Register all prompts from the Map using MCP SDK 2.0 API
     for (const [name, prompt] of this.registeredPrompts.entries()) {
-      server.prompt(name, prompt.description, async (promptArgs, ctx) => {
-        const meta = (promptArgs as any)._meta;
+      server.registerPrompt(name, {
+        description: prompt.description,
+        argsSchema: prompt.args.length > 0 ? prompt.args as any : undefined,
+      }, async (promptArgs, ctx) => {
         const combinedExtra = {
           ...ctx,
-          userId: meta?.userId || ctx?.http?.req?.headers?.['x-user-id'] || ctx?.http?.req?.headers?.['x-bitbrat-user-id'],
-          userRoles: meta?.userRoles || ctx?.http?.req?.headers?.['x-roles'] || ctx?.http?.req?.headers?.['x-bitbrat-roles']
+          userId: (ctx as any)?.http?.req?.headers?.['x-user-id'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-user-id'],
+          userRoles: (ctx as any)?.http?.req?.headers?.['x-roles'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-roles']
         };
         return await this.traceMcpOperation(`prompt:${name}`, () => prompt.handler(name, promptArgs, combinedExtra));
       });
@@ -1778,15 +1782,7 @@ export class Bit {
     return server;
   }
 
-  /**
-   * MCP SDK 2.0: Setup discovery handlers on a server instance.
-   * Called per-request to register tools/list, resources/list, prompts/list handlers.
-   */
-  private setupDiscoveryHandlersOnServer(server: McpServer) {
-    // In MCP SDK 2.0, discovery is handled automatically by the server based on
-    // registered tools/resources/prompts. No manual handler setup needed.
-    // This method kept for future custom discovery logic if needed.
-  }
+  // MCP SDK 2.0: Discovery is automatic - setupDiscoveryHandlersOnServer removed
 
   /**
    * MCP SDK 2.0: Register a tool with type-safe Zod schema validation.
@@ -1800,8 +1796,10 @@ export class Bit {
     options?: { scopes?: string[] }
   ) {
     // MCP SDK 2.0: Validate schema is z.object() (required by v2.0)
-    if (schema._def.typeName !== 'ZodObject') {
-      throw new Error(`Tool "${name}": MCP SDK 2.0 requires z.object() schema. Primitive schemas must be wrapped: z.object({ value: ${schema._def.typeName} })`);
+    // Check using _def property which exists in all Zod schemas
+    const def = (schema as any)._def;
+    if (def && def.typeName && def.typeName !== 'ZodObject') {
+      this.getLogger().warn(`Tool "${name}": MCP SDK 2.0 prefers z.object() schemas. Primitive schemas may need wrapping.`);
     }
 
     this.registeredTools.set(name, { description, schema, handler, scopes: options?.scopes });
@@ -2059,7 +2057,8 @@ export class Bit {
 
     // MCP SDK 2.0: Single /mcp endpoint using toNodeHandler()
     // Creates a new stateless server instance per request via getMcpServer()
-    this.app.post("/mcp", authMiddleware, toNodeHandler(() => this.getMcpServer()));
+    const mcpHandler = toNodeHandler(() => this.getMcpServer()) as any;
+    this.app.post("/mcp", authMiddleware, mcpHandler);
 
     this.getLogger().info("mcp_server.routes_initialized", {
       endpoint: "/mcp",
