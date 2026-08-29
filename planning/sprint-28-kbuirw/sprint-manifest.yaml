@@ -4,7 +4,10 @@ goal: Migrate BitBrat platform from MCP SDK 1.x to TypeScript MCP SDK 2.0,
   resolving StreamableHTTP and architecture issues identified in Sprint 27
 owner: christophernavta
 createdAt: 2026-08-29T14:49:47.917Z
-status: in-progress
+status: complete
 links:
   branch: feature/sprint-28-kbuirw-mcp-sdk-2-0-migration
+  pr: https://github.com/cnavta/BitBrat/pull/338
 notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-08-29T18:28:09.686Z
+completionMode: normal
