@@ -873,13 +873,16 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       // ============================================================================
       // STAGE 1: Read base compose file
       // ============================================================================
-      // For bulk deployments, use infrastructure-only base file (docker-compose.local.yaml)
-      // to avoid circular dependencies from generated context-specific files
-      // (e.g., docker-compose.staging.yaml which contains all services with dependencies).
+      // For bulk deployments, use context-specific base file to preserve network aliases
+      // Sprint 27: CRITICAL FIX - Must use context-specific compose file (not docker-compose.local.yaml)
+      // because different contexts have different network configurations:
+      //   - local: bitbrat-network (literal)
+      //   - staging: bitbrat-network → bitbrat-staging-network (alias)
+      //   - production: bitbrat-network → bitbrat-production-network (alias)
       //
-      // The infrastructure-only base contains:
-      // - Infrastructure services (nats, postgres, firebase-emulator)
-      // - Network definitions
+      // The context-specific base contains:
+      // - Infrastructure services (nats, postgres, redis)
+      // - Network definitions (with context-specific aliases)
       // - Volume definitions
       // - bitbrat-base build-only service
       //
@@ -887,7 +890,8 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       // from service-specific compose files to avoid dependency conflicts.
       const baseComposePath = path.join(
         repoRoot,
-        'infrastructure/docker-compose/docker-compose.local.yaml'
+        'infrastructure/docker-compose',
+        `docker-compose.${context.name}.yaml`
       );
       let baseYaml = await fs.promises.readFile(baseComposePath, 'utf-8');
 
@@ -907,7 +911,7 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       }
 
       // Sprint 378: Fix build context paths for services in base file
-      // docker-compose.local.yaml uses context: ../.. (from infrastructure/docker-compose/ to repo root)
+      // Context-specific compose files use context: ../.. (from infrastructure/docker-compose/ to repo root)
       // but merged file is at repo root, so context should be . (repo root itself)
       for (const [serviceName, serviceConfig] of Object.entries(baseCompose.services)) {
         const service = serviceConfig as any;

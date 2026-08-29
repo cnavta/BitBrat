@@ -1,6 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import {
   ToolListChangedNotificationSchema,
   ResourceListChangedNotificationSchema,
@@ -237,7 +238,10 @@ export class McpClientManager {
         if (!config.url) {
           throw new Error(`SSE transport requires a URL for server ${config.name}`);
         }
-        transport = new SSEClientTransport(new URL(config.url), {
+
+        // Sprint 27: Use StreamableHTTPClientTransport instead of deprecated SSEClientTransport
+        // StreamableHTTP uses same /sse endpoint path for backward compatibility
+        transport = new StreamableHTTPClientTransport(new URL(config.url), {
           requestInit: {
             headers: resolved.env
           }
@@ -325,10 +329,25 @@ export class McpClientManager {
     // Remove tools associated with this server
     const toolIds = this.serverTools.get(name) || [];
     logger.debug('mcp.client_manager.unregistering_tools', { name, count: toolIds.length, toolIds });
+
+    // Sprint 27: TRACE logging for tool unregistration
+    logger.trace?.('mcp.client_manager.unregister_tools.start', {
+      server: name,
+      toolCount: toolIds.length,
+      toolIds,
+      allServers: Array.from(this.serverTools.keys()),
+      stack: new Error().stack?.split('\n').slice(2, 5).join(' | ')
+    });
+
     for (const id of toolIds) {
       this.registry.unregisterTool(id);
     }
     this.serverTools.delete(name);
+
+    logger.trace?.('mcp.client_manager.unregister_tools.complete', {
+      server: name,
+      remainingServers: Array.from(this.serverTools.keys())
+    });
 
     // Remove resources
     const resourceUris = this.serverResources.get(name) || [];
@@ -352,7 +371,29 @@ export class McpClientManager {
     const bridge = this.bridges.get(serverName);
     const logger = (this.server as any).getLogger();
 
-    if (!client || !bridge) return;
+    if (!client || !bridge) {
+      // Sprint 27: CRITICAL - Log why discovery is skipped
+      logger.error('mcp.client_manager.discover_tools.skipped', {
+        server: serverName,
+        hasClient: !!client,
+        hasBridge: !!bridge,
+        clientsSize: this.clients.size,
+        bridgesSize: this.bridges.size,
+        allClients: Array.from(this.clients.keys()),
+        allBridges: Array.from(this.bridges.keys())
+      });
+      return;
+    }
+
+    // Sprint 27: TRACE logging for discovery start
+    const existingTools = this.serverTools.get(serverName) || [];
+    logger.trace?.('mcp.client_manager.discover_tools.start', {
+      server: serverName,
+      existingToolCount: existingTools.length,
+      existingTools,
+      allServers: Array.from(this.serverTools.keys()),
+      stack: new Error().stack?.split('\n').slice(2, 5).join(' | ')
+    });
 
     // Check capabilities if available
     const capabilities = (client as any).getServerCapabilities?.();
@@ -363,24 +404,58 @@ export class McpClientManager {
 
     const toolIds: string[] = [];
     const start = Date.now();
+
+    // Sprint 27: CRITICAL - Log before listTools call
+    logger.error('mcp.client_manager.list_tools.calling', {
+      server: serverName,
+      hasClient: !!client,
+      clientType: client.constructor?.name
+    });
+
     try {
       const result = await client.listTools();
       const duration = Date.now() - start;
+
+      // Sprint 27: CRITICAL - Log after listTools completes
+      logger.error('mcp.client_manager.list_tools.completed', {
+        server: serverName,
+        toolCount: result.tools?.length || 0,
+        duration
+      });
+
       this.stats.recordDiscovery(serverName, result.tools.length, duration);
 
-      logger.debug('mcp.client_manager.tools_discovered', { 
-        server: serverName, 
+      logger.debug('mcp.client_manager.tools_discovered', {
+        server: serverName,
         count: result.tools.length,
         toolNames: result.tools.map(t => t.name)
       });
+
+      // Sprint 27: TRACE before registration loop
+      logger.trace?.('mcp.client_manager.discover_tools.registering', {
+        server: serverName,
+        discoveredCount: result.tools.length,
+        willRemoveExisting: existingTools.length > 0
+      });
+
       for (const tool of result.tools) {
-        const translated = bridge.translateTool(tool, requiredRoles);
+        // Sprint 27: Don't copy server-level requiredRoles to individual tools
+        // RBAC evaluator already checks server-level roles separately
+        const translated = bridge.translateTool(tool);
         this.registry.registerTool(translated);
         toolIds.push(translated.id);
         logger.debug('mcp.client_manager.tool_registered', { server: serverName, tool: tool.name });
       }
       this.serverTools.set(serverName, toolIds);
       this.stats.updateServerTools(serverName, toolIds);
+
+      // Sprint 27: TRACE after registration complete
+      logger.trace?.('mcp.client_manager.discover_tools.complete', {
+        server: serverName,
+        registeredCount: toolIds.length,
+        allServers: Array.from(this.serverTools.keys()),
+        totalToolsAcrossServers: Array.from(this.serverTools.values()).reduce((sum, tools) => sum + tools.length, 0)
+      });
     } catch (e: any) {
       if (e?.code === -32601) {
         logger.info('mcp.client_manager.tools_not_supported', { name: serverName });
@@ -395,7 +470,15 @@ export class McpClientManager {
     const bridge = this.bridges.get(serverName);
     const logger = (this.server as any).getLogger();
 
-    if (!client || !bridge) return;
+    if (!client || !bridge) {
+      // Sprint 27: CRITICAL - Log why discovery is skipped
+      logger.error('mcp.client_manager.discover_resources.skipped', {
+        server: serverName,
+        hasClient: !!client,
+        hasBridge: !!bridge
+      });
+      return;
+    }
 
     // Check capabilities if available
     const capabilities = (client as any).getServerCapabilities?.();
@@ -427,7 +510,15 @@ export class McpClientManager {
     const bridge = this.bridges.get(serverName);
     const logger = (this.server as any).getLogger();
 
-    if (!client || !bridge) return;
+    if (!client || !bridge) {
+      // Sprint 27: CRITICAL - Log why discovery is skipped
+      logger.error('mcp.client_manager.discover_prompts.skipped', {
+        server: serverName,
+        hasClient: !!client,
+        hasBridge: !!bridge
+      });
+      return;
+    }
 
     // Check capabilities if available
     const capabilities = (client as any).getServerCapabilities?.();

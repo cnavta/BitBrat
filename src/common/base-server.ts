@@ -38,6 +38,7 @@ import type { PublisherResource } from './resources/publisher-manager';
 // Bit model (sprint-324): MCP control-plane machinery folded down into the base abstraction.
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {
   CallToolResult,
   GetPromptResult,
@@ -121,7 +122,9 @@ export class Bit {
   protected mcpExposure?: McpExposure;
   /** The MCP Server instance. Always constructed; transport is only wired when enabled. */
   protected mcpServer!: Server;
-  protected readonly transports: Map<string, SSEServerTransport> = new Map();
+  protected readonly transports: Map<string, SSEServerTransport | StreamableHTTPServerTransport> = new Map();
+  /** Sprint 27: Single StreamableHTTPServerTransport instance (created once, reused for all requests) */
+  private streamableHttpTransport?: StreamableHTTPServerTransport;
   private readonly registeredTools: Map<string, { description: string; schema: any; handler: (args: any, extra?: any) => Promise<CallToolResult>; scopes?: string[] }> = new Map();
   private readonly registeredResources: Map<string, { name: string; description: string; handler: (uri: string, extra?: any) => Promise<ReadResourceResult> }> = new Map();
   private readonly registeredPrompts: Map<string, { description: string; args: { name: string; description?: string; required?: boolean }[]; handler: (name: string, args: Record<string, string>, extra?: any) => Promise<GetPromptResult> }> = new Map();
@@ -1970,8 +1973,10 @@ export class Bit {
         transport: 'sse',
         url: externalUrl,
         status: 'active',
+        // Sprint 27: Send variable reference, not resolved value (security fix).
+        // Tool-gateway's client-manager.ts:resolveConfig() will interpolate at runtime.
         env: process.env.MCP_AUTH_TOKEN ? {
-          Authorization: `Bearer ${process.env.MCP_AUTH_TOKEN}`
+          Authorization: 'Bearer ${MCP_AUTH_TOKEN}'
         } : {},
         ...(requiredRoles && { requiredRoles }),
         ...contextAdvertisement,
@@ -2115,76 +2120,60 @@ export class Bit {
       next();
     };
 
+    // Sprint 27: StreamableHTTP transport - single endpoint for both GET (SSE) and POST (requests)
     this.onHTTPRequest("/sse", (req: Request, res: Response) => {
       authMiddleware(req, res, async () => {
-        this.getLogger().trace("mcp_server.sse_connection_attempt", {
-          sessionId: req.query.sessionId,
+        this.getLogger().trace("mcp_server.request_received", {
+          method: req.method,
+          path: req.path,
         });
 
-        const transport = new SSEServerTransport("/message", res);
-        this.transports.set(transport.sessionId, transport);
+        // Create and connect transport on first request
+        // Sprint 27: Use stateless mode (sessionIdGenerator: undefined) to avoid initialization requirement
+        if (!this.streamableHttpTransport) {
+          try {
+            this.streamableHttpTransport = new StreamableHTTPServerTransport({
+              sessionIdGenerator: undefined,  // Stateless mode - no session validation
+            });
 
-        transport.onclose = () => {
-          this.getLogger().trace("mcp_server.transport_closed", {
-            sessionId: transport.sessionId,
-          });
-          this.transports.delete(transport.sessionId);
-        };
+            this.streamableHttpTransport.onclose = () => {
+              this.getLogger().trace("mcp_server.transport_closed");
+              this.streamableHttpTransport = undefined;
+            };
 
+            // Connect MCP server to transport
+            const sessionServer = await this.getMcpServerForConnection(req);
+            await sessionServer.connect(this.streamableHttpTransport);
+
+            this.getLogger().info("mcp_server.transport_initialized", {
+              sessionId: this.streamableHttpTransport.sessionId,
+            });
+          } catch (error) {
+            this.getLogger().error("mcp_server.transport_init_error", {
+              error: error instanceof Error ? error.message : String(error),
+              errorStack: error instanceof Error ? error.stack : undefined,
+            });
+            if (!res.headersSent) {
+              res.status(500).send("Transport initialization error");
+            }
+            return;
+          }
+        }
+
+        // Handle request using the shared transport
         try {
-          const sessionServer = await this.getMcpServerForConnection(req);
-          await sessionServer.connect(transport);
-          this.getLogger().trace("mcp_server.connected", {
-            sessionId: transport.sessionId,
-          });
+          await this.streamableHttpTransport.handleRequest(req, res, req.body);
         } catch (error) {
-          this.getLogger().error("mcp_server.connect_error", {
+          this.getLogger().error("mcp_server.request_error", {
             error: error instanceof Error ? error.message : String(error),
-            errorStack: error instanceof Error ? error.stack : undefined,
-            sessionId: transport.sessionId,
+            method: req.method,
           });
-          this.transports.delete(transport.sessionId);
           if (!res.headersSent) {
-            res.status(500).send("Connection error");
+            res.status(500).send("Request handling error");
           }
         }
       });
     });
-
-    this.onHTTPRequest(
-      { path: "/message", method: "POST" },
-      (req: Request, res: Response) => {
-        authMiddleware(req, res, async () => {
-          const sessionId = req.query.sessionId as string;
-          if (!sessionId) {
-            if (!res.headersSent) {
-              res.status(400).send("sessionId is required");
-            }
-            return;
-          }
-
-          const transport = this.transports.get(sessionId);
-          if (transport) {
-            try {
-              await transport.handlePostMessage(req, res, req.body);
-            } catch (error) {
-              this.getLogger().error("mcp_server.message_handle_error", {
-                error,
-                sessionId,
-              });
-              if (!res.headersSent) {
-                res.status(500).send("Error handling message");
-              }
-            }
-          } else {
-            this.getLogger().warn("mcp_server.session_not_found", { sessionId });
-            if (!res.headersSent) {
-              res.status(404).send("Session not found");
-            }
-          }
-        });
-      }
-    );
   }
 }
 

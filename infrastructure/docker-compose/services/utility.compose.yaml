@@ -1,5 +1,5 @@
 services:
-  claim-check:
+  utility:
     env_file:
       - .env.brat
     environment:
@@ -9,13 +9,13 @@ services:
       dockerfile: Dockerfile.service
       args:
         BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
-        SERVICE_NAME: claim-check
-        SERVICE_ENTRY: dist/apps/claim-check-service.js
-        SERVICE_PORT: "3008"
+        SERVICE_NAME: utility
+        SERVICE_ENTRY: dist/apps/utility-service.js
+        SERVICE_PORT: "3020"
     ports:
-      - "${CLAIM_CHECK_HOST_PORT:-3008}:3008"
+      - "${UTILITY_HOST_PORT:-3020}:3020"
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:3008/healthz"]
+      test: ["CMD", "curl", "-sf", "http://localhost:3020/healthz"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -24,7 +24,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
       bitbrat-network:
         aliases:
-          - claim-check.bitbrat.local
+          - utility.bitbrat.local
