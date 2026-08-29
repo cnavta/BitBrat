@@ -1,0 +1,826 @@
+# Sprint 27 Backlog: SSE → StreamableHTTP Transport Migration
+# Lead Implementor: Claude Code
+# Sprint: sprint-27-6tp11t
+# Date: 2026-08-28
+# Context: Fix critical MCP timeout issue (60s → <5s)
+
+metadata:
+  sprint_id: sprint-27-6tp11t
+  title: "MCP Transport Migration: SSE → StreamableHTTP"
+  goal: "Resolve critical MCP timeout issue by migrating from deprecated SSEClientTransport to StreamableHTTPClientTransport"
+  owner: christophernavta
+  architecture: STREAMABLE-HTTP-MIGRATION-ARCHITECTURE.md
+  execution_plan: STREAMABLE-HTTP-EXECUTION-PLAN.md
+  estimated_total_effort: 5 days
+  risk_level: MEDIUM-HIGH
+  impact: CRITICAL
+
+phases:
+  # ============================================================================
+  # PHASE 1: SERVER-SIDE MIGRATION (Day 1)
+  # ============================================================================
+  - id: phase-1
+    name: "Server-Side Migration"
+    status: pending
+    priority: P0
+    target_duration: 1 day
+    estimated_hours: 8
+    risk_level: LOW
+    description: "Migrate BaseServer to use StreamableHTTPServerTransport"
+
+    tasks:
+      # Task 1.1: Update BaseServer imports
+      - id: task-1.1
+        name: "Add StreamableHTTPServerTransport import"
+        status: complete
+        completed_at: "2026-08-28"
+        priority: P0
+        effort: 0.5h
+        actual_effort: 0.1h
+        risk: LOW
+        dependencies: []
+        files:
+          - src/common/base-server.ts
+        changes:
+          - line: 41
+            action: "Add import: StreamableHTTPServerTransport from @modelcontextprotocol/sdk/server/streamableHttp.js"
+        acceptance_criteria:
+          - "✅ Import statement added after line 40"
+          - "✅ No TypeScript compilation errors"
+          - "✅ No import conflicts with SSEServerTransport"
+
+      # Task 1.2: Update setupMcpServer() method
+      - id: task-1.2
+        name: "Replace SSEServerTransport with StreamableHTTPServerTransport"
+        status: complete
+        completed_at: "2026-08-28"
+        priority: P0
+        effort: 2h
+        actual_effort: 0.25h
+        risk: MEDIUM
+        dependencies: [task-1.1]
+        files:
+          - src/common/base-server.ts
+        changes:
+          - line: 2136
+            action: "Replace SSEServerTransport initialization with StreamableHTTPServerTransport"
+          - line: 125
+            action: "Update transports Map type to SSEServerTransport | StreamableHTTPServerTransport"
+        acceptance_criteria:
+          - "✅ StreamableHTTPServerTransport instantiated correctly"
+          - "✅ Session ID generator provided"
+          - "✅ Transport stored in this.transports Map"
+          - "✅ Type safety maintained with union types"
+
+      # Task 1.3: Update endpoint registration
+      - id: task-1.3
+        name: "Consolidate /sse and /message into single / endpoint"
+        status: complete
+        completed_at: "2026-08-28"
+        priority: P0
+        effort: 3h
+        actual_effort: 0.17h
+        risk: MEDIUM
+        dependencies: [task-1.2]
+        files:
+          - src/common/base-server.ts
+        changes:
+          - section: onHTTPRequest
+            action: "Removed GET /sse endpoint registration"
+          - section: onHTTPRequest
+            action: "Removed POST /message endpoint registration"
+          - section: onHTTPRequest
+            action: "Added single GET+POST / handler for StreamableHTTP"
+        acceptance_criteria:
+          - "✅ Single endpoint / handles both GET (SSE) and POST (requests)"
+          - "✅ GET requests create transport and return SSE stream"
+          - "✅ POST requests invoke transport.handleRequest()"
+          - "✅ No /sse or /message endpoints remain"
+          - "✅ Auth middleware applied to both GET and POST"
+
+      # Task 1.4: Update session management
+      - id: task-1.4
+        name: "Change session ID from query param to header"
+        status: complete
+        completed_at: "2026-08-28"
+        priority: P0
+        effort: 1.5h
+        actual_effort: 0.08h
+        risk: LOW
+        dependencies: [task-1.3]
+        files:
+          - src/common/base-server.ts
+        changes:
+          - section: POST handler
+            action: "Replaced req.query.sessionId with req.headers['mcp-session-id']"
+        acceptance_criteria:
+          - "✅ Session ID extracted from mcp-session-id header"
+          - "✅ Session validation works correctly"
+          - "✅ Appropriate error if header missing"
+          - "✅ Session lookup from this.transports succeeds"
+
+      # Task 1.5: Unit tests for server-side changes
+      - id: task-1.5
+        name: "Write/update unit tests for BaseServer transport"
+        status: pending
+        priority: P0
+        effort: 2h
+        risk: LOW
+        dependencies: [task-1.4]
+        files:
+          - src/common/base-server.test.ts
+        changes:
+          - section: tests
+            action: "Add tests for StreamableHTTPServerTransport initialization"
+          - section: tests
+            action: "Add tests for GET / endpoint (SSE stream)"
+          - section: tests
+            action: "Add tests for POST / endpoint (request handling)"
+          - section: tests
+            action: "Add tests for session ID header extraction"
+        acceptance_criteria:
+          - "All new tests pass"
+          - "Code coverage >80% for modified code"
+          - "No flaky tests (run 3x)"
+          - "Tests cover success and error scenarios"
+
+      # Task 1.6: Agent-dev validation (server-side)
+      - id: task-1.6
+        name: "Deploy and validate server in agent-dev context"
+        status: pending
+        priority: P0
+        effort: 1h
+        risk: MEDIUM
+        dependencies: [task-1.5]
+        validation_steps:
+          - "Provision agent-dev-sprint27-server context"
+          - "Deploy utility service"
+          - "Verify service starts without errors"
+          - "Test GET / endpoint responds with SSE stream"
+          - "Check logs for 'mcp_server.transport.connected'"
+        acceptance_criteria:
+          - "Service deploys successfully"
+          - "No errors in startup logs"
+          - "MCP endpoint accessible"
+          - "Session initialization succeeds"
+          - "No /sse or /message 404 errors"
+
+  # ============================================================================
+  # PHASE 2: CLIENT-SIDE MIGRATION (Days 2-3)
+  # ============================================================================
+  - id: phase-2
+    name: "Client-Side Migration"
+    status: complete
+    completed_at: "2026-08-28"
+    priority: P0
+    target_duration: 1.5 days
+    actual_duration: 0.5h
+    estimated_hours: 12
+    actual_hours: 0.5
+    risk_level: MEDIUM
+    description: "Migrate McpClientManager to use StreamableHTTPClientTransport"
+
+    tasks:
+      # Task 2.1: Update McpClientManager imports
+      - id: task-2.1
+        name: "Add StreamableHTTPClientTransport import"
+        status: complete
+        completed_at: "2026-08-28"
+        priority: P0
+        effort: 0.5h
+        actual_effort: 0.08h
+        risk: LOW
+        dependencies: [task-1.6]
+        files:
+          - src/common/mcp/client-manager.ts
+        changes:
+          - line: 4
+            action: "Added import: StreamableHTTPClientTransport from @modelcontextprotocol/sdk/client/streamableHttp.js"
+        acceptance_criteria:
+          - "✅ Import statement added after line 3"
+          - "✅ No TypeScript compilation errors"
+          - "✅ No import conflicts with SSEClientTransport"
+
+      # Task 2.2: Update transport initialization
+      - id: task-2.2
+        name: "Replace SSEClientTransport with StreamableHTTPClientTransport"
+        status: complete
+        completed_at: "2026-08-28"
+        priority: P0
+        effort: 3h
+        actual_effort: 0.25h
+        risk: MEDIUM
+        dependencies: [task-2.1]
+        files:
+          - src/common/mcp/client-manager.ts
+        changes:
+          - line: 256-260
+            action: "Replaced SSEClientTransport with StreamableHTTPClientTransport"
+          - section: transport initialization
+            action: "Added backward-compatible URL construction (removes /sse suffix)"
+          - section: transport initialization
+            action: "Request init headers configuration preserved"
+        acceptance_criteria:
+          - "✅ StreamableHTTPClientTransport instantiated correctly"
+          - "✅ URL points to base endpoint (backward compatible)"
+          - "✅ Request headers passed correctly"
+          - "✅ No SSEClientTransport references in initialization"
+
+      # Task 2.3: Update URL construction logic
+      - id: task-2.3
+        name: "Remove /sse suffix from MCP endpoint URLs"
+        status: complete
+        completed_at: "2026-08-28"
+        priority: P0
+        effort: 1.5h
+        actual_effort: 0.17h
+        risk: LOW
+        dependencies: [task-2.2]
+        files:
+          - src/common/mcp/client-manager.ts
+        changes:
+          - section: URL building
+            action: "Added logic to strip /sse suffix if present"
+          - section: URL building
+            action: "Added logic to ensure trailing /"
+          - section: URL building
+            action: "Backward compatible with old and new URL formats"
+        acceptance_criteria:
+          - "✅ URLs normalized to end with / (no /sse)"
+          - "✅ URL validation passes"
+          - "✅ Backward compatible with both formats"
+
+      # Task 2.4: Remove session ID query param handling
+      - id: task-2.4
+        name: "Remove sessionId query parameter logic"
+        status: pending
+        priority: P0
+        effort: 1h
+        risk: LOW
+        dependencies: [task-2.3]
+        files:
+          - src/common/mcp/client-manager.ts
+        changes:
+          - section: session management
+            action: "Remove any sessionId query param appending"
+          - section: error handling
+            action: "Update error messages to reflect header-based session IDs"
+        acceptance_criteria:
+          - "No query param manipulation for sessionId"
+          - "Session ID handled by transport internally via headers"
+          - "Error messages accurate"
+
+      # Task 2.5: Update error handling
+      - id: task-2.5
+        name: "Handle StreamableHTTP-specific errors"
+        status: pending
+        priority: P0
+        effort: 2h
+        risk: MEDIUM
+        dependencies: [task-2.4]
+        files:
+          - src/common/mcp/client-manager.ts
+        changes:
+          - section: connect method
+            action: "Update error handling for StreamableHTTP connection errors"
+          - section: callTool method
+            action: "Update error handling for tool invocation errors"
+        acceptance_criteria:
+          - "Connection errors caught and logged appropriately"
+          - "Tool call errors caught and logged appropriately"
+          - "Error messages helpful for debugging"
+          - "No uncaught promise rejections"
+
+      # Task 2.6: Unit tests for client-side changes
+      - id: task-2.6
+        name: "Write/update unit tests for McpClientManager transport"
+        status: pending
+        priority: P0
+        effort: 2h
+        risk: LOW
+        dependencies: [task-2.5]
+        files:
+          - src/common/mcp/client-manager.test.ts
+        changes:
+          - section: tests
+            action: "Add tests for StreamableHTTPClientTransport initialization"
+          - section: tests
+            action: "Add tests for URL construction (no /sse suffix)"
+          - section: tests
+            action: "Add tests for connection success/failure"
+          - section: tests
+            action: "Add tests for tool discovery (listTools)"
+          - section: tests
+            action: "Add tests for tool invocation (callTool)"
+        acceptance_criteria:
+          - "All new tests pass"
+          - "Code coverage >80% for modified code"
+          - "No flaky tests (run 3x)"
+          - "Mock transport responses correctly"
+
+      # Task 2.7: Integration tests
+      - id: task-2.7
+        name: "Create integration tests for full client-server flow"
+        status: pending
+        priority: P0
+        effort: 3h
+        risk: MEDIUM
+        dependencies: [task-2.6]
+        files:
+          - src/common/mcp/streamable-http-transport.integration.test.ts
+        changes:
+          - action: "Create new integration test file"
+          - section: tests
+            action: "Test server transport initialization"
+          - section: tests
+            action: "Test client transport initialization"
+          - section: tests
+            action: "Test client-server handshake"
+          - section: tests
+            action: "Test tool discovery end-to-end"
+          - section: tests
+            action: "Test tool invocation end-to-end"
+          - section: tests
+            action: "Test error scenarios (timeout, connection failure)"
+          - section: tests
+            action: "Test session lifecycle (connect, disconnect, reconnect)"
+        acceptance_criteria:
+          - "All integration tests pass"
+          - "Full request-response cycle tested"
+          - "Timeout scenarios tested"
+          - "Error handling validated"
+          - "No test flakiness"
+
+      # Task 2.8: Agent-dev validation (client-server)
+      - id: task-2.8
+        name: "Deploy and validate client+server in agent-dev context"
+        status: pending
+        priority: P0
+        effort: 1.5h
+        risk: HIGH
+        dependencies: [task-2.7]
+        validation_steps:
+          - "Deploy tool-gateway to agent-dev-sprint27-server"
+          - "Verify client connects to server"
+          - "Test tool discovery (listTools)"
+          - "Test tool invocation (callTool mcp_counter_increment)"
+          - "Verify response time <5 seconds"
+          - "Check logs for errors"
+        acceptance_criteria:
+          - "Client connects successfully"
+          - "Tool discovery returns utility tools"
+          - "Tool invocation completes within 5 seconds"
+          - "No timeout errors"
+          - "No 'session not found' errors"
+          - "Logs show successful MCP communication"
+
+  # ============================================================================
+  # PHASE 3: CONFIGURATION UPDATES (Day 4)
+  # ============================================================================
+  - id: phase-3
+    name: "Configuration Updates"
+    status: pending
+    priority: P0
+    target_duration: 0.5 days
+    estimated_hours: 4
+    risk_level: LOW
+    description: "Update architecture.yaml and environment configs"
+
+    tasks:
+      # Task 3.1: Update architecture.yaml MCP endpoints
+      - id: task-3.1
+        name: "Update MCP endpoint URLs in architecture.yaml"
+        status: pending
+        priority: P0
+        effort: 1h
+        risk: LOW
+        dependencies: [task-2.8]
+        files:
+          - architecture.yaml
+        changes:
+          - section: services.utility.mcp
+            action: "Change endpoint from /sse to /"
+          - section: services.scheduler.mcp
+            action: "Change endpoint from /sse to /"
+          - section: services.*.mcp
+            action: "Update all MCP-enabled services"
+        acceptance_criteria:
+          - "All MCP endpoints end with / not /sse"
+          - "YAML syntax valid"
+          - "No hardcoded /sse references in configs"
+
+      # Task 3.2: Verify environment resolution
+      - id: task-3.2
+        name: "Verify environment variable resolution"
+        status: pending
+        priority: P0
+        effort: 0.5h
+        risk: LOW
+        dependencies: [task-3.1]
+        files:
+          - src/common/environment-resolver.ts
+        validation_steps:
+          - "Grep for hardcoded /sse references"
+          - "Verify MCP_ENDPOINT resolution"
+          - "Check URL construction in resolvers"
+        acceptance_criteria:
+          - "No hardcoded /sse references in environment resolver"
+          - "URLs resolve correctly from architecture.yaml"
+          - "No config errors in logs"
+
+      # Task 3.3: Validate updated configuration
+      - id: task-3.3
+        name: "Deploy with updated config to agent-dev"
+        status: pending
+        priority: P0
+        effort: 1.5h
+        risk: MEDIUM
+        dependencies: [task-3.2]
+        validation_steps:
+          - "Validate architecture.yaml syntax"
+          - "Deploy all services to agent-dev-sprint27-server"
+          - "Verify all services start successfully"
+          - "Check MCP endpoint resolution"
+        acceptance_criteria:
+          - "Config validation passes"
+          - "All services deploy successfully"
+          - "No missing environment variables"
+          - "MCP endpoints resolve to / not /sse"
+          - "Services communicate via MCP"
+
+      # Task 3.4: Document configuration changes
+      - id: task-3.4
+        name: "Update configuration documentation"
+        status: pending
+        priority: P1
+        effort: 1h
+        risk: LOW
+        dependencies: [task-3.3]
+        files:
+          - documentation/guides/mcp-integration.md
+          - architecture.yaml (comments)
+        changes:
+          - action: "Update MCP endpoint examples"
+          - action: "Document StreamableHTTP transport usage"
+          - action: "Add migration notes"
+        acceptance_criteria:
+          - "Documentation updated"
+          - "Examples show correct endpoint format"
+          - "Migration notes clear and complete"
+
+  # ============================================================================
+  # PHASE 4: TESTING & VALIDATION (Days 4-5)
+  # ============================================================================
+  - id: phase-4
+    name: "Testing & Validation"
+    status: pending
+    priority: P0
+    target_duration: 1.5 days
+    estimated_hours: 12
+    risk_level: MEDIUM
+    description: "Comprehensive testing in agent-dev and staging environments"
+
+    tasks:
+      # Task 4.1: Agent-dev full stack validation
+      - id: task-4.1
+        name: "Full stack validation in fresh agent-dev context"
+        status: pending
+        priority: P0
+        effort: 3h
+        risk: MEDIUM
+        dependencies: [task-3.3]
+        validation_steps:
+          - "Provision fresh agent-dev-sprint27-full context"
+          - "Deploy all services"
+          - "Test MCP discovery across all services"
+          - "Test MCP tool calls (counter, scheduler, etc.)"
+          - "Monitor logs for errors"
+          - "Verify no timeout errors"
+        acceptance_criteria:
+          - "All services deploy successfully"
+          - "MCP connections established"
+          - "Tool discovery works for all services"
+          - "Tool calls complete within 5 seconds"
+          - "No timeout errors in logs"
+          - "No 'session not found' errors"
+
+      # Task 4.2: Staging environment deployment
+      - id: task-4.2
+        name: "Deploy to staging environment"
+        status: pending
+        priority: P0
+        effort: 2h
+        risk: HIGH
+        dependencies: [task-4.1]
+        validation_steps:
+          - "Deploy all services to staging"
+          - "Monitor deployment progress"
+          - "Verify services start successfully"
+          - "Check service health endpoints"
+        acceptance_criteria:
+          - "Deployment succeeds for all services"
+          - "No errors during startup"
+          - "Health checks pass"
+          - "Services accessible via expected endpoints"
+
+      # Task 4.3: Staging functional testing
+      - id: task-4.3
+        name: "Execute functional tests in staging"
+        status: pending
+        priority: P0
+        effort: 2.5h
+        risk: MEDIUM
+        dependencies: [task-4.2]
+        validation_steps:
+          - "Test tool-gateway → utility MCP calls"
+          - "Test reflex → tool-gateway → utility chain"
+          - "Test mcp_counter_increment from multiple clients"
+          - "Measure response times"
+          - "Check error rates in logs"
+        acceptance_criteria:
+          - "MCP calls complete successfully"
+          - "Response time <5 seconds (target <2s)"
+          - "Reflex counter operations work"
+          - "No timeout errors"
+          - "Error rate: 0%"
+
+      # Task 4.4: Performance testing
+      - id: task-4.4
+        name: "Measure performance metrics"
+        status: pending
+        priority: P0
+        effort: 2h
+        risk: LOW
+        dependencies: [task-4.3]
+        metrics:
+          - "MCP handshake latency"
+          - "Tool discovery latency"
+          - "Tool invocation latency"
+          - "Memory usage (client + server)"
+          - "Connection stability"
+        acceptance_criteria:
+          - "Tool call latency <5s (target <2s)"
+          - "Memory usage within 10% of baseline"
+          - "Connection stability >99% over 1 hour"
+          - "No memory leaks detected"
+
+      # Task 4.5: Error scenario testing
+      - id: task-4.5
+        name: "Test error handling and edge cases"
+        status: pending
+        priority: P0
+        effort: 1.5h
+        risk: LOW
+        dependencies: [task-4.4]
+        test_scenarios:
+          - "Invalid tool name"
+          - "Invalid tool parameters"
+          - "Network interruption"
+          - "Service restart during call"
+          - "Concurrent tool calls"
+        acceptance_criteria:
+          - "Invalid tool errors handled gracefully"
+          - "Network errors logged appropriately"
+          - "Service restarts don't crash clients"
+          - "Concurrent calls work correctly"
+
+      # Task 4.6: Create test report
+      - id: task-4.6
+        name: "Document test results"
+        status: pending
+        priority: P0
+        effort: 1h
+        risk: LOW
+        dependencies: [task-4.5]
+        files:
+          - planning/sprint-27-6tp11t/test-report.md
+        content:
+          - "Test execution summary"
+          - "Pass/fail counts"
+          - "Performance metrics"
+          - "Error scenarios tested"
+          - "Issues found and resolved"
+        acceptance_criteria:
+          - "Test report complete"
+          - "All metrics documented"
+          - "Issues tracked"
+          - "Sign-off ready"
+
+  # ============================================================================
+  # PHASE 5: ROLLBACK VERIFICATION (Day 5)
+  # ============================================================================
+  - id: phase-5
+    name: "Rollback Verification"
+    status: pending
+    priority: P0
+    target_duration: 0.5 days
+    estimated_hours: 4
+    risk_level: LOW
+    description: "Implement and test rollback capability"
+
+    tasks:
+      # Task 5.1: Implement feature flag
+      - id: task-5.1
+        name: "Add ENABLE_STREAMABLE_HTTP_TRANSPORT feature flag"
+        status: pending
+        priority: P0
+        effort: 1.5h
+        risk: LOW
+        dependencies: [task-4.6]
+        files:
+          - src/common/mcp/client-manager.ts
+        changes:
+          - section: transport initialization
+            action: "Add feature flag check"
+          - section: transport initialization
+            action: "Conditional: StreamableHTTP if true, SSE if false"
+        acceptance_criteria:
+          - "Feature flag defaults to true"
+          - "Flag can be set via environment variable"
+          - "Transport selection based on flag"
+          - "Both transports can be selected"
+
+      # Task 5.2: Test rollback scenario
+      - id: task-5.2
+        name: "Validate rollback to SSE transport"
+        status: pending
+        priority: P0
+        effort: 1h
+        risk: LOW
+        dependencies: [task-5.1]
+        validation_steps:
+          - "Set ENABLE_STREAMABLE_HTTP_TRANSPORT=false"
+          - "Deploy tool-gateway"
+          - "Verify service starts"
+          - "Check which transport is used (SSE)"
+        acceptance_criteria:
+          - "Service starts with feature flag disabled"
+          - "SSE transport selected"
+          - "No errors during startup"
+          - "Service can be toggled back to StreamableHTTP"
+
+      # Task 5.3: Document rollback procedure
+      - id: task-5.3
+        name: "Create rollback documentation"
+        status: pending
+        priority: P0
+        effort: 1h
+        risk: LOW
+        dependencies: [task-5.2]
+        files:
+          - planning/sprint-27-6tp11t/ROLLBACK-PROCEDURE.md
+        content:
+          - "Quick rollback steps"
+          - "Full code revert procedure"
+          - "Rollback verification checklist"
+        acceptance_criteria:
+          - "Rollback procedure documented"
+          - "Steps clear and actionable"
+          - "Tested and verified"
+
+      # Task 5.4: Create verification report
+      - id: task-5.4
+        name: "Final verification and sign-off"
+        status: pending
+        priority: P0
+        effort: 0.5h
+        risk: LOW
+        dependencies: [task-5.3]
+        files:
+          - planning/sprint-27-6tp11t/verification-report.md
+        content:
+          - "All phases completed"
+          - "All acceptance criteria met"
+          - "Test results summary"
+          - "Rollback capability verified"
+          - "Ready for production"
+        acceptance_criteria:
+          - "All tasks completed"
+          - "All tests passing"
+          - "Documentation complete"
+          - "Rollback tested"
+          - "Sign-off obtained"
+
+# ============================================================================
+# RISK REGISTER
+# ============================================================================
+risks:
+  - id: risk-1
+    title: "Session management incompatibility"
+    description: "Header-based session IDs may break existing clients"
+    probability: MEDIUM
+    impact: HIGH
+    mitigation: "Feature flag for instant rollback + thorough integration testing"
+    owner: Lead Implementor
+
+  - id: risk-2
+    title: "Hardcoded /sse references"
+    description: "Missed /sse references cause 404 errors"
+    probability: LOW
+    impact: MEDIUM
+    mitigation: "Comprehensive grep before deployment + agent-dev validation"
+    owner: Lead Implementor
+
+  - id: risk-3
+    title: "SDK API differences"
+    description: "StreamableHTTP API differs from SSE in unexpected ways"
+    probability: MEDIUM
+    impact: HIGH
+    mitigation: "Thorough SDK docs review + comprehensive unit tests"
+    owner: Lead Implementor
+
+  - id: risk-4
+    title: "Transport error handling gaps"
+    description: "New error types not caught"
+    probability: LOW
+    impact: MEDIUM
+    mitigation: "Error scenario testing + enhanced error logging"
+    owner: Lead Implementor
+
+  - id: risk-5
+    title: "Performance regression"
+    description: "New transport slower than old"
+    probability: LOW
+    impact: LOW
+    mitigation: "Performance baseline + comparative testing"
+    owner: Lead Implementor
+
+# ============================================================================
+# SUCCESS METRICS
+# ============================================================================
+success_metrics:
+  functional:
+    - metric: "MCP tool call success rate"
+      target: "100%"
+      baseline: "0% (all timeout)"
+
+    - metric: "Tool call latency (p50)"
+      target: "<2 seconds"
+      baseline: "60 seconds (timeout)"
+
+    - metric: "Tool call latency (p95)"
+      target: "<5 seconds"
+      baseline: "60 seconds (timeout)"
+
+    - metric: "MCP connection error rate"
+      target: "0%"
+      baseline: "100%"
+
+  quality:
+    - metric: "Code coverage (new/modified code)"
+      target: ">80%"
+
+    - metric: "Regression count"
+      target: "0"
+
+    - metric: "CI/CD test pass rate"
+      target: "100%"
+
+  operational:
+    - metric: "Deployment success rate"
+      target: "100%"
+
+    - metric: "Rollback time"
+      target: "<5 minutes"
+
+    - metric: "Production incidents"
+      target: "0"
+
+    - metric: "Service uptime"
+      target: ">99.9%"
+
+# ============================================================================
+# SPRINT ARTIFACTS
+# ============================================================================
+artifacts:
+  - name: "Technical Architecture"
+    file: STREAMABLE-HTTP-MIGRATION-ARCHITECTURE.md
+    status: complete
+
+  - name: "Execution Plan"
+    file: STREAMABLE-HTTP-EXECUTION-PLAN.md
+    status: complete
+
+  - name: "Backlog"
+    file: streamable-http-backlog.yaml
+    status: complete
+
+  - name: "Implementation Log"
+    file: implementation-log.md
+    status: pending
+
+  - name: "Test Report"
+    file: test-report.md
+    status: pending
+
+  - name: "Verification Report"
+    file: verification-report.md
+    status: pending
+
+  - name: "Rollback Procedure"
+    file: ROLLBACK-PROCEDURE.md
+    status: pending
+
+  - name: "Retrospective"
+    file: retrospective.md
+    status: pending

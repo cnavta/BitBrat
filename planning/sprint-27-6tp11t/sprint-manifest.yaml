@@ -1,0 +1,10 @@
+id: sprint-27-6tp11t
+title: "Feature Enablement: Counters & Bidding"
+goal: Explore and settle on an approach to enabling features such as arbitrary
+  counters and bidding functionality
+owner: christophernavta
+createdAt: 2026-08-26T18:05:30.012Z
+status: planning
+links:
+  branch: feature/sprint-27-6tp11t-feature-enablement-counters-bi
+notes: Sprint initialized via MCP start-sprint tool

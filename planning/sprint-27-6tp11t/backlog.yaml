@@ -1,0 +1,630 @@
+# Sprint 27 Backlog: Platform Utilities - Counters & Bidding
+# Lead Implementor: Claude
+# Sprint: sprint-27-6tp11t
+# Date: 2026-08-27
+
+metadata:
+  sprint_id: sprint-27-6tp11t
+  title: "Feature Enablement: Counters & Bidding"
+  goal: "Implement utility-service with counter functionality (Phase 1)"
+  owner: christophernavta
+  architecture: architecture-revision-v2.md
+  execution_plan: execution-plan.md
+
+phases:
+  - id: phase-1
+    name: "Foundation & Counter Tools"
+    status: complete
+    priority: P0
+    target_sprint: sprint-27-6tp11t
+    estimated_hours: 14
+    actual_hours: 16
+    completion_date: 2026-08-27
+    description: "Implement utility-service Bit with full counter functionality"
+    notes: |
+      COMPLETE - All code implemented, tests passing (54/54), deployed to staging.
+      3 production issues identified and remediated:
+      1. Resource access pattern - Fixed using getResource<T>()
+      2. Health check endpoint - Fixed to use /healthz
+      3. Tool naming in reflex - Configuration update required (counter_increment)
+      See: REMEDIATION-FINAL.md, VERIFICATION-REPORT.md
+
+  - id: phase-2
+    name: "Bidding Tools"
+    status: future
+    priority: P1
+    target_sprint: TBD
+    estimated_hours: 12
+    description: "Implement bidding session management with hybrid storage"
+
+  - id: phase-3
+    name: "Event Integration"
+    status: future
+    priority: P2
+    target_sprint: TBD
+    estimated_hours: 10
+    description: "Automatic scoping and lifecycle management"
+
+  - id: phase-4
+    name: "Advanced Features"
+    status: backlog
+    priority: P3
+    target_sprint: TBD
+    estimated_hours: TBD
+    description: "Extended functionality (leaderboards, decay, blind bidding)"
+
+# ============================================================================
+# PHASE 1: FOUNDATION & COUNTER TOOLS (THIS SPRINT)
+# ============================================================================
+
+tasks:
+  # -------------------------------------------------------------------------
+  # 1. SERVICE SCAFFOLD
+  # -------------------------------------------------------------------------
+  - id: P1-T01
+    name: "Create utility-service Bit scaffold"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 1.5
+    depends_on: []
+    assignee: Claude
+
+    description: |
+      Create the main utility-service Bit entry point with resource initialization.
+      Follow claim-check-service pattern for lazy resource init.
+
+    acceptance_criteria:
+      - utility-service.ts extends Bit base class
+      - Constructor sets mcpExposure to platform-only
+      - setup() method initializes DocumentStore and Redis resources
+      - Lazy initialization pattern for managers
+      - Compiles without TypeScript errors
+
+    files:
+      - path: src/apps/utility-service.ts
+        action: create
+        lines: ~150
+      - path: src/services/utility/types.ts
+        action: create
+        lines: ~100
+
+    verification:
+      - npm run build succeeds
+      - TypeScript strict mode passes
+      - No imports from deprecated/
+
+  # -------------------------------------------------------------------------
+  # 2. SCOPE RESOLVER
+  # -------------------------------------------------------------------------
+  - id: P1-T02
+    name: "Implement ScopeResolver"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 2
+    depends_on: [P1-T01]
+    assignee: Claude
+
+    description: |
+      Implement scope resolution logic to infer scopeType and scopeValue from
+      event context or explicit parameters.
+
+    acceptance_criteria:
+      - Resolves explicit scope parameters (priority 1)
+      - Auto-infers from event.ingress.channel (stream scope)
+      - Auto-infers from event.identity.userId (user scope)
+      - Defaults to global scope if context insufficient
+      - Validates scope types against enum
+
+    files:
+      - path: src/services/utility/scope-resolver.ts
+        action: create
+        lines: ~200
+
+    verification:
+      - Compiles without errors
+      - Handles null/undefined event gracefully
+      - Returns consistent ScopeResult interface
+
+  - id: P1-T03
+    name: "Unit tests for ScopeResolver"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 1.5
+    depends_on: [P1-T02]
+    assignee: Claude
+
+    description: |
+      Comprehensive unit tests for all scope resolution paths.
+
+    acceptance_criteria:
+      - Test explicit scope params (all types)
+      - Test auto-inference from stream context
+      - Test auto-inference from user context
+      - Test global scope default
+      - Test error cases (invalid scopeType)
+      - 100% code coverage
+
+    files:
+      - path: src/services/utility/scope-resolver.test.ts
+        action: create
+        lines: ~300
+
+    verification:
+      - npm test passes all cases
+      - Coverage report shows 100% for scope-resolver.ts
+
+  # -------------------------------------------------------------------------
+  # 3. COUNTER MANAGER
+  # -------------------------------------------------------------------------
+  - id: P1-T04
+    name: "Implement CounterManager core logic"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 3
+    depends_on: [P1-T02]
+    assignee: Claude
+
+    description: |
+      Implement counter management with DocumentStore metadata and Redis values.
+      Hybrid storage: metadata in PostgreSQL, values in Redis.
+
+    acceptance_criteria:
+      - create() stores definition in DocumentStore, initializes Redis key
+      - increment()/decrement() uses Redis INCR/DECR (atomic)
+      - get() retrieves value from Redis, metadata from DocumentStore
+      - delete() removes both Redis key and DocumentStore definition
+      - list() queries DocumentStore with filters
+      - snapshot() stores current value in counter_snapshots collection
+      - TTL enforcement via Redis EXPIRE
+      - Error handling with fail-open pattern
+
+    files:
+      - path: src/services/utility/counter-manager.ts
+        action: create
+        lines: ~400
+
+    verification:
+      - Compiles without errors
+      - All methods return correct result types
+      - Redis operations use proper key format: counter:{scope}:{name}
+
+  - id: P1-T05
+    name: "Unit tests for CounterManager"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 2.5
+    depends_on: [P1-T04]
+    assignee: Claude
+
+    description: |
+      Comprehensive unit tests for CounterManager with mocked dependencies.
+
+    acceptance_criteria:
+      - Test counter creation (with/without TTL)
+      - Test increment/decrement operations
+      - Test get with metadata retrieval
+      - Test delete (cleanup both stores)
+      - Test list with scope filtering
+      - Test snapshot creation
+      - Test TTL enforcement
+      - Test error handling (null Redis, DocumentStore errors)
+      - Mock IDocumentStore and RedisClientType
+      - 100% code coverage
+
+    files:
+      - path: src/services/utility/counter-manager.test.ts
+        action: create
+        lines: ~500
+
+    verification:
+      - npm test passes all cases (25+ tests)
+      - Coverage report shows 100% for counter-manager.ts
+      - Tests run in isolation (no shared state)
+
+  # -------------------------------------------------------------------------
+  # 4. MCP TOOLS REGISTRATION
+  # -------------------------------------------------------------------------
+  - id: P1-T06
+    name: "Register counter MCP tools in utility-service"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 2
+    depends_on: [P1-T04]
+    assignee: Claude
+
+    description: |
+      Register 6 MCP tools for counter operations with Zod schemas.
+
+    acceptance_criteria:
+      - counter.create tool registered with CreateCounterSchema
+      - counter.increment tool registered with IncrementSchema
+      - counter.get tool registered with GetCounterSchema
+      - counter.delete tool registered with DeleteCounterSchema
+      - counter.list tool registered with ListCountersSchema
+      - counter.snapshot tool registered with SnapshotCounterSchema
+      - All tools have descriptive help text
+      - All tools use platform-only exposure
+      - Tool handlers call CounterManager methods
+      - Error responses follow MCP error format
+
+    files:
+      - path: src/apps/utility-service.ts
+        action: modify
+        lines_added: ~200
+
+    verification:
+      - Service compiles and starts without errors
+      - All 6 tools appear in bit.info output
+      - Tool schemas validate correct inputs
+      - Tool schemas reject invalid inputs
+
+  # -------------------------------------------------------------------------
+  # 5. ARCHITECTURE INTEGRATION
+  # -------------------------------------------------------------------------
+  - id: P1-T07
+    name: "Update architecture.yaml for utility-service"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 0.5
+    depends_on: [P1-T01]
+    assignee: Claude
+
+    description: |
+      Register utility-service in architecture.yaml with proper configuration.
+
+    acceptance_criteria:
+      - Service entry added under services.utility
+      - Profile set to 'core'
+      - Kind set to 'pipeline-service'
+      - MCP exposure set to 'platform-only'
+      - Resources declared (documentStore, redis)
+      - Capabilities listed (counters, bidding)
+      - Port assigned (auto or explicit)
+      - Environment variables documented
+
+    files:
+      - path: architecture.yaml
+        action: modify
+        lines_added: ~30
+
+    verification:
+      - npm run brat -- config validate passes
+      - Service appears in brat fleet list
+      - No YAML syntax errors
+
+  - id: P1-T08
+    name: "Create Dockerfile and docker-compose entry"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 0.5
+    depends_on: [P1-T07]
+    assignee: Claude
+
+    description: |
+      Ensure utility-service can be built and deployed.
+      Should use standard Dockerfile.service pattern.
+
+    acceptance_criteria:
+      - Dockerfile.service supports utility-service build args
+      - docker-compose.yaml includes utility service
+      - Service depends on nats, redis, postgres
+      - Environment variables passed correctly
+      - Port mapping configured
+
+    files:
+      - path: docker-compose.yaml
+        action: modify
+        lines_added: ~20
+
+    verification:
+      - docker-compose build utility succeeds
+      - Service entry follows platform conventions
+
+  # -------------------------------------------------------------------------
+  # 6. INTEGRATION TESTING
+  # -------------------------------------------------------------------------
+  - id: P1-T09
+    name: "Create agent-dev validation script"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 1
+    depends_on: [P1-T06, P1-T08]
+    assignee: Claude
+
+    description: |
+      Create automated validation script for agent-dev deployment testing.
+
+    acceptance_criteria:
+      - Script provisions agent-dev context
+      - Deploys utility-service to agent-dev
+      - Verifies service health via fleet.info
+      - Tests counter create/increment/get operations
+      - Verifies Redis key creation
+      - Verifies DocumentStore metadata
+      - Cleans up agent-dev context
+      - Exits with code 0 on success
+
+    files:
+      - path: planning/sprint-27-6tp11t/validate_counters.sh
+        action: create
+        lines: ~100
+
+    verification:
+      - Script runs without errors
+      - All validation steps pass
+      - Agent-dev context cleaned up properly
+
+  - id: P1-T10
+    name: "Execute agent-dev validation"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 1
+    depends_on: [P1-T09]
+    assignee: Claude
+
+    description: |
+      Run full integration test in agent-dev environment.
+      Proactive validation before marking sprint complete.
+
+    acceptance_criteria:
+      - Agent-dev context provisions successfully
+      - Utility-service deploys without errors
+      - Service connects to NATS, Redis, PostgreSQL
+      - All counter MCP tools callable
+      - Counter values persist in Redis
+      - Counter metadata persists in PostgreSQL
+      - No errors in fleet.logs for 5 minutes
+      - Agent-dev context destroys cleanly
+
+    verification_steps:
+      - provision: agent_dev.provision({ name: "agent-dev-utility-test" })
+      - deploy: bit deploy utility --context agent-dev-utility-test
+      - health: fleet.health({ bit: "utility", context: "agent-dev-utility-test" })
+      - logs: fleet.logs({ bit: "utility", context: "agent-dev-utility-test", limit: 50 })
+      - test: Run validation script
+      - cleanup: agent_dev.destroy({ name: "agent-dev-utility-test", confirm: true })
+
+    verification:
+      - All verification steps complete
+      - Validation script exits 0
+      - No error-level logs
+
+  # -------------------------------------------------------------------------
+  # 7. DOCUMENTATION
+  # -------------------------------------------------------------------------
+  - id: P1-T11
+    name: "Write user guide for counters"
+    phase: phase-1
+    priority: P1
+    status: done
+    estimated_hours: 1.5
+    depends_on: [P1-T06]
+    assignee: Claude
+
+    description: |
+      Create comprehensive user guide for counter functionality.
+
+    acceptance_criteria:
+      - Explains counter concepts (scope, TTL, metadata)
+      - Provides common use cases (deaths counter, stream duration)
+      - Shows LLM tool usage examples
+      - Documents best practices (scope selection, TTL values)
+      - Includes troubleshooting section
+      - Follows platform documentation standards
+
+    files:
+      - path: documentation/guides/utility-counters.md
+        action: create
+        lines: ~300
+
+    verification:
+      - Markdown renders correctly
+      - Code examples compile
+      - No broken links
+
+  - id: P1-T12
+    name: "Write MCP tool reference"
+    phase: phase-1
+    priority: P1
+    status: done
+    estimated_hours: 1
+    depends_on: [P1-T06]
+    assignee: Claude
+
+    description: |
+      Create technical reference for all counter MCP tools.
+
+    acceptance_criteria:
+      - Documents all 6 counter tools
+      - Shows tool signatures with Zod schemas
+      - Describes all parameters and return values
+      - Lists error codes and meanings
+      - Provides usage examples for each tool
+      - Includes scope resolution behavior
+
+    files:
+      - path: documentation/reference/utility-tools.md
+        action: create
+        lines: ~400
+
+    verification:
+      - Markdown renders correctly
+      - Tool signatures match implementation
+      - Examples are accurate
+
+  - id: P1-T13
+    name: "Write technical architecture doc"
+    phase: phase-1
+    priority: P2
+    status: done
+    estimated_hours: 1
+    depends_on: [P1-T10]
+    assignee: Claude
+
+    description: |
+      Document technical architecture and design decisions.
+
+    acceptance_criteria:
+      - Explains hybrid storage strategy
+      - Documents DocumentStore collections (schemas)
+      - Documents Redis key patterns
+      - Explains scope resolution logic
+      - Justifies design decisions (Redis vs DocumentStore)
+      - Includes sequence diagrams for key operations
+      - References architecture-revision-v2.md
+
+    files:
+      - path: documentation/architecture/utility-service.md
+        action: create
+        lines: ~500
+
+    verification:
+      - Markdown renders correctly
+      - Diagrams display properly
+      - No technical inaccuracies
+
+# ============================================================================
+# PHASE 2: BIDDING TOOLS (FUTURE SPRINT)
+# ============================================================================
+
+  # -------------------------------------------------------------------------
+  # Bid Manager Implementation
+  # -------------------------------------------------------------------------
+  - id: P2-T01
+    name: "Implement BidManager with hybrid storage"
+    phase: phase-2
+    priority: P1
+    status: future
+    estimated_hours: 3
+    depends_on: [P1-T04]  # Reuses ScopeResolver from Phase 1
+    assignee: TBD
+
+    description: |
+      Implement bidding session management with Redis Hashes for active sessions
+      and DocumentStore for metadata and results.
+
+  - id: P2-T02
+    name: "Register bid MCP tools"
+    phase: phase-2
+    priority: P1
+    status: future
+    estimated_hours: 2
+    depends_on: [P2-T01]
+    assignee: TBD
+
+    description: |
+      Register 8 bid MCP tools: create, submit, close, getMax, getMin,
+      getClosest, list, results.
+
+  # [Additional Phase 2 tasks omitted for brevity]
+
+# ============================================================================
+# SUCCESS CRITERIA
+# ============================================================================
+
+success_criteria:
+  phase_1:
+    - all_tasks_complete: "All P1 tasks (P1-T01 through P1-T13) status = done"
+    - build_passes: "npm run build completes without errors"
+    - tests_pass: "npm test passes all unit tests (100% coverage)"
+    - integration_passes: "Agent-dev validation script exits 0"
+    - service_healthy: "fleet.health reports healthy for 5 minutes"
+    - no_errors: "No error-level logs in fleet.logs"
+    - documentation_complete: "All 3 documentation files created and reviewed"
+    - architecture_valid: "brat config validate passes"
+
+  phase_2:
+    - all_tasks_complete: "All P2 tasks status = done"
+    - bid_tools_registered: "8 bid tools appear in bit.info"
+    - integration_passes: "Multi-user bid scenario tests pass"
+
+# ============================================================================
+# RISK REGISTER
+# ============================================================================
+
+risks:
+  - id: RISK-01
+    description: "Redis unavailability breaks counter operations"
+    severity: medium
+    probability: low
+    mitigation: "Fail-open pattern - log error, return graceful error to caller"
+    status: mitigated
+
+  - id: RISK-02
+    description: "DocumentStore latency impacts counter performance"
+    severity: low
+    probability: medium
+    mitigation: "Use Redis for hot path (values), DocumentStore only for metadata queries"
+    status: mitigated
+
+  - id: RISK-03
+    description: "Scope ambiguity leads to incorrect counter selection"
+    severity: medium
+    probability: medium
+    mitigation: "ScopeResolver prioritizes explicit params, clear docs on scope precedence"
+    status: mitigated
+
+  - id: RISK-04
+    description: "TTL desync between Redis and DocumentStore"
+    severity: low
+    probability: medium
+    mitigation: "DocumentStore stores expiresAt timestamp, future cleanup job for orphans"
+    status: accepted
+
+# ============================================================================
+# DEPENDENCIES
+# ============================================================================
+
+dependencies:
+  external:
+    - name: redis
+      version: "^4.0.0"
+      status: installed
+
+    - name: zod
+      version: "^3.22.0"
+      status: installed
+
+  platform:
+    - name: IDocumentStore
+      location: src/common/persistence/interfaces.ts
+      status: available
+
+    - name: RedisManager
+      location: src/common/resources/redis-manager.ts
+      status: available
+
+    - name: Bit base class
+      location: src/common/base-server.ts
+      status: available
+
+# ============================================================================
+# NOTES
+# ============================================================================
+
+notes:
+  - "Phase 1 focuses exclusively on counter functionality"
+  - "Bidding tools deferred to Phase 2 (future sprint)"
+  - "Follow claim-check-service pattern for resource initialization"
+  - "Use agent-dev proactively for validation (don't wait for user request)"
+  - "DocumentStore is platform-agnostic (PostgreSQL default, Firestore legacy)"
+  - "Redis Hashes support available via RedisClientType (not abstracted in IKVStore)"
+
+  # Phase 1 Completion Notes (2026-08-27)
+  - "All code implementation complete - 54/54 tests passing"
+  - "Deployed to staging and identified 3 production issues"
+  - "All issues remediated with code fixes + 1 config update required"
+  - "Remediation artifacts: remediation-report.md, remediation-update.md, REMEDIATION-FINAL.md"
+  - "Verification artifact: VERIFICATION-REPORT.md"
+  - "Service is healthy in staging - Redis warning is EXPECTED behavior"
+  - "Awaiting reflex configuration update to use counter_increment (not mcp_counter_increment)"
