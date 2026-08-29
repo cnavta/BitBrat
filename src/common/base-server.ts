@@ -1914,7 +1914,7 @@ export class Bit {
    */
   protected async publishRegistration() {
     const port = (this.getApp().locals as any).port ?? 3000;
-    const defaultUrl = `http://${this.serviceName}.bitbrat.local:${port}/sse`;
+    const defaultUrl = `http://${this.serviceName}.bitbrat.local:${port}/mcp`;
     const externalUrl = process.env.MCP_EXTERNAL_URL || defaultUrl;
 
     // Read requiredRoles from architecture.yaml if present
