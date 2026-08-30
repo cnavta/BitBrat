@@ -1,0 +1,574 @@
+# Sprint 32 Prioritized Backlog
+# Test Infrastructure Phase 3 - Complete Remediation (0 Failures Goal)
+
+sprint:
+  id: sprint-32-[tbd]
+  title: "Test Infrastructure Phase 3 - Complete Remediation"
+  goal: "Fix remaining 7 failing test suites from Sprint 31, achieve 0 failing tests and 100% pass rate"
+  status: planning
+  duration_estimate: "3 - 3.5 hours"
+  target_metrics:
+    failing_suites: 0
+    failing_tests: 0
+    pass_rate: "100%"
+    runtime: "<45s"
+
+# Phase 0: Setup & Baseline
+phase_0_setup:
+  title: "Setup & Baseline"
+  duration: "15 minutes"
+  priority: P0
+  dependencies: []
+
+  tasks:
+    - id: T0
+      title: "Environment Setup"
+      description: "Initialize Sprint 32, install dependencies, build"
+      priority: P0
+      estimate: "5 min"
+      dependencies: []
+      deliverable: "Sprint 32 worktree ready"
+      commands:
+        - "Start sprint via MCP tool"
+        - "cd .worktrees/sprint-32-[id]"
+        - "npm ci"
+        - "npm run build"
+
+    - id: T1
+      title: "Confirm Sprint 31 Results & Capture Baseline"
+      description: "Verify 7 failing suites, capture baseline metrics"
+      priority: P0
+      estimate: "10 min"
+      dependencies: [T0]
+      deliverable: "baseline-test-output.txt, baseline-metrics.md"
+      expected_results:
+        failing_suites: 7
+        failing_tests: 25
+        pass_rate: "99.4%"
+        runtime: "~37-40s"
+      validation: "npm test 2>&1 | tee planning/sprint-32-[id]/baseline-test-output.txt"
+
+# Phase 1: Category A - Docker/Infrastructure
+phase_1_infrastructure:
+  title: "Category A - Docker/Infrastructure Fixes"
+  duration: "30 minutes"
+  priority: P1
+  dependencies: [phase_0_setup]
+  expected_impact: "3 suites fixed (agent-dev-e2e, environment-validation, jetstream-validation)"
+
+  tasks:
+    - id: T2
+      title: "Create .env.brat in Worktrees"
+      description: "Fix missing .env.brat file for agent-dev and jetstream tests"
+      priority: P1
+      estimate: "10 min"
+      dependencies: [T1]
+      files:
+        - .env.brat (create/symlink)
+      affected_tests:
+        - tools/brat/src/dev-mcp/__tests__/agent-dev-e2e.test.ts
+        - tools/brat/src/infrastructure/__tests__/jetstream-validation.test.ts
+      root_cause: "Agent-dev tests expect .env.brat file in worktree root"
+      solutions:
+        option_1: "Copy from main: cp .env.brat .worktrees/sprint-32-[id]/.env.brat"
+        option_2: "Symlink: ln -s ../../.env.brat .worktrees/sprint-32-[id]/.env.brat"
+        option_3: "Create template if doesn't exist"
+      validation: "npm test -- agent-dev-e2e.test.ts && npm test -- jetstream-validation.test.ts"
+      expected_outcome: "Tests pass or progress past file-not-found error"
+
+    - id: T3
+      title: "Fix Environment Validation Warnings"
+      description: "Resolve 'Expected 0 warnings, received 1' in environment-validation test"
+      priority: P1
+      estimate: "10 min"
+      dependencies: [T1]
+      files:
+        - tools/brat/src/dev-mcp/__tests__/environment-validation.test.ts
+      root_cause: "Docker Compose warning or configuration issue"
+      investigation:
+        - "npm test -- environment-validation.test.ts 2>&1 | tee env-validation-debug.txt"
+        - "grep -i 'warn' env-validation-debug.txt"
+      solutions:
+        - "Fix root cause of warning (preferred)"
+        - "Update test expectations if warning is acceptable"
+        - "Suppress specific warning if benign"
+      validation: "npm test -- environment-validation.test.ts"
+      expected_outcome: "Test passes (0 warnings)"
+
+    - id: T4
+      title: "Validate Category A Fixes"
+      description: "Confirm all 3 Docker/Infrastructure tests pass"
+      priority: P1
+      estimate: "10 min"
+      dependencies: [T2, T3]
+      validation:
+        - "npm test -- agent-dev-e2e.test.ts"
+        - "npm test -- environment-validation.test.ts"
+        - "npm test -- jetstream-validation.test.ts"
+        - "npm test 2>&1 | grep 'Test Suites:'"
+      expected_result: "4 failing suites remaining (down from 7)"
+      deliverable: "category-a-results.md"
+
+# Phase 2: Category B - Environmental
+phase_2_environmental:
+  title: "Category B - Environmental Fixes"
+  duration: "45 minutes"
+  priority: P1
+  dependencies: [phase_0_setup]
+  expected_impact: "3 suites fixed (proxy-invoker, redis-manager, filesystem-driver)"
+
+  tasks:
+    - id: T5
+      title: "Fix NATS Proxy Invoker"
+      description: "Resolve ENOTFOUND nats error in proxy-invoker.spec.ts"
+      priority: P1
+      estimate: "15 min"
+      dependencies: [T1]
+      files:
+        - tests/common/mcp/proxy-invoker.spec.ts
+      root_cause: "NATS connectivity in full suite (Sprint 30/31 context: NATS_URL default already added)"
+      sprint_30_31_context: "NATS_URL default in test-setup.js applied but may need connection wait"
+      investigation:
+        isolation_test: "npm test -- proxy-invoker.spec.ts 2>&1 | tee proxy-invoker-isolated.txt"
+        if_pass_isolated: "Environmental (concurrency) - document and defer"
+        if_fail_isolated: "Code bug - investigate NATS connection setup"
+      solutions:
+        environmental: "Document as concurrency issue, consider sequential execution"
+        code_bug: |
+          beforeAll(async () => {
+            await messageBus.connect();
+            await new Promise(resolve => setTimeout(resolve, 200)); // Wait for stable connection
+          });
+      validation: "npm test -- proxy-invoker.spec.ts && npm test 2>&1 | grep 'proxy-invoker'"
+      expected_outcome: "Test passes in isolation and full suite"
+
+    - id: T6
+      title: "Fix Redis Manager Test"
+      description: "Handle Redis unavailability in redis-manager.test.ts (NEW Sprint 31 failure)"
+      priority: P1
+      estimate: "15 min"
+      dependencies: [T1]
+      files:
+        - src/common/resources/redis-manager.test.ts
+      root_cause: "Redis not available locally, test doesn't skip gracefully"
+      sprint_31_context: "NEW failure that appeared in post-fix validation"
+      investigation: "npm test -- redis-manager.test.ts 2>&1 | tee redis-manager-debug.txt"
+      solutions:
+        option_1_skip: |
+          // Skip when Redis unavailable
+          beforeAll(async () => {
+            try {
+              await redis.ping();
+            } catch {
+              console.log('⏭️  Skipping redis-manager tests (Redis not available)');
+              return;
+            }
+          });
+        option_2_default: |
+          // test-setup.js
+          if (!process.env.REDIS_URL) {
+            process.env.REDIS_URL = 'redis://localhost:6379';
+          }
+        option_3_mock: "Mock Redis for unit test (if integration test is unnecessary)"
+      validation: "npm test -- redis-manager.test.ts"
+      expected_outcome: "Test passes or skips gracefully"
+
+    - id: T7
+      title: "Fix Filesystem Driver Test"
+      description: "Resolve filesystem permission/path issue in filesystem-driver.test.ts (NEW Sprint 31 failure)"
+      priority: P1
+      estimate: "15 min"
+      dependencies: [T1]
+      files:
+        - src/common/storage/drivers/filesystem-driver.test.ts
+      root_cause: "Test directory permission, hardcoded path, or cleanup issue"
+      sprint_31_context: "NEW failure that appeared in post-fix validation"
+      investigation: "npm test -- filesystem-driver.test.ts 2>&1 | tee filesystem-driver-debug.txt"
+      solution: |
+        const testDir = path.join(__dirname, '__test-data__');
+
+        beforeAll(async () => {
+          await fs.promises.mkdir(testDir, { recursive: true, mode: 0o755 });
+        });
+
+        afterAll(async () => {
+          await fs.promises.rm(testDir, { recursive: true, force: true });
+        });
+      validation: "npm test -- filesystem-driver.test.ts"
+      expected_outcome: "Test passes with proper setup/teardown"
+
+# Phase 3: Category D - Legitimate Bugs
+phase_3_bugs:
+  title: "Category D - Legitimate Bug Fixes"
+  duration: "60-90 minutes"
+  priority: P1
+  dependencies: [phase_0_setup]
+  expected_impact: "3 suites fixed (client-manager-notifications, tool-gateway-notifications, mcp-server)"
+  note: "Can run in parallel with Phases 1-2"
+
+  tasks:
+    - id: T8
+      title: "Investigate client-manager-notifications"
+      description: "Analyze 8 failures in client-manager-notifications.test.ts (fails in isolation)"
+      priority: P1
+      estimate: "20 min"
+      dependencies: [T1]
+      files:
+        - src/common/mcp/__tests__/client-manager-notifications.test.ts
+      root_cause: "Confirmed Category D bug (fails in isolation - Sprint 31)"
+      current_state: "8 failures, 2 passing"
+      sprint_31_context: "Isolation test confirmed code bug, not environmental"
+      investigation:
+        - "npm test -- client-manager-notifications.test.ts --verbose 2>&1 | tee client-manager-debug.txt"
+        - "grep '✕' client-manager-debug.txt  # Extract failing test names"
+        - "Identify common failure pattern across 8 tests"
+        - "Check mock expectations (pattern from Sprint 31 query-analyzer)"
+      common_issues:
+        - "Mock call count wrong (like Sprint 31 query-analyzer fix)"
+        - "Async timing issue (missing await)"
+        - "State pollution between tests (need beforeEach cleanup)"
+        - "Recent feature change not reflected in tests"
+      deliverable: "client-manager-analysis.md with root cause and fix approach"
+
+    - id: T9
+      title: "Fix client-manager-notifications"
+      description: "Apply fix identified in T8 investigation"
+      priority: P1
+      estimate: "20 min"
+      dependencies: [T8]
+      files:
+        - src/common/mcp/__tests__/client-manager-notifications.test.ts
+      fix_patterns:
+        pattern_1_mock_count: |
+          // Like Sprint 31 query-analyzer fix
+          expect(mockNotify).toHaveBeenCalledTimes(3); // Was 2, should be 3
+        pattern_2_async: |
+          await clientManager.notify(...); // Add missing await
+        pattern_3_isolation: |
+          beforeEach(() => {
+            jest.clearAllMocks(); // Add cleanup
+          });
+      validation: "npm test -- client-manager-notifications.test.ts && npm test 2>&1 | grep 'client-manager-notifications'"
+      expected_outcome: "10/10 tests passing (was 2/10)"
+
+    - id: T10
+      title: "Investigate & Fix tool-gateway-notifications"
+      description: "Determine if environmental or bug, fix if needed (Sprint 31: TBD - isolation incomplete)"
+      priority: P1
+      estimate: "20 min"
+      dependencies: [T1]
+      files:
+        - tests/apps/tool-gateway-notifications.spec.ts
+      root_cause: "Unknown - isolation test incomplete in Sprint 31"
+      sprint_31_context: "Marked TBD, needs isolation test first"
+      investigation:
+        isolation_test: "npm test -- tool-gateway-notifications.spec.ts 2>&1 | tee tool-gateway-debug.txt"
+        if_pass_isolated: "Environmental - document and defer or accept"
+        if_fail_isolated: "Code bug - investigate similar to client-manager-notifications"
+      approach:
+        - "Run isolation test first"
+        - "If fails: Extract error, compare to client-manager-notifications pattern"
+        - "If passes: Document as environmental, consider if acceptable"
+      validation: "npm test -- tool-gateway-notifications.spec.ts && npm test 2>&1 | grep 'tool-gateway-notifications'"
+      expected_outcome: "Test passes or documented as environmental"
+
+    - id: T11
+      title: "Investigate & Fix mcp-server"
+      description: "Fix 10 failures in mcp-server.spec.ts (fails in isolation, Sprint 30 context available)"
+      priority: P1
+      estimate: "30 min"
+      dependencies: [T1]
+      files:
+        - tests/common/mcp-server.spec.ts
+      root_cause: "Confirmed Category D bug (fails in isolation - Sprint 31)"
+      current_state: "10 failures"
+      sprint_30_context: "Sprint 30 attempted auth header fix, partial success. bit-conformance fixed with MCP SDK 2.0 endpoints."
+      sprint_31_context: "Fails in isolation, requires investigation"
+      investigation:
+        - "npm test -- mcp-server.spec.ts --verbose 2>&1 | tee mcp-server-debug.txt"
+        - "grep '✕' mcp-server-debug.txt"
+        - "git log --oneline --grep='mcp-server' -10  # Check recent changes"
+        - "Compare to Sprint 30 bit-conformance fix (MCP SDK 2.0 endpoints)"
+      likely_issues:
+        - "Auth expectations changed (MCP SDK 2.0 migration)"
+        - "Endpoint changes not reflected (/sse vs other endpoints)"
+        - "Mock configuration incomplete"
+      sprint_30_pattern: "bit-conformance updated to MCP SDK 2.0 endpoints - may need similar fix"
+      possible_fixes:
+        endpoint_update: |
+          expect(res.status).toBe(200); // Was expecting 404?
+        auth_headers: |
+          .set('Authorization', 'Bearer test-token')
+        sse_endpoint: |
+          .get('/sse') // Was different endpoint before SDK 2.0?
+      validation: "npm test -- mcp-server.spec.ts && npm test 2>&1 | grep 'mcp-server'"
+      expected_outcome: "All 10 tests passing"
+
+# Phase 4: Validation & Documentation
+phase_4_validation:
+  title: "Validation & Documentation"
+  duration: "30 minutes"
+  priority: P0
+  dependencies: [phase_1_infrastructure, phase_2_environmental, phase_3_bugs]
+
+  tasks:
+    - id: T12
+      title: "Final Validation - 100% Pass Rate"
+      description: "Confirm 0 failing tests, capture final metrics, celebrate"
+      priority: P0
+      estimate: "15 min"
+      dependencies: [T4, T7, T9, T10, T11]
+      validation: "npm test 2>&1 | tee planning/sprint-32-[id]/final-test-output.txt"
+      expected_results:
+        test_suites_failed: 0
+        test_suites_skipped: "X"
+        test_suites_passed: "XXX"
+        tests_failed: 0
+        tests_passed: "XXXX"
+        pass_rate: "100%"
+        runtime: "<45s"
+      deliverable: "metrics-comparison.md"
+      celebration: "🎉 100% PASS RATE ACHIEVED 🎉"
+
+    - id: T13
+      title: "Complete Sprint Artifacts & Celebrate"
+      description: "Document victory, capture learnings, celebrate 3-sprint journey"
+      priority: P0
+      estimate: "15 min"
+      dependencies: [T12]
+      deliverables:
+        - verification-report.md
+        - retro.md
+        - key-learnings.md
+        - celebration.md
+      content:
+        - "Document fix patterns (mock counts, async/await, env setup)"
+        - "Sprint 30 → 31 → 32 progression story"
+        - "Cumulative improvements (77% + 68% + X%)"
+        - "Template for future test remediation"
+      theme: "Complete test remediation journey - 48 failures → 0 failures"
+
+# Success Criteria
+success_criteria:
+  must_have:
+    - title: "All 7 failing suites from Sprint 31 fixed"
+      tasks: [T2, T3, T5, T6, T7, T9, T10, T11]
+      status: pending
+
+    - title: "0 failing test suites (100% goal)"
+      tasks: [T12]
+      status: pending
+      baseline: "7 failing suites (Sprint 31 end)"
+      target: "0 failing suites"
+
+    - title: "0 failing tests"
+      tasks: [T12]
+      status: pending
+      baseline: "25 failing tests (Sprint 31 end)"
+      target: "0 failing tests"
+
+    - title: "100% pass rate achieved"
+      tasks: [T12]
+      status: pending
+      baseline: "99.4% (Sprint 31 end)"
+      target: "100%"
+
+    - title: "Runtime maintained <45s"
+      tasks: [T12]
+      status: pending
+      baseline: "37s (Sprint 31 end)"
+      target: "<45s"
+
+    - title: "All fixes validated in full suite"
+      tasks: [T4, T12]
+      status: pending
+
+  nice_to_have:
+    - title: "Runtime improved beyond Sprint 31 (<35s)"
+      tasks: [T12]
+      status: pending
+
+    - title: "Comprehensive documentation of fix patterns"
+      tasks: [T13]
+      status: pending
+
+    - title: "Celebration artifact documenting 3-sprint journey"
+      tasks: [T13]
+      status: pending
+
+  out_of_scope:
+    - "Test stratification (unit/integration/e2e) - Sprint 33"
+    - "Bit.close() cleanup refactoring - Sprint 33"
+    - "Parallel test execution - Sprint 33"
+    - "Test coverage reporting - Sprint 33"
+
+# Metrics Tracking
+metrics:
+  sprint_31_end:
+    runtime: "37s"
+    failing_suites: 7
+    failing_tests: 25
+    pass_rate: "99.4%"
+
+  sprint_32_targets:
+    runtime: "<45s (maintain)"
+    failing_suites: 0
+    failing_tests: 0
+    pass_rate: "100%"
+
+  sprint_32_actual:
+    # To be filled during execution
+    after_category_a:
+      runtime: null
+      failing_suites: null  # Expected: 4
+      failing_tests: null
+      pass_rate: null
+
+    after_category_b:
+      runtime: null
+      failing_suites: null  # Expected: 1
+      failing_tests: null
+      pass_rate: null
+
+    final:
+      runtime: null  # Expected: <45s
+      failing_suites: null  # Expected: 0
+      failing_tests: null  # Expected: 0
+      pass_rate: null  # Expected: 100%
+
+  cumulative_sprint_30_to_32:
+    # Sprint 30 baseline → Sprint 32 end
+    runtime:
+      baseline: "501s"
+      target: "<45s"
+      improvement: "TBD%"
+
+    failing_suites:
+      baseline: 48
+      target: 0
+      improvement: "100%"
+
+    failing_tests:
+      baseline: 112
+      target: 0
+      improvement: "100%"
+
+# Risk Management
+risks:
+  - id: RISK-1
+    description: "Category D bugs more complex than expected"
+    likelihood: medium
+    impact: high
+    mitigation: "Timebox investigation to 30min per suite, defer if blocked"
+    contingency: "Document complexity, create dedicated bug-fix sprint"
+
+  - id: RISK-2
+    description: "Environmental fixes create new issues"
+    likelihood: low
+    impact: medium
+    mitigation: "Test in isolation AND full suite after each fix"
+    contingency: "Rollback to previous commit, re-investigate"
+
+  - id: RISK-3
+    description: "Can't reach 100% pass rate in single sprint"
+    likelihood: low
+    impact: high
+    mitigation: "Prioritize Category D (legitimate bugs) over environmental"
+    contingency: "Document remaining failures clearly, defer to Sprint 33"
+
+  - id: RISK-4
+    description: "Fixes introduce regressions"
+    likelihood: low
+    impact: high
+    mitigation: "Run full suite after each phase"
+    contingency: "Granular commits enable cherry-pick or rollback"
+
+# Sprint 30 & 31 Learnings Applied
+learnings_applied:
+  - learning: "Categorize by root cause before fixing"
+    application: "Categories A/B/D from Sprint 31 final validation"
+    tasks: [T1]
+
+  - learning: "Isolation testing distinguishes environmental from bugs"
+    application: "T5, T6, T7, T10 all use isolation testing"
+    sprint_source: "Sprint 30 & 31"
+
+  - learning: "Extract ACTUAL test names from output (no placeholders)"
+    application: "All 7 failures have verified file paths from Sprint 31"
+    sprint_source: "Sprint 30 learning, Sprint 31 application"
+
+  - learning: "Baseline before changes enables confident iteration"
+    application: "T1 captures comprehensive baseline"
+    sprint_source: "Sprint 30 & 31"
+
+  - learning: "One fix at a time, validate after each"
+    application: "Each task has validation step, phases build sequentially"
+    sprint_source: "Sprint 30"
+
+  - learning: "Document fix patterns for reuse"
+    application: "T13 captures patterns (mock counts, async/await)"
+    sprint_source: "Sprint 31"
+
+  - learning: "Mock call count bugs are common"
+    application: "T8/T9 specifically look for this pattern (Sprint 31 query-analyzer)"
+    sprint_source: "Sprint 31"
+
+  - learning: "Environmental tests can auto-fix from infrastructure improvements"
+    application: "May see auto-fixes in Sprint 32 from Sprint 31 changes"
+    sprint_source: "Sprint 31"
+
+# Dependencies & Execution Order
+execution_order:
+  - phase: phase_0_setup
+    sequence: [T0, T1]
+    blocking: true
+    description: "Must establish baseline before any fixes"
+
+  - phase: phase_1_infrastructure
+    sequence: [T2, T3, T4]
+    depends_on: phase_0_setup
+    can_parallelize: false
+    description: "Sequential fixes, validate at end"
+
+  - phase: phase_2_environmental
+    sequence: [T5, T6, T7]
+    depends_on: phase_0_setup
+    can_parallelize_with: [phase_1_infrastructure, phase_3_bugs]
+    description: "Can run in parallel with other phases after baseline"
+
+  - phase: phase_3_bugs
+    sequence: [T8, T9, T10, T11]
+    depends_on: phase_0_setup
+    can_parallelize_with: [phase_1_infrastructure, phase_2_environmental]
+    description: "Investigations can run in parallel, fixes sequential"
+
+  - phase: phase_4_validation
+    sequence: [T12, T13]
+    depends_on: [phase_1_infrastructure, phase_2_environmental, phase_3_bugs]
+    blocking: false
+    description: "T13 can partially overlap with T12"
+
+# Future Work (Post-Sprint 32)
+future_sprints:
+  sprint_33:
+    title: "Test Infrastructure Phase 4 - Optimization & Cleanup"
+    focus: "Test stratification, cleanup refactoring, parallel execution"
+    tasks:
+      - "Separate unit/integration/e2e tests via Jest projects"
+      - "Refactor Bit.close() for proper listener cleanup (remove EventEmitter bandaid)"
+      - "Create BitTestFactory helper class"
+      - "Enable parallel test execution (remove maxWorkers:1)"
+      - "Add test coverage reporting"
+    estimate: "3-4 hours"
+    prerequisite: "100% pass rate from Sprint 32"
+
+# Sprint 32 Unique Characteristics
+sprint_characteristics:
+  goal_type: "Complete remediation (0 failures)"
+  approach: "Systematic fix of categorized failures"
+  celebration_worthy: "YES - 3-sprint journey completion"
+  compound_improvements:
+    - "Sprint 30: 77% runtime reduction, 60% failure reduction"
+    - "Sprint 31: 68% additional runtime reduction, 63% failure reduction"
+    - "Sprint 32: 100% failure elimination (target)"
+  total_journey: "48 failures → 0 failures across 3 sprints"

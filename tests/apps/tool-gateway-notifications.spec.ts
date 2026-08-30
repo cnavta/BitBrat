@@ -110,10 +110,10 @@ describe('Tool Gateway Notification Broadcasting', () => {
       expect(mockSessionServer2.notification).toHaveBeenCalledTimes(3);
     });
 
-    it('logs broadcast activity', () => {
+    it('logs broadcast activity', async () => {
       const loggerSpy = jest.spyOn((server as any).getLogger(), 'info');
 
-      (server as any).broadcastListChangedNotifications();
+      await (server as any).broadcastListChangedNotifications();
 
       // Should log broadcasting start and completion
       expect(loggerSpy).toHaveBeenCalledWith(
