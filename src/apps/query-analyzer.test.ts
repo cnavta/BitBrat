@@ -89,7 +89,7 @@ describe('query-analyzer service', () => {
 
       // Expect 3 publishes: disposition observation, annotated event, persistence snapshot
       // (PERSISTENCE_SNAPSHOT_MODE may be 'all' depending on environment config loading)
-      expect(publishJsonMock).toHaveBeenCalledTimes(2);
+      expect(publishJsonMock).toHaveBeenCalledTimes(3);
 
       const observation = publishJsonMock.mock.calls[0][0] as any;
       expect(observation.userKey).toBe('twitch:user-123');
@@ -224,7 +224,7 @@ describe('query-analyzer service', () => {
 
       // Expect 3 publishes: disposition observation, complete event, persistence snapshot
       // (PERSISTENCE_SNAPSHOT_MODE may be 'all' depending on environment config loading)
-      expect(publishJsonMock).toHaveBeenCalledTimes(2);
+      expect(publishJsonMock).toHaveBeenCalledTimes(3);
       const observation = publishJsonMock.mock.calls[0][0] as any;
       expect(observation.userKey).toBe('twitch:spammer-1');
 
