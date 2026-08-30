@@ -4,6 +4,7 @@ import type { RedisClientType } from 'redis';
 import type { InternalEventV2 } from '../types';
 import { ScopeResolver } from '../services/utility/scope-resolver';
 import { CounterManager } from '../services/utility/counter-manager';
+import { BidManager } from '../services/utility/bid-manager';
 import { z } from 'zod';
 
 /**
@@ -48,7 +49,7 @@ export class UtilityService extends Bit {
   private docStore?: IDocumentStore;
   private redis?: RedisClientType;
   private counterManager?: CounterManager;
-  private bidManager?: any; // Will be BidManager (Phase 2)
+  private bidManager?: BidManager;
   private scopeResolver?: ScopeResolver;
   private setupComplete = false;
 
@@ -76,6 +77,7 @@ export class UtilityService extends Bit {
 
       // Register MCP tools
       this.registerCounterTools();
+      this.registerBidTools();
 
       this.setupComplete = true;
       this.getLogger().info('utility.setup.complete');
@@ -173,6 +175,50 @@ export class UtilityService extends Bit {
 
     this.getLogger().info('utility.scope_resolver.initialized');
     return this.scopeResolver;
+  }
+
+  /**
+   * Lazy initialization of BidManager
+   * Only initializes once resources are available
+   */
+  private ensureBidManager(): BidManager | null {
+    if (this.bidManager) {
+      return this.bidManager;
+    }
+
+    // Re-fetch resources in case they were initialized after setup()
+    if (!this.docStore) {
+      this.docStore = this.getResource<IDocumentStore>('documentStore');
+    }
+    if (!this.redis) {
+      this.redis = this.getResource<RedisClientType>('redis');
+    }
+
+    // Check if resources are ready
+    if (!this.docStore || !this.redis) {
+      this.getLogger().debug('utility.bid_manager.resources_not_ready', {
+        hasDocStore: !!this.docStore,
+        hasRedis: !!this.redis,
+      });
+      return null;
+    }
+
+    // Ensure scope resolver is initialized first
+    const scopeResolver = this.ensureScopeResolver();
+    if (!scopeResolver) {
+      return null;
+    }
+
+    // Initialize BidManager
+    this.bidManager = new BidManager(
+      this.docStore,
+      this.redis,
+      scopeResolver,
+      this.getLogger()
+    );
+
+    this.getLogger().info('utility.bid_manager.initialized');
+    return this.bidManager;
   }
 
   /**
@@ -403,22 +449,284 @@ export class UtilityService extends Bit {
    * Phase 2 implementation - 8 tools for bidding session management
    */
   private registerBidTools(): void {
-    // TODO: Implement bid tools (Phase 2)
-    // Will register:
-    // - bid.session.create
-    // - bid.submit
-    // - bid.session.close
-    // - bid.get.max
-    // - bid.get.min
-    // - bid.get.closest
-    // - bid.session.list
-    // - bid.results
+    // bid.create - Create new bidding session
+    this.registerTool(
+      'bid.create',
+      'Create a new bidding session with optional target value and TTL',
+      z.object({
+        name: z.string().min(1).max(64).describe('Session name (e.g., "boss_hp_guess")'),
+        scopeType: z.enum(['global', 'stream', 'user', 'session', 'custom']).optional()
+          .describe('Scope type (default: auto-infer from event)'),
+        scopeValue: z.string().optional()
+          .describe('Scope value (default: auto-infer from event)'),
+        targetValue: z.number().optional()
+          .describe('Target value for "closest" queries'),
+        ttlSeconds: z.number().positive().optional()
+          .describe('Time-to-live in seconds (omit for manual close only)'),
+        metadata: z.record(z.string(), z.any()).optional()
+          .describe('Optional metadata (description, rules, prize, etc.)'),
+        createdBy: z.string().optional().describe('Creator identifier'),
+      }),
+      async (args) => {
+        const manager = this.ensureBidManager();
+        if (!manager) {
+          return {
+            content: [{ type: 'text', text: 'Bid manager not available (resources not ready)' }],
+            isError: true,
+          };
+        }
 
-    this.getLogger().info('utility.bid_tools.placeholder', {
-      message: 'Bid tools will be registered in Phase 2',
+        try {
+          const result = await manager.create(args as any);
+          return {
+            content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error: any) {
+          return {
+            content: [{ type: 'text', text: `Error creating bid session: ${error.message}` }],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // bid.submit - Submit or update user bid
+    this.registerTool(
+      'bid.submit',
+      'Submit or update a user bid in an active session',
+      z.object({
+        session: z.string().describe('Session ID or name'),
+        user: z.string().describe('User ID'),
+        userName: z.string().optional().describe('Display name'),
+        value: z.number().describe('Bid value'),
+        metadata: z.record(z.string(), z.any()).optional(),
+      }),
+      async (args) => {
+        const manager = this.ensureBidManager();
+        if (!manager) {
+          return {
+            content: [{ type: 'text', text: 'Bid manager not available' }],
+            isError: true,
+          };
+        }
+
+        try {
+          const result = await manager.submit(args as any);
+          return {
+            content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error: any) {
+          return {
+            content: [{ type: 'text', text: `Error submitting bid: ${error.message}` }],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // bid.getMax - Get highest bid
+    this.registerTool(
+      'bid.getMax',
+      'Get the highest bid in a session',
+      z.object({
+        session: z.string().describe('Session ID or name'),
+      }),
+      async (args) => {
+        const manager = this.ensureBidManager();
+        if (!manager) {
+          return {
+            content: [{ type: 'text', text: 'Bid manager not available' }],
+            isError: true,
+          };
+        }
+
+        try {
+          const result = await manager.getMax(args as any);
+          return {
+            content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error: any) {
+          return {
+            content: [{ type: 'text', text: `Error getting max bid: ${error.message}` }],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // bid.getMin - Get lowest bid
+    this.registerTool(
+      'bid.getMin',
+      'Get the lowest bid in a session',
+      z.object({
+        session: z.string().describe('Session ID or name'),
+      }),
+      async (args) => {
+        const manager = this.ensureBidManager();
+        if (!manager) {
+          return {
+            content: [{ type: 'text', text: 'Bid manager not available' }],
+            isError: true,
+          };
+        }
+
+        try {
+          const result = await manager.getMin(args as any);
+          return {
+            content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error: any) {
+          return {
+            content: [{ type: 'text', text: `Error getting min bid: ${error.message}` }],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // bid.getClosest - Get bid closest to target
+    this.registerTool(
+      'bid.getClosest',
+      'Get the bid closest to the target value',
+      z.object({
+        session: z.string().describe('Session ID or name'),
+        target: z.number().optional().describe('Override session target value'),
+      }),
+      async (args) => {
+        const manager = this.ensureBidManager();
+        if (!manager) {
+          return {
+            content: [{ type: 'text', text: 'Bid manager not available' }],
+            isError: true,
+          };
+        }
+
+        try {
+          const result = await manager.getClosest(args as any);
+          return {
+            content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error: any) {
+          return {
+            content: [{ type: 'text', text: `Error getting closest bid: ${error.message}` }],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // bid.close - Close session and snapshot results
+    this.registerTool(
+      'bid.close',
+      'Close a bid session and snapshot results to DocumentStore',
+      z.object({
+        session: z.string().describe('Session ID or name'),
+        computeWinner: z.boolean().default(true).describe('Compute winner based on target value'),
+        deleteRedisHash: z.boolean().default(false).describe('Delete Redis hash after close'),
+      }),
+      async (args) => {
+        const manager = this.ensureBidManager();
+        if (!manager) {
+          return {
+            content: [{ type: 'text', text: 'Bid manager not available' }],
+            isError: true,
+          };
+        }
+
+        try {
+          const result = await manager.close(args as any);
+          return {
+            content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error: any) {
+          return {
+            content: [{ type: 'text', text: `Error closing bid session: ${error.message}` }],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // bid.list - List bid sessions
+    this.registerTool(
+      'bid.list',
+      'List bid sessions by scope and status',
+      z.object({
+        scopeType: z.enum(['global', 'stream', 'user', 'session', 'custom']).optional(),
+        scopeValue: z.string().optional(),
+        status: z.enum(['active', 'closed', 'expired']).optional(),
+        limit: z.number().positive().default(50).describe('Maximum results to return'),
+      }),
+      async (args) => {
+        const manager = this.ensureBidManager();
+        if (!manager) {
+          return {
+            content: [{ type: 'text', text: 'Bid manager not available' }],
+            isError: true,
+          };
+        }
+
+        try {
+          const result = await manager.list(args as any);
+          return {
+            content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error: any) {
+          return {
+            content: [{ type: 'text', text: `Error listing bid sessions: ${error.message}` }],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // bid.results - Query historical results
+    this.registerTool(
+      'bid.results',
+      'Query historical bid results for analytics',
+      z.object({
+        sessionId: z.string().optional().describe('Filter by session ID'),
+        scopeType: z.string().optional().describe('Filter by scope type'),
+        scopeValue: z.string().optional().describe('Filter by scope value'),
+        limit: z.number().positive().default(50).describe('Maximum results to return'),
+        orderBy: z.enum(['closedAt', 'totalEntries']).default('closedAt')
+          .describe('Sort results by field'),
+      }),
+      async (args) => {
+        const manager = this.ensureBidManager();
+        if (!manager) {
+          return {
+            content: [{ type: 'text', text: 'Bid manager not available' }],
+            isError: true,
+          };
+        }
+
+        try {
+          const result = await manager.getResults(args as any);
+          return {
+            content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error: any) {
+          return {
+            content: [{ type: 'text', text: `Error querying bid results: ${error.message}` }],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.getLogger().info('utility.bid_tools.registered', {
+      tools: [
+        'bid.create',
+        'bid.submit',
+        'bid.getMax',
+        'bid.getMin',
+        'bid.getClosest',
+        'bid.close',
+        'bid.list',
+        'bid.results',
+      ],
     });
-
-    // Placeholder - tools will be registered in Phase 2
   }
 
   /**
