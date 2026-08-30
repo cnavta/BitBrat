@@ -175,6 +175,38 @@ The BitBrat repository is organized to separate concerns between application cod
 - **`CHANGELOG.md`** — Version history and release notes
 - **`LICENSE`**, **`CONTRIBUTING.md`**, **`CODE_OF_CONDUCT.md`**, **`SECURITY.md`** — Open source project governance
 
+## Testing
+
+Run the full test suite with:
+```bash
+npm test
+```
+
+Tests are organized using Jest:
+- **Unit tests**: Alongside source code (`*.test.ts`, `*.spec.ts`)
+- **Integration tests**: In `tests/integration/`
+- **Configuration**: See `jest.config.js` for test runner settings
+
+### Known Test Issues
+
+Some test suites have known failures that don't impact core functionality:
+
+- **Docker tests**: Require Docker daemon running
+  - `agent-dev-e2e.test.ts`, `jetstream-validation.test.ts`, `docker-compose-*.test.ts`
+  - Auto-skipped in CI when Docker unavailable
+  - Fix: Ensure Docker is running locally
+
+- **NATS tests**: Require NATS server or will use local instance
+  - Tests automatically connect to `NATS_URL=nats://localhost:4222`
+  - Some integration tests may timeout if NATS unavailable
+  - Fix: Start NATS via `npm run local` or install separately
+
+- **E2E tests**: May fail in CI without full infrastructure
+  - These validate deployment, not core business logic
+  - Safe to skip for feature development
+
+For detailed analysis of test failures and planned fixes, see: [planning/sprint-30-pe25g1/test-failures-backlog.md](planning/sprint-30-pe25g1/test-failures-backlog.md)
+
 ### Build and Deployment Files
 
 - **`Dockerfile.*`** — Multi-stage Docker builds for each service

@@ -98,7 +98,7 @@ describe('MCP Auto-Discovery Integration', () => {
         url: 'http://dummy-server/sse',
         transport: 'sse',
         env: {
-          Authorization: 'Bearer dummy-token'
+          Authorization: 'Bearer ${MCP_AUTH_TOKEN}'
         }
       }),
       { merge: true }
