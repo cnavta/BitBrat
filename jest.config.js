@@ -49,9 +49,11 @@ module.exports = () => {
 
   const isCI = !!process.env.CI || process.env.CLOUD_BUILD === '1' || process.env.BUILDKITE === 'true' || !!process.env.BUILD_ID;
 
-  // Quick Win (Sprint 30): Skip Docker tests when Docker unavailable
+  // Quick Win (Sprint 30+31): Skip Docker tests when Docker unavailable
   // Prevents infrastructure test failures in CI or local environments without Docker
-  if (isCI && !hasDocker()) {
+  // Sprint 31: Extended to apply to local development, not just CI
+  if (!hasDocker()) {
+    console.log('⏭️  Docker unavailable - skipping E2E tests requiring Docker');
     base.testPathIgnorePatterns.push(
       'agent-dev-e2e.test.ts',
       'jetstream-validation.test.ts',
