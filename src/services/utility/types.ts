@@ -227,12 +227,15 @@ export interface BidSession {
     description?: string;
     rules?: string;
     prize?: string;
+    icon?: string;
+    tags?: string[];
     [key: string]: any;
   };
   createdAt: string; // ISO 8601
   expiresAt?: string; // ISO 8601
   closedAt?: string; // ISO 8601 (when session was manually closed)
   createdBy: string;
+  status: 'active' | 'closed' | 'expired';
 }
 
 /**
@@ -246,6 +249,7 @@ export interface BidEntry {
   userName?: string;
   value: number;
   submittedAt: string; // ISO 8601
+  difference?: number; // Distance to target (for getClosest results)
   metadata?: {
     platform?: string;
     correlationId?: string;
@@ -262,12 +266,26 @@ export interface BidResult {
   sessionId: string;
   closedAt: string; // ISO 8601
   totalEntries: number;
-  winner?: string; // User ID of winner (if applicable)
-  winningValue?: number;
-  allEntries: Array<{
-    user: string;
+  winner?: {
+    userId: string;
+    userName?: string;
     value: number;
+    difference?: number; // Distance to target
+  };
+  statistics: {
+    max: number;
+    min: number;
+    mean: number;
+    median: number;
+    stdDev?: number;
+  };
+  allEntries: Array<{
+    userId: string;
+    userName?: string;
+    value: number;
+    submittedAt: string;
   }>;
+  metadata: Record<string, any>;
 }
 
 /**
@@ -288,6 +306,8 @@ export interface BidSessionResult {
   success: boolean;
   sessionId: string;
   sessionKey: string; // Redis hash key
+  expiresAt?: string; // ISO 8601
+  error?: string;
 }
 
 /**
@@ -296,7 +316,9 @@ export interface BidSessionResult {
 export interface SubmitBidParams {
   session: string; // Session ID
   user: string; // User ID
+  userName?: string; // Display name
   value: number;
+  metadata?: Record<string, any>;
 }
 
 /**
@@ -306,6 +328,8 @@ export interface SubmitBidResult {
   success: boolean;
   entryId: string; // Format: {sessionId}:{userId}
   previousValue?: number; // Previous bid value if user is updating
+  newValue?: number; // New bid value
+  error?: string;
 }
 
 /**
@@ -335,6 +359,8 @@ export interface GetClosestBidParams {
  */
 export interface CloseBidSessionParams {
   session: string;
+  computeWinner?: boolean; // Default: true
+  deleteRedisHash?: boolean; // Default: false
 }
 
 /**
@@ -342,6 +368,40 @@ export interface CloseBidSessionParams {
  */
 export interface CloseBidSessionResult {
   success: boolean;
+  sessionId: string;
   closedAt: string;
   finalCount: number;
+  winner?: {
+    userId: string;
+    value: number;
+    difference?: number;
+  };
+  statistics?: {
+    max: number;
+    min: number;
+    mean: number;
+    median: number;
+  };
+  error?: string;
+}
+
+/**
+ * Parameters for listing bid sessions
+ */
+export interface ListBidSessionsParams {
+  scopeType?: ScopeType;
+  scopeValue?: string;
+  status?: 'active' | 'closed' | 'expired';
+  limit?: number;
+}
+
+/**
+ * Parameters for querying bid results
+ */
+export interface GetBidResultsParams {
+  sessionId?: string;
+  scopeType?: string;
+  scopeValue?: string;
+  limit?: number;
+  orderBy?: 'closedAt' | 'totalEntries';
 }

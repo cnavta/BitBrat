@@ -1,15 +1,15 @@
 # Utility Service: MCP Tool Reference
 
 **Service**: utility-service
-**Sprint**: sprint-27-6tp11t
+**Sprints**: sprint-27-6tp11t (counters), sprint-29-49pmm9 (bidding)
 **MCP Exposure**: platform-only
-**Last Updated**: 2026-08-27
+**Last Updated**: 2026-08-29
 
 ## Overview
 
-The utility-service exposes 6 MCP tools for counter management. All tools are **platform-only** and accessible via the tool-gateway for LLM interactions or direct service calls for platform Bits.
+The utility-service exposes **14 MCP tools** for counter management (6 tools) and bidding systems (8 tools). All tools are **platform-only** and accessible via the tool-gateway for LLM interactions or direct service calls for platform Bits.
 
-**Tool Registry**:
+**Counter Tools (6)**:
 | Tool | Purpose | Input | Output |
 |------|---------|-------|--------|
 | `counter.create` | Create new counter | CreateCounterParams | CounterResult |
@@ -18,6 +18,22 @@ The utility-service exposes 6 MCP tools for counter management. All tools are **
 | `counter.delete` | Remove counter | DeleteCounterParams | DeleteCounterResult |
 | `counter.list` | Query counters by scope | ListCountersParams | CounterDefinition[] |
 | `counter.snapshot` | Take value snapshot | SnapshotCounterParams | SnapshotCounterResult |
+
+**Bidding Tools (8)**:
+| Tool | Purpose | Input | Output |
+|------|---------|-------|--------|
+| `bid.create` | Create bidding session | CreateBidSessionParams | BidSessionResult |
+| `bid.submit` | Submit/update bid | SubmitBidParams | SubmitBidResult |
+| `bid.getMax` | Query highest bid | GetMaxBidParams | BidEntry |
+| `bid.getMin` | Query lowest bid | GetMinBidParams | BidEntry |
+| `bid.getClosest` | Query closest to target | GetClosestBidParams | BidEntry |
+| `bid.close` | Close session with results | CloseBidSessionParams | CloseBidSessionResult |
+| `bid.list` | List bid sessions | ListBidSessionsParams | BidSession[] |
+| `bid.results` | Query historical results | GetBidResultsParams | BidResult[] |
+
+---
+
+# Counter Tools
 
 ---
 
@@ -794,3 +810,730 @@ All tools follow the **fail-open** pattern:
 - **Metadata**: DocumentStore `counter_definitions` collection
 - **Key Format**: `counter:{scopeType}:{scopeValue}:{name}`
 - **ID Format**: `{scopeType}:{scopeValue}:{name}`
+
+---
+
+# Bidding Tools
+
+---
+
+## Tool: bid.create
+
+**Purpose**: Create a new bidding session with optional target value and TTL
+
+**Signature**:
+```typescript
+bid.create(params: CreateBidSessionParams): Promise<BidSessionResult>
+```
+
+### Parameters (Zod Schema)
+
+```typescript
+const CreateBidSessionSchema = z.object({
+  name: z.string().min(1).max(64)
+    .describe('Session name (e.g., "price-guess", "auction-item-5")'),
+
+  scopeType: z.enum(['global', 'stream', 'user', 'session', 'custom']).optional()
+    .describe('Scope type (default: auto-infer from event)'),
+
+  scopeValue: z.string().optional()
+    .describe('Scope value (default: auto-infer from event)'),
+
+  targetValue: z.number().optional()
+    .describe('Target value for closest-to queries (optional)'),
+
+  ttlSeconds: z.number().positive().optional()
+    .describe('Time-to-live in seconds (omit for permanent session)'),
+
+  metadata: z.record(z.any()).optional()
+    .describe('Optional metadata (description, prize, rules, etc.)'),
+
+  createdBy: z.string().optional()
+    .describe('Creator identifier')
+});
+```
+
+### TypeScript Interface
+
+```typescript
+interface CreateBidSessionParams extends ScopeParams {
+  name: string;                    // Required: Session name (unique within scope)
+  scopeType?: ScopeType;           // Optional: scope type
+  scopeValue?: string;             // Optional: scope identifier
+  targetValue?: number;            // Optional: target for getClosest queries
+  ttlSeconds?: number;             // Optional: auto-expire after N seconds
+  metadata?: Record<string, any>;  // Optional: arbitrary JSON metadata
+  createdBy?: string;              // Optional: creator ID (default: 'system')
+  event?: InternalEventV2;         // Internal: event context for auto-inference
+}
+```
+
+### Return Value
+
+```typescript
+interface BidSessionResult {
+  success: boolean;      // true if created successfully
+  sessionId: string;     // Format: {scopeType}:{scopeValue}:{name}
+  sessionKey: string;    // Redis hash key: bid:session:{sessionId}
+  expiresAt?: string;    // ISO 8601 (if TTL set)
+  error?: string;        // Error message (if success is false)
+}
+
+// Success Example:
+{
+  "success": true,
+  "sessionId": "stream:bitbrat:price-guess",
+  "sessionKey": "bid:session:stream:bitbrat:price-guess",
+  "expiresAt": "2026-08-29T13:00:00Z"
+}
+```
+
+### Examples
+
+```typescript
+// Example 1: Stream-scoped game with target and TTL
+bid.create({
+  name: "price-guess-round-1",
+  scopeType: "stream",
+  scopeValue: "bitbrat",
+  targetValue: 100,
+  ttlSeconds: 300,  // 5 minutes
+  metadata: {
+    description: "Guess the secret number!",
+    prize: "100 channel points",
+    icon: "🎯"
+  }
+})
+
+// Example 2: Global auction (no target, highest wins)
+bid.create({
+  name: "charity-auction",
+  scopeType: "global",
+  scopeValue: "global",
+  metadata: {
+    description: "Signed poster auction",
+    prize: "Signed poster",
+    minBid: 10
+  }
+})
+```
+
+---
+
+## Tool: bid.submit
+
+**Purpose**: Submit a new bid or update an existing bid (atomic upsert)
+
+**Signature**:
+```typescript
+bid.submit(params: SubmitBidParams): Promise<SubmitBidResult>
+```
+
+### Parameters (Zod Schema)
+
+```typescript
+const SubmitBidSchema = z.object({
+  session: z.string()
+    .describe('Session ID (from bid.create result)'),
+
+  user: z.string()
+    .describe('User ID'),
+
+  value: z.number()
+    .describe('Bid value (supports decimals)'),
+
+  userName: z.string().optional()
+    .describe('Display name (optional)'),
+
+  metadata: z.record(z.any()).optional()
+    .describe('Custom metadata (optional)')
+});
+```
+
+### TypeScript Interface
+
+```typescript
+interface SubmitBidParams {
+  session: string;    // Session ID
+  user: string;       // User ID
+  value: number;      // Bid value (supports decimals)
+  userName?: string;  // Display name (optional)
+  metadata?: Record<string, any>;
+}
+```
+
+### Return Value
+
+```typescript
+interface SubmitBidResult {
+  success: boolean;
+  entryId: string;         // Format: {sessionId}:{userId}
+  previousValue?: number;  // Previous bid if updating
+  newValue?: number;       // New bid value
+  error?: string;
+}
+
+// Success Example (new bid):
+{
+  "success": true,
+  "entryId": "stream:bitbrat:price-guess:alice",
+  "newValue": 95
+}
+
+// Success Example (update):
+{
+  "success": true,
+  "entryId": "stream:bitbrat:price-guess:alice",
+  "previousValue": 95,
+  "newValue": 103
+}
+```
+
+### Examples
+
+```typescript
+// Submit first bid
+bid.submit({
+  session: "stream:bitbrat:price-guess",
+  user: "alice",
+  value: 95
+})
+
+// Update bid (upsert)
+bid.submit({
+  session: "stream:bitbrat:price-guess",
+  user: "alice",
+  value: 103  // Updates previous value
+})
+```
+
+---
+
+## Tool: bid.getMax
+
+**Purpose**: Query the highest bid in an active session
+
+**Signature**:
+```typescript
+bid.getMax(params: GetMaxBidParams): Promise<BidEntry>
+```
+
+### Parameters (Zod Schema)
+
+```typescript
+const GetMaxBidSchema = z.object({
+  session: z.string()
+    .describe('Session ID')
+});
+```
+
+### TypeScript Interface
+
+```typescript
+interface GetMaxBidParams {
+  session: string;  // Session ID
+}
+```
+
+### Return Value
+
+```typescript
+interface BidEntry {
+  sessionId: string;
+  userId: string;
+  userName?: string;
+  value: number;
+  submittedAt: string;  // ISO 8601 (approximate)
+  difference?: number;  // Only in getClosest results
+}
+
+// Example:
+{
+  "sessionId": "stream:bitbrat:price-guess",
+  "userId": "bob",
+  "userName": "bob",
+  "value": 120,
+  "submittedAt": "2026-08-29T12:30:00Z"
+}
+```
+
+### Error Handling
+
+Throws error if session has no bids.
+
+### Example
+
+```typescript
+bid.getMax({ session: "stream:bitbrat:price-guess" })
+// Bids: alice:95, bob:120, charlie:88
+// Result: { userId: "bob", value: 120, ... }
+```
+
+---
+
+## Tool: bid.getMin
+
+**Purpose**: Query the lowest bid in an active session
+
+**Signature**:
+```typescript
+bid.getMin(params: GetMinBidParams): Promise<BidEntry>
+```
+
+### Parameters (Zod Schema)
+
+```typescript
+const GetMinBidSchema = z.object({
+  session: z.string()
+    .describe('Session ID')
+});
+```
+
+### TypeScript Interface
+
+```typescript
+interface GetMinBidParams {
+  session: string;  // Session ID
+}
+```
+
+### Return Value
+
+Same as `bid.getMax` (BidEntry interface).
+
+### Example
+
+```typescript
+bid.getMin({ session: "stream:bitbrat:price-guess" })
+// Bids: alice:95, bob:120, charlie:88
+// Result: { userId: "charlie", value: 88, ... }
+```
+
+---
+
+## Tool: bid.getClosest
+
+**Purpose**: Query the bid closest to the target value
+
+**Signature**:
+```typescript
+bid.getClosest(params: GetClosestBidParams): Promise<BidEntry>
+```
+
+### Parameters (Zod Schema)
+
+```typescript
+const GetClosestBidSchema = z.object({
+  session: z.string()
+    .describe('Session ID'),
+
+  target: z.number().optional()
+    .describe('Override session target value (optional)')
+});
+```
+
+### TypeScript Interface
+
+```typescript
+interface GetClosestBidParams {
+  session: string;  // Session ID
+  target?: number;  // Override session target (optional)
+}
+```
+
+### Return Value
+
+```typescript
+interface BidEntry {
+  sessionId: string;
+  userId: string;
+  userName?: string;
+  value: number;
+  submittedAt: string;
+  difference?: number;  // Absolute distance to target
+}
+
+// Example:
+{
+  "sessionId": "stream:bitbrat:price-guess",
+  "userId": "alice",
+  "value": 95,
+  "difference": 5,  // |95 - 100| = 5
+  "submittedAt": "2026-08-29T12:30:00Z"
+}
+```
+
+### Target Resolution
+
+1. Use `target` parameter if provided
+2. Use session's `targetValue` from creation
+3. Error if neither available
+
+### Examples
+
+```typescript
+// Use session target
+bid.getClosest({ session: "stream:bitbrat:price-guess" })
+// Target: 100, Bids: alice:95, bob:120, charlie:88
+// Result: { userId: "alice", value: 95, difference: 5 }
+
+// Override target
+bid.getClosest({
+  session: "stream:bitbrat:price-guess",
+  target: 90  // Override
+})
+// Result: { userId: "charlie", value: 88, difference: 2 }
+```
+
+---
+
+## Tool: bid.close
+
+**Purpose**: Close a session, compute statistics, determine winner, and snapshot to DocumentStore
+
+**Signature**:
+```typescript
+bid.close(params: CloseBidSessionParams): Promise<CloseBidSessionResult>
+```
+
+### Parameters (Zod Schema)
+
+```typescript
+const CloseBidSessionSchema = z.object({
+  session: z.string()
+    .describe('Session ID'),
+
+  computeWinner: z.boolean().default(true)
+    .describe('Compute winner (requires targetValue)'),
+
+  deleteRedisHash: z.boolean().default(false)
+    .describe('Delete Redis hash after closing')
+});
+```
+
+### TypeScript Interface
+
+```typescript
+interface CloseBidSessionParams {
+  session: string;           // Session ID
+  computeWinner?: boolean;   // Default: true
+  deleteRedisHash?: boolean; // Default: false
+}
+```
+
+### Return Value
+
+```typescript
+interface CloseBidSessionResult {
+  success: boolean;
+  sessionId: string;
+  closedAt: string;  // ISO 8601
+  finalCount: number;
+  winner?: {
+    userId: string;
+    value: number;
+    difference?: number
+  };
+  statistics?: {
+    max: number;
+    min: number;
+    mean: number;
+    median: number;
+  };
+  error?: string;
+}
+
+// Example:
+{
+  "success": true,
+  "sessionId": "stream:bitbrat:price-guess",
+  "closedAt": "2026-08-29T12:35:00Z",
+  "finalCount": 5,
+  "winner": {
+    "userId": "alice",
+    "value": 95,
+    "difference": 5
+  },
+  "statistics": {
+    "max": 120,
+    "min": 88,
+    "mean": 101,
+    "median": 95
+  }
+}
+```
+
+### Side Effects
+
+1. Updates session status to `'closed'` in DocumentStore
+2. Creates snapshot in `bid_results` collection
+3. Optionally deletes Redis hash (if `deleteRedisHash` true)
+
+### Examples
+
+```typescript
+// Close with winner
+bid.close({
+  session: "stream:bitbrat:price-guess",
+  computeWinner: true
+})
+
+// Close without winner
+bid.close({
+  session: "stream:bitbrat:auction",
+  computeWinner: false
+})
+
+// Close and cleanup
+bid.close({
+  session: "global:global:flash-game",
+  deleteRedisHash: true  // Free Redis memory
+})
+```
+
+---
+
+## Tool: bid.list
+
+**Purpose**: List bid sessions with optional filters
+
+**Signature**:
+```typescript
+bid.list(params: ListBidSessionsParams): Promise<BidSession[]>
+```
+
+### Parameters (Zod Schema)
+
+```typescript
+const ListBidSessionsSchema = z.object({
+  scopeType: z.enum(['global', 'stream', 'user', 'session', 'custom']).optional(),
+  scopeValue: z.string().optional(),
+  status: z.enum(['active', 'closed', 'expired']).optional(),
+  limit: z.number().positive().default(50)
+});
+```
+
+### TypeScript Interface
+
+```typescript
+interface ListBidSessionsParams {
+  scopeType?: ScopeType;
+  scopeValue?: string;
+  status?: 'active' | 'closed' | 'expired';
+  limit?: number;  // Default: 50
+}
+```
+
+### Return Value
+
+```typescript
+type BidSession = {
+  id: string;
+  name: string;
+  scopeType: ScopeType;
+  scopeValue: string;
+  targetValue?: number;
+  ttlSeconds?: number;
+  metadata: Record<string, any>;
+  createdAt: string;
+  expiresAt?: string;
+  closedAt?: string;
+  createdBy: string;
+  status: 'active' | 'closed' | 'expired';
+}
+
+// Example:
+[
+  {
+    "id": "stream:bitbrat:price-guess",
+    "name": "price-guess",
+    "scopeType": "stream",
+    "scopeValue": "bitbrat",
+    "targetValue": 100,
+    "status": "active",
+    "createdAt": "2026-08-29T12:00:00Z",
+    "expiresAt": "2026-08-29T12:05:00Z"
+  },
+  ...
+]
+```
+
+### Examples
+
+```typescript
+// List all active sessions in a stream
+bid.list({
+  scopeType: "stream",
+  scopeValue: "bitbrat",
+  status: "active"
+})
+
+// List all closed sessions
+bid.list({ status: "closed", limit: 10 })
+
+// List all sessions
+bid.list({})
+```
+
+---
+
+## Tool: bid.results
+
+**Purpose**: Query historical bid results for analytics
+
+**Signature**:
+```typescript
+bid.results(params: GetBidResultsParams): Promise<BidResult[]>
+```
+
+### Parameters (Zod Schema)
+
+```typescript
+const GetBidResultsSchema = z.object({
+  sessionId: z.string().optional()
+    .describe('Filter by specific session'),
+
+  scopeType: z.string().optional(),
+  scopeValue: z.string().optional(),
+
+  limit: z.number().positive().default(50),
+
+  orderBy: z.enum(['closedAt', 'totalEntries']).default('closedAt')
+    .describe('Sort order')
+});
+```
+
+### TypeScript Interface
+
+```typescript
+interface GetBidResultsParams {
+  sessionId?: string;
+  scopeType?: string;
+  scopeValue?: string;
+  limit?: number;          // Default: 50
+  orderBy?: 'closedAt' | 'totalEntries';  // Default: 'closedAt'
+}
+```
+
+### Return Value
+
+```typescript
+type BidResult = {
+  id: string;              // {sessionId}:{timestamp}
+  sessionId: string;
+  closedAt: string;
+  totalEntries: number;
+  winner?: {
+    userId: string;
+    userName?: string;
+    value: number;
+    difference?: number;
+  };
+  statistics: {
+    max: number;
+    min: number;
+    mean: number;
+    median: number;
+    stdDev?: number;
+  };
+  allEntries: Array<{
+    userId: string;
+    userName?: string;
+    value: number;
+    submittedAt: string;
+  }>;
+  metadata: Record<string, any>;
+}
+
+// Example:
+[
+  {
+    "id": "stream:bitbrat:price-guess:1735484400000",
+    "sessionId": "stream:bitbrat:price-guess",
+    "closedAt": "2026-08-29T12:35:00Z",
+    "totalEntries": 5,
+    "winner": { "userId": "alice", "value": 95, "difference": 5 },
+    "statistics": { "max": 120, "min": 88, "mean": 101, "median": 95 },
+    "allEntries": [
+      { "userId": "alice", "value": 95, "submittedAt": "2026-08-29T12:30:00Z" },
+      { "userId": "bob", "value": 120, "submittedAt": "2026-08-29T12:31:00Z" },
+      ...
+    ]
+  },
+  ...
+]
+```
+
+### Examples
+
+```typescript
+// Get results for specific session
+bid.results({ sessionId: "stream:bitbrat:price-guess-1" })
+
+// Get all results for a stream
+bid.results({
+  scopeType: "stream",
+  scopeValue: "bitbrat",
+  orderBy: "closedAt",
+  limit: 20
+})
+
+// Get sessions with most entries
+bid.results({ orderBy: "totalEntries", limit: 10 })
+```
+
+---
+
+## Bidding System Architecture
+
+### Storage Layers
+
+| Data | Storage | Lifetime | Purpose |
+|------|---------|----------|---------|
+| Active bids | Redis Hash | Until close or TTL | Fast queries |
+| Session metadata | DocumentStore (bid_sessions) | Permanent | Queryability, audit trail |
+| Results snapshot | DocumentStore (bid_results) | Permanent | Analytics, history |
+
+### Redis Hash Structure
+
+**Key Pattern**: `bid:session:{sessionId}`
+
+**Fields**:
+- `_metadata`: JSON string with `{ targetValue, createdAt }`
+- `user:{userId}`: Bid value (string representation of number)
+
+**Example**:
+```
+Key: bid:session:stream:bitbrat:price-guess
+
+Fields:
+  _metadata: {"targetValue":100,"createdAt":"2026-08-29T12:00:00Z"}
+  user:alice: "95"
+  user:bob: "120"
+  user:charlie: "88"
+```
+
+### Performance Characteristics
+
+| Operation | Complexity | Notes |
+|-----------|-----------|-------|
+| bid.create | O(1) | Single DocumentStore write + Redis HSET |
+| bid.submit | O(1) | Atomic Redis HSET |
+| bid.getMax | O(n) | HGETALL + Array.reduce |
+| bid.getMin | O(n) | HGETALL + Array.reduce |
+| bid.getClosest | O(n log n) | HGETALL + Array.sort |
+| bid.close | O(n log n) | HGETALL + statistics + sort for winner |
+| bid.list | O(m) | DocumentStore query (m = result count) |
+| bid.results | O(m) | DocumentStore query (m = result count) |
+
+**Scalability**: Acceptable for <1000 bids per session.
+
+---
+
+## Bidding Tools - Related Documentation
+
+- **User Guide**: `/documentation/guides/bidding-system.md`
+- **Type Definitions**: `src/services/utility/types.ts`
+- **Implementation**: `src/services/utility/bid-manager.ts`
+- **Tests**: `src/services/utility/bid-manager.test.ts`
+- **Sprint Artifacts**: `planning/sprint-29-49pmm9/`
