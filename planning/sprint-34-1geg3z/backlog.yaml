@@ -1,0 +1,925 @@
+# Sprint 34: Reflex Command Arguments - Task Backlog
+# Role: Lead Implementor | Owner: navta3
+# Total Estimated Effort: 16.5 hours (2-3 days)
+
+sprint:
+  id: sprint-34-1geg3z
+  title: "Reflex Command Arguments"
+  goal: "Enable arguments to be passed to reflex commands and made available to MCP tool calls and candidate templates as variables"
+  owner: navta3
+  estimatedHours: 16.5
+  estimatedDays: 2-3
+
+metadata:
+  version: 1.0
+  created: 2026-08-30
+  lastUpdated: 2026-08-30
+  status: planning
+
+phases:
+  - id: phase-1
+    name: "Foundation (Type Definitions)"
+    duration: 0.5h
+    priority: P0
+    status: pending
+
+  - id: phase-2
+    name: "Core Implementation"
+    duration: 5h
+    priority: P0
+    status: pending
+
+  - id: phase-3
+    name: "Integration"
+    duration: 3h
+    priority: P1
+    status: pending
+
+  - id: phase-4
+    name: "Testing"
+    duration: 5h
+    priority: P1
+    status: pending
+
+  - id: phase-5
+    name: "Documentation & Validation"
+    duration: 3h
+    priority: P2
+    status: pending
+
+# ========================================
+# PHASE 1: FOUNDATION (Type Definitions)
+# ========================================
+
+tasks:
+  - id: T001
+    phase: phase-1
+    title: "Define MatchCaptures interface"
+    description: |
+      Create the MatchCaptures interface in src/types/reflex.ts to represent
+      captured groups from regex pattern matching. Index 0 is the full match,
+      indexes 1+ are capture groups.
+    priority: P0
+    estimate: 0.15h
+    status: pending
+    dependencies: []
+    files:
+      - path: src/types/reflex.ts
+        action: modify
+        section: "Type definitions"
+    acceptanceCriteria:
+      - "MatchCaptures interface defined with index signature"
+      - "Index 0 is full match (string)"
+      - "Index 1+ are capture groups (string | undefined)"
+      - "JSDoc includes 2 examples (single capture, multiple captures)"
+      - "TypeScript compilation succeeds"
+    testStrategy: "Type checking only (no runtime tests needed)"
+
+  - id: T002
+    phase: phase-1
+    title: "Define MatchResult interface"
+    description: |
+      Create the MatchResult interface to wrap match status and optional captures.
+      This replaces the boolean return type from matchPattern().
+    priority: P0
+    estimate: 0.10h
+    status: pending
+    dependencies: [T001]
+    files:
+      - path: src/types/reflex.ts
+        action: modify
+        section: "Type definitions"
+    acceptanceCriteria:
+      - "MatchResult interface defined with 'matched' boolean"
+      - "Optional 'captures' field of type MatchCaptures"
+      - "JSDoc documentation complete"
+      - "TypeScript compilation succeeds"
+    testStrategy: "Type checking only"
+
+  - id: T003
+    phase: phase-1
+    title: "Update ReflexExecutionResult type"
+    description: |
+      Add optional 'captures' field to ReflexExecutionResult interface.
+      This allows execution results to include the captured values for
+      debugging and logging purposes.
+    priority: P0
+    estimate: 0.10h
+    status: pending
+    dependencies: [T001]
+    files:
+      - path: src/types/reflex.ts
+        action: modify
+        section: "ReflexExecutionResult interface"
+    acceptanceCriteria:
+      - "captures?: MatchCaptures field added"
+      - "JSDoc updated to document captures field"
+      - "Existing code compiles (captures is optional)"
+      - "No breaking changes"
+    testStrategy: "Type checking + existing tests pass"
+
+  - id: T004
+    phase: phase-1
+    title: "Verify type definitions build"
+    description: |
+      Run TypeScript compiler to ensure all new type definitions are valid
+      and don't break existing code.
+    priority: P0
+    estimate: 0.15h
+    status: pending
+    dependencies: [T001, T002, T003]
+    files: []
+    acceptanceCriteria:
+      - "npm run build succeeds with no errors"
+      - "No TypeScript warnings related to reflex types"
+      - "All existing code compiles"
+    testStrategy: "tsc compilation"
+    commands:
+      - "npm run build"
+
+# ============================================
+# PHASE 2A: PATTERN MATCHER ENHANCEMENT
+# ============================================
+
+  - id: T005
+    phase: phase-2
+    title: "Implement matchRegexWithCaptures function"
+    description: |
+      Create private helper function in pattern-matcher.ts that extracts
+      capture groups from regex.exec() result. Handles full match (index 0)
+      plus all capture groups (index 1+).
+    priority: P0
+    estimate: 0.75h
+    status: pending
+    dependencies: [T001, T002]
+    files:
+      - path: src/services/reflex/pattern-matcher.ts
+        action: modify
+        section: "Add matchRegexWithCaptures function"
+    acceptanceCriteria:
+      - "Function signature: matchRegexWithCaptures(value, pattern, flags?) → MatchResult"
+      - "Uses regex.exec() to extract captures"
+      - "Returns MatchResult with matched=false if no match"
+      - "Returns MatchResult with matched=true + captures if match"
+      - "Captures include index 0 (full match) + 1+ (groups)"
+      - "Handles undefined capture groups gracefully"
+    testStrategy: "Manual verification + unit tests in T009"
+
+  - id: T006
+    phase: phase-2
+    title: "Implement matchPatternWithCaptures function"
+    description: |
+      Create new matchPatternWithCaptures() function that handles all 5 pattern
+      types (exact, contains, prefix, suffix, regex) and returns MatchResult.
+      For regex, delegates to matchRegexWithCaptures. For other types, creates
+      simple captures[0] with matched portion.
+    priority: P0
+    estimate: 0.75h
+    status: pending
+    dependencies: [T005]
+    files:
+      - path: src/services/reflex/pattern-matcher.ts
+        action: modify
+        section: "Add matchPatternWithCaptures function"
+    acceptanceCriteria:
+      - "Function signature matches architecture spec"
+      - "Handles all 5 pattern types (exact, contains, prefix, suffix, regex)"
+      - "Regex type uses matchRegexWithCaptures"
+      - "Non-regex types set captures[0] = matched portion"
+      - "Performance logging if >10ms (existing behavior)"
+      - "Returns MatchResult in all cases"
+    testStrategy: "Manual verification + unit tests in T009"
+
+  - id: T007
+    phase: phase-2
+    title: "Maintain backward-compatible matchPattern function"
+    description: |
+      Keep existing matchPattern() function that returns boolean, but
+      internally call matchPatternWithCaptures() and return .matched property.
+      This ensures existing code continues working without changes.
+    priority: P0
+    estimate: 0.25h
+    status: pending
+    dependencies: [T006]
+    files:
+      - path: src/services/reflex/pattern-matcher.ts
+        action: modify
+        section: "Update matchPattern function"
+    acceptanceCriteria:
+      - "matchPattern() signature unchanged (returns boolean)"
+      - "Internally calls matchPatternWithCaptures().matched"
+      - "All existing call sites continue working"
+      - "No breaking changes"
+    testStrategy: "Existing pattern-matcher tests pass"
+
+  - id: T008
+    phase: phase-2
+    title: "Export matchPatternWithCaptures"
+    description: |
+      Export the new matchPatternWithCaptures function from pattern-matcher.ts
+      so reflex-matcher can use it.
+    priority: P0
+    estimate: 0.05h
+    status: pending
+    dependencies: [T006]
+    files:
+      - path: src/services/reflex/pattern-matcher.ts
+        action: modify
+        section: "Exports"
+    acceptanceCriteria:
+      - "matchPatternWithCaptures exported"
+      - "matchPattern export unchanged"
+      - "TypeScript compilation succeeds"
+    testStrategy: "Import verification"
+
+# ============================================
+# PHASE 2B: TEMPLATE INTERPOLATION
+# ============================================
+
+  - id: T009
+    phase: phase-2
+    title: "Create template-interpolator.ts file"
+    description: |
+      Create new file src/services/reflex/template-interpolator.ts with
+      core interpolation functions. This module handles ${N} and $N syntax
+      replacement with capture values.
+    priority: P0
+    estimate: 0.25h
+    status: pending
+    dependencies: [T001]
+    files:
+      - path: src/services/reflex/template-interpolator.ts
+        action: create
+    acceptanceCriteria:
+      - "File created in correct location"
+      - "Imports: MatchCaptures, InternalEventV2"
+      - "File exports placeholder functions (to be implemented)"
+      - "TypeScript compilation succeeds"
+    testStrategy: "File exists + compiles"
+
+  - id: T010
+    phase: phase-2
+    title: "Implement interpolateTemplate function"
+    description: |
+      Implement main interpolation function that replaces:
+      - {{event.path}} with event data
+      - {{result.path}} with tool result
+      - ${N} with captures (brace syntax)
+      - $N with captures (shell syntax)
+    priority: P0
+    estimate: 1.25h
+    status: pending
+    dependencies: [T009]
+    files:
+      - path: src/services/reflex/template-interpolator.ts
+        action: modify
+    acceptanceCriteria:
+      - "Function signature: interpolateTemplate(template, event, toolResult?, captures?) → string"
+      - "Replaces {{event.path}} using getFieldValue"
+      - "Replaces {{result.path}} using getFieldValue"
+      - "Replaces ${0}, ${1}, ${N} with captures[N]"
+      - "Replaces $1, $2, $N with captures[N]"
+      - "Handles missing captures (keeps placeholder)"
+      - "Handles escaped syntax (\\${1} → ${1})"
+      - "Order: event → result → ${N} → $N → escape"
+    testStrategy: "Unit tests in T015"
+
+  - id: T011
+    phase: phase-2
+    title: "Implement stringifyValue helper"
+    description: |
+      Create helper function to convert captured values to strings for
+      interpolation. Handles undefined, null, primitives, objects.
+    priority: P0
+    estimate: 0.25h
+    status: pending
+    dependencies: [T009]
+    files:
+      - path: src/services/reflex/template-interpolator.ts
+        action: modify
+    acceptanceCriteria:
+      - "Function signature: stringifyValue(value, fallback) → string"
+      - "Returns fallback if value is undefined/null"
+      - "Returns string as-is"
+      - "Converts number/boolean to string"
+      - "JSON.stringify objects (with error handling)"
+      - "Returns '[object]' if JSON.stringify fails"
+    testStrategy: "Unit tests in T015"
+
+  - id: T012
+    phase: phase-2
+    title: "Implement coerceType helper"
+    description: |
+      Create helper function to coerce string captures to number or boolean
+      when appropriate. Used for parameter interpolation.
+    priority: P0
+    estimate: 0.50h
+    status: pending
+    dependencies: [T009]
+    files:
+      - path: src/services/reflex/template-interpolator.ts
+        action: modify
+    acceptanceCriteria:
+      - "Function signature: coerceType(value: string) → string | number | boolean"
+      - "Coerces 'true' → true, 'false' → false (case-sensitive)"
+      - "Coerces numeric strings → numbers (including hex, scientific)"
+      - "Returns string if no coercion applies"
+      - "Handles edge cases: empty string, whitespace, NaN"
+    testStrategy: "Unit tests in T016"
+
+  - id: T013
+    phase: phase-2
+    title: "Implement interpolateParameterValue function"
+    description: |
+      Create function that interpolates parameter values with automatic type
+      coercion. If value is single ${N} placeholder, coerces the result.
+    priority: P0
+    estimate: 0.75h
+    status: pending
+    dependencies: [T010, T012]
+    files:
+      - path: src/services/reflex/template-interpolator.ts
+        action: modify
+    acceptanceCriteria:
+      - "Function signature: interpolateParameterValue(value, event, toolResult?, captures?) → any"
+      - "Non-strings returned as-is"
+      - "Strings interpolated using interpolateTemplate"
+      - "Single ${N} or $N placeholders type-coerced"
+      - "Mixed strings kept as strings"
+      - "Arrays/objects recursively handled"
+    testStrategy: "Unit tests in T016"
+
+# ========================================
+# PHASE 3: INTEGRATION
+# ========================================
+
+  - id: T014
+    phase: phase-3
+    title: "Update parameter-builder.ts signatures"
+    description: |
+      Add optional captures parameter to buildParameters() function and
+      thread it through to interpolation logic.
+    priority: P1
+    estimate: 0.25h
+    status: pending
+    dependencies: [T013]
+    files:
+      - path: src/services/reflex/parameter-builder.ts
+        action: modify
+    acceptanceCriteria:
+      - "buildParameters() signature includes captures?: MatchCaptures"
+      - "interpolateValue() helper includes captures parameter"
+      - "Captures passed to interpolateParameterValue()"
+      - "Backward compatible (captures = undefined works)"
+      - "TypeScript compilation succeeds"
+    testStrategy: "Existing tests pass + integration tests in T020"
+
+  - id: T015
+    phase: phase-3
+    title: "Update candidate-builder.ts signatures"
+    description: |
+      Add optional captures parameter to buildCandidates() and
+      interpolateDualContext() functions.
+    priority: P1
+    estimate: 0.25h
+    status: pending
+    dependencies: [T010]
+    files:
+      - path: src/services/reflex/candidate-builder.ts
+        action: modify
+    acceptanceCriteria:
+      - "buildCandidates() signature includes captures?: MatchCaptures"
+      - "interpolateDualContext() includes captures parameter"
+      - "Captures passed to interpolateTemplate()"
+      - "Backward compatible (captures = undefined works)"
+      - "TypeScript compilation succeeds"
+    testStrategy: "Existing tests pass + integration tests in T020"
+
+  - id: T016
+    phase: phase-3
+    title: "Update reflex-executor.ts to thread captures"
+    description: |
+      Modify executeReflex() to accept captures parameter and pass it to
+      buildParameters() and buildCandidates(). Include captures in result.
+    priority: P1
+    estimate: 0.75h
+    status: pending
+    dependencies: [T014, T015]
+    files:
+      - path: src/services/reflex/reflex-executor.ts
+        action: modify
+    acceptanceCriteria:
+      - "executeReflex() signature includes captures: MatchCaptures | undefined"
+      - "Captures passed to buildParameters()"
+      - "Captures passed to buildCandidates()"
+      - "Captures included in success result"
+      - "Captures included in error result"
+      - "Backward compatible (captures = undefined works)"
+    testStrategy: "Integration tests in T020"
+
+  - id: T017
+    phase: phase-3
+    title: "Update reflex-matcher.ts return type"
+    description: |
+      Change matchReflex() to return {matched, captures} instead of boolean.
+      Use matchPatternWithCaptures() internally.
+    priority: P1
+    estimate: 0.75h
+    status: pending
+    dependencies: [T008]
+    files:
+      - path: src/services/reflex/reflex-matcher.ts
+        action: modify
+    acceptanceCriteria:
+      - "matchReflex() returns {matched: boolean, captures?: MatchCaptures}"
+      - "Uses matchPatternWithCaptures() instead of matchPattern()"
+      - "Returns {matched: false} on condition failures"
+      - "Returns {matched: false} on field missing"
+      - "Returns {matched: true, captures} on successful match"
+      - "Logging updated (log captures on success)"
+    testStrategy: "Existing tests pass + integration tests in T020"
+
+  - id: T018
+    phase: phase-3
+    title: "Update reflex-service.ts message handler"
+    description: |
+      Update the reflex service message handler to use new matchReflex()
+      return type and pass captures to executeReflex().
+    priority: P1
+    estimate: 0.50h
+    status: pending
+    dependencies: [T016, T017]
+    files:
+      - path: src/apps/reflex-service.ts
+        action: modify
+        section: "Message handler"
+    acceptanceCriteria:
+      - "const matchResult = matchReflex(event, reflex)"
+      - "if (matchResult.matched) { ... }"
+      - "executeReflex(reflex, event, matchResult.captures, config)"
+      - "TypeScript compilation succeeds"
+      - "Service starts without errors"
+    testStrategy: "Service deployment in agent-dev (T026)"
+
+  - id: T019
+    phase: phase-3
+    title: "Verify integration build"
+    description: |
+      Build the entire codebase to ensure all integration changes compile
+      and there are no TypeScript errors.
+    priority: P1
+    estimate: 0.50h
+    status: pending
+    dependencies: [T014, T015, T016, T017, T018]
+    files: []
+    acceptanceCriteria:
+      - "npm run build succeeds"
+      - "Zero TypeScript errors"
+      - "Zero TypeScript warnings"
+      - "All existing tests pass (npm test)"
+    testStrategy: "Full build + test suite"
+    commands:
+      - "npm run build"
+      - "npm test"
+
+# ========================================
+# PHASE 4A: UNIT TESTS
+# ========================================
+
+  - id: T020
+    phase: phase-4
+    title: "Create pattern-matcher-captures.test.ts"
+    description: |
+      Create comprehensive unit tests for matchPatternWithCaptures() function.
+      Test all 5 pattern types with various capture scenarios.
+    priority: P1
+    estimate: 1.00h
+    status: pending
+    dependencies: [T008]
+    files:
+      - path: src/services/reflex/__tests__/pattern-matcher-captures.test.ts
+        action: create
+    acceptanceCriteria:
+      - "Test single capture group extraction"
+      - "Test multiple capture groups"
+      - "Test zero capture groups (non-capturing regex)"
+      - "Test optional capture groups"
+      - "Test non-regex types (exact, contains, prefix, suffix)"
+      - "Test no match returns {matched: false}"
+      - "Test performance (<10ms)"
+      - "95%+ coverage of pattern matcher capture code"
+    testStrategy: "Jest unit tests"
+    commands:
+      - "npm test -- pattern-matcher-captures.test.ts"
+
+  - id: T021
+    phase: phase-4
+    title: "Create template-interpolator-captures.test.ts"
+    description: |
+      Create comprehensive unit tests for interpolateTemplate() and
+      related functions. Test ${N}, $N syntax, mixing with event data.
+    priority: P1
+    estimate: 1.25h
+    status: pending
+    dependencies: [T013]
+    files:
+      - path: src/services/reflex/__tests__/template-interpolator-captures.test.ts
+        action: create
+    acceptanceCriteria:
+      - "Test ${N} syntax replacement"
+      - "Test $N shell syntax replacement"
+      - "Test ${0} full match"
+      - "Test multiple captures in single template"
+      - "Test mixing captures with {{event.path}}"
+      - "Test mixing captures with {{result.path}}"
+      - "Test missing captures (keeps placeholder)"
+      - "Test escaped syntax (\\${1})"
+      - "Test edge cases (empty, undefined, null)"
+      - "95%+ coverage of interpolator code"
+    testStrategy: "Jest unit tests"
+    commands:
+      - "npm test -- template-interpolator-captures.test.ts"
+
+  - id: T022
+    phase: phase-4
+    title: "Create parameter-type-coercion.test.ts"
+    description: |
+      Create unit tests specifically for type coercion logic. Test all
+      coercion cases: number, boolean, string, edge cases.
+    priority: P1
+    estimate: 0.75h
+    status: pending
+    dependencies: [T013]
+    files:
+      - path: src/services/reflex/__tests__/parameter-type-coercion.test.ts
+        action: create
+    acceptanceCriteria:
+      - "Test numeric string → number coercion"
+      - "Test 'true'/'false' → boolean coercion"
+      - "Test mixed strings stay strings"
+      - "Test edge cases: hex (0x10), scientific (1e3), negative"
+      - "Test arrays/objects preserved"
+      - "Test single ${N} placeholder coercion"
+      - "Test multiple placeholders no coercion"
+      - "95%+ coverage of coercion code"
+    testStrategy: "Jest unit tests"
+    commands:
+      - "npm test -- parameter-type-coercion.test.ts"
+
+# ========================================
+# PHASE 4B: INTEGRATION TESTS
+# ========================================
+
+  - id: T023
+    phase: phase-4
+    title: "Create reflex-executor-captures.test.ts"
+    description: |
+      Create integration tests for full execution flow with captures.
+      Test real reflex execution with pattern matching → tool invocation.
+    priority: P1
+    estimate: 1.50h
+    status: pending
+    dependencies: [T019]
+    files:
+      - path: src/services/reflex/__tests__/reflex-executor-captures.test.ts
+        action: create
+    acceptanceCriteria:
+      - "Test !bid pattern → capture → parameter → tool call"
+      - "Test !timer pattern → multiple captures → parameters"
+      - "Test type coercion in real tool invocation"
+      - "Test candidate generation with captures"
+      - "Test captures in execution result"
+      - "Test error cases (missing captures, invalid types)"
+      - "Test performance (<5ms overhead)"
+      - "Full end-to-end flow validated"
+    testStrategy: "Jest integration tests"
+    commands:
+      - "npm test -- reflex-executor-captures.test.ts"
+
+  - id: T024
+    phase: phase-4
+    title: "Run full test suite for regressions"
+    description: |
+      Run complete test suite to verify no regressions in existing
+      reflex functionality. All existing tests must pass.
+    priority: P1
+    estimate: 0.50h
+    status: pending
+    dependencies: [T020, T021, T022, T023]
+    files: []
+    acceptanceCriteria:
+      - "npm test succeeds (all tests pass)"
+      - "Zero new test failures"
+      - "Existing reflex tests pass"
+      - "Pattern matcher tests pass"
+      - "Candidate builder tests pass"
+      - "Parameter builder tests pass"
+      - "Executor tests pass"
+    testStrategy: "Full test suite"
+    commands:
+      - "npm test"
+
+# ========================================
+# PHASE 5A: DOCUMENTATION
+# ========================================
+
+  - id: T025
+    phase: phase-5
+    title: "Update creating-a-reflex.md tutorial"
+    description: |
+      Add "Step 9: Using Command Arguments" section to the reflex tutorial.
+      Include practical examples (!bid, !timer).
+    priority: P2
+    estimate: 0.50h
+    status: pending
+    dependencies: [T024]
+    files:
+      - path: documentation/tutorials/creating-a-reflex.md
+        action: modify
+        section: "Add Step 9"
+    acceptanceCriteria:
+      - "Step 9 section added after existing steps"
+      - "Explains regex capture groups basics"
+      - "Shows ${N} syntax in parameters"
+      - "Shows ${N} syntax in candidates"
+      - "Includes !bid example (numeric capture)"
+      - "Includes !timer example (multiple captures)"
+      - "Type coercion explained"
+      - "Links to comprehensive guide"
+    testStrategy: "Documentation review"
+
+  - id: T026
+    phase: phase-5
+    title: "Update reflex-mcp-tools.md reference"
+    description: |
+      Document ${N} syntax in parameter templates. Add type coercion
+      behavior table. Show mixed usage examples.
+    priority: P2
+    estimate: 0.25h
+    status: pending
+    dependencies: [T024]
+    files:
+      - path: documentation/reference/reflex-mcp-tools.md
+        action: modify
+        section: "Parameter templates"
+    acceptanceCriteria:
+      - "New section: 'Capture Variables in Parameters'"
+      - "Syntax table: ${N} vs $N"
+      - "Type coercion rules table"
+      - "Example: mixing ${N} with {{event.path}}"
+      - "Example: array/object handling"
+    testStrategy: "Documentation review"
+
+  - id: T027
+    phase: phase-5
+    title: "Create reflex-command-arguments.md guide"
+    description: |
+      Create comprehensive new guide covering all aspects of command
+      arguments: regex, syntax, coercion, patterns, best practices.
+    priority: P2
+    estimate: 0.75h
+    status: pending
+    dependencies: [T024]
+    files:
+      - path: documentation/guides/reflex-command-arguments.md
+        action: create
+    acceptanceCriteria:
+      - "Regex capture groups primer (100-200 words)"
+      - "${N} syntax reference (complete)"
+      - "Type coercion rules table"
+      - "4+ real-world examples (!bid, !timer, !raid, !volume)"
+      - "Best practices section (performance, UX, validation)"
+      - "Common patterns library (copy-paste ready)"
+      - "Troubleshooting section"
+      - "Links to related documentation"
+    testStrategy: "Documentation review"
+
+  - id: T028
+    phase: phase-5
+    title: "Update README.md features"
+    description: |
+      Add command arguments feature to README.md feature list and
+      quick start examples.
+    priority: P2
+    estimate: 0.15h
+    status: pending
+    dependencies: [T024]
+    files:
+      - path: README.md
+        action: modify
+        section: "Features"
+    acceptanceCriteria:
+      - "Feature list includes 'Command arguments via ${N} syntax'"
+      - "Quick start example shows !bid or similar"
+      - "Link to comprehensive guide"
+    testStrategy: "Documentation review"
+
+  - id: T029
+    phase: phase-5
+    title: "Update reflex.ts JSDoc examples"
+    description: |
+      Add JSDoc examples to MatchCaptures type showing capture extraction
+      from various patterns.
+    priority: P2
+    estimate: 0.10h
+    status: pending
+    dependencies: [T024]
+    files:
+      - path: src/types/reflex.ts
+        action: modify
+        section: "JSDoc"
+    acceptanceCriteria:
+      - "MatchCaptures has 2+ @example blocks"
+      - "Examples show input → captures mapping"
+      - "Covers single and multiple captures"
+    testStrategy: "Documentation review"
+
+# ========================================
+# PHASE 5B: VALIDATION
+# ========================================
+
+  - id: T030
+    phase: phase-5
+    title: "Create test reflex in agent-dev"
+    description: |
+      Create a !bid test reflex with argument capture and deploy to
+      agent-dev context for end-to-end validation.
+    priority: P2
+    estimate: 0.25h
+    status: pending
+    dependencies: [T024]
+    files:
+      - path: planning/sprint-34-1geg3z/test-reflex-bid.json
+        action: create
+    acceptanceCriteria:
+      - "Reflex definition created (!bid pattern)"
+      - "Uses regex with capture group: ^!bid\\s+(\\d+)$"
+      - "Parameters use ${1} for amount"
+      - "Candidate uses ${1} in template"
+      - "JSON valid and ready for deployment"
+    testStrategy: "Manual JSON creation"
+
+  - id: T031
+    phase: phase-5
+    title: "Deploy reflex service to agent-dev"
+    description: |
+      Provision agent-dev context and deploy reflex service to validate
+      runtime behavior.
+    priority: P2
+    estimate: 0.25h
+    status: pending
+    dependencies: [T030]
+    files: []
+    acceptanceCriteria:
+      - "Agent-dev context provisioned"
+      - "Reflex service deployed successfully"
+      - "Service starts without errors"
+      - "Logs show no errors"
+      - "Service accessible"
+    testStrategy: "agent_dev.provision + bit deploy"
+    commands:
+      - "agent_dev.provision({ name: 'agent-dev-sprint-34-test' })"
+      - "bit deploy reflex --context agent-dev-sprint-34-test"
+
+  - id: T032
+    phase: phase-5
+    title: "End-to-end validation tests"
+    description: |
+      Test !bid and !timer commands end-to-end in agent-dev context.
+      Verify pattern matching, capture extraction, type coercion, tool
+      invocation, candidate generation.
+    priority: P2
+    estimate: 0.35h
+    status: pending
+    dependencies: [T031]
+    files: []
+    acceptanceCriteria:
+      - "!bid 50 → captures {0: '!bid 50', 1: '50'}"
+      - "Amount parameter = 50 (number, not string)"
+      - "Tool invoked with correct parameters"
+      - "Candidate generated with ${1} replaced"
+      - "End-to-end latency <150ms"
+      - "No errors in logs"
+    testStrategy: "Manual testing in agent-dev"
+
+  - id: T033
+    phase: phase-5
+    title: "Performance profiling"
+    description: |
+      Profile pattern matching, template interpolation, and end-to-end
+      execution to verify performance targets met.
+    priority: P2
+    estimate: 0.15h
+    status: pending
+    dependencies: [T032]
+    files:
+      - path: planning/sprint-34-1geg3z/performance-profile.md
+        action: create
+    acceptanceCriteria:
+      - "Pattern matching overhead: <5ms"
+      - "Template interpolation overhead: <3ms"
+      - "Total capture overhead: <5ms"
+      - "End-to-end execution: <150ms"
+      - "No performance regressions"
+      - "Profile documented"
+    testStrategy: "Performance profiling + documentation"
+
+  - id: T034
+    phase: phase-5
+    title: "Validation report and cleanup"
+    description: |
+      Create validation report summarizing agent-dev testing results.
+      Clean up agent-dev context.
+    priority: P2
+    estimate: 0.10h
+    status: pending
+    dependencies: [T033]
+    files:
+      - path: planning/sprint-34-1geg3z/validation-report.md
+        action: create
+    acceptanceCriteria:
+      - "Validation report created"
+      - "All validation checklist items checked"
+      - "Performance metrics documented"
+      - "Screenshots/logs included"
+      - "Agent-dev context destroyed"
+    testStrategy: "Manual report + cleanup"
+    commands:
+      - "agent_dev.destroy({ name: 'agent-dev-sprint-34-test', confirm: true })"
+
+# ========================================
+# SUMMARY & METRICS
+# ========================================
+
+summary:
+  totalTasks: 34
+  totalEstimatedHours: 16.5
+  phases:
+    phase-1:
+      tasks: [T001, T002, T003, T004]
+      count: 4
+      estimate: 0.5h
+      status: pending
+
+    phase-2:
+      tasks: [T005, T006, T007, T008, T009, T010, T011, T012, T013]
+      count: 9
+      estimate: 5.0h
+      status: pending
+
+    phase-3:
+      tasks: [T014, T015, T016, T017, T018, T019]
+      count: 6
+      estimate: 3.0h
+      status: pending
+
+    phase-4:
+      tasks: [T020, T021, T022, T023, T024]
+      count: 5
+      estimate: 5.0h
+      status: pending
+
+    phase-5:
+      tasks: [T025, T026, T027, T028, T029, T030, T031, T032, T033, T034]
+      count: 10
+      estimate: 3.0h
+      status: pending
+
+  filesModified: 14
+  filesCreated: 9
+  testsCreated: 4
+  docsCreated: 1
+  docsUpdated: 4
+
+criticalPath:
+  - T001 → T002 → T003 → T004  # Foundation
+  - T005 → T006 → T007 → T008  # Pattern matcher
+  - T009 → T010 → T013  # Template interpolator
+  - T014 → T016  # Integration (parameters → executor)
+  - T017 → T018  # Integration (matcher → service)
+  - T019  # Build verification
+  - T020 → T021 → T022 → T023 → T024  # Testing
+  - T030 → T031 → T032 → T033 → T034  # Validation
+
+riskAreas:
+  - task: T006
+    risk: "Pattern matching logic complex"
+    mitigation: "Extensive unit tests (T020)"
+
+  - task: T010
+    risk: "Template interpolation edge cases"
+    mitigation: "Comprehensive unit tests (T021)"
+
+  - task: T012
+    risk: "Type coercion ambiguity"
+    mitigation: "Dedicated tests (T022), fail-safe defaults"
+
+  - task: T019
+    risk: "Integration breaks existing code"
+    mitigation: "Full test suite run, backward compatibility design"
+
+nextSteps:
+  - "Review and approve execution plan and backlog"
+  - "Begin Phase 1 (Foundation) implementation"
+  - "Set up agent-dev context for validation"
+  - "Schedule daily standups for progress tracking"
