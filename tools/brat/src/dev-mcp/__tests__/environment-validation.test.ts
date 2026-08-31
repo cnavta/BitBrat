@@ -16,7 +16,8 @@ import * as fs from 'fs';
 
 const execAsync = promisify(exec);
 
-describe('Environment Variable Validation (T2.3)', () => {
+// TODO: Category A - Requires Docker infrastructure and .env.brat file - deferred per Sprint 32/33 decision
+describe.skip('Environment Variable Validation (T2.3)', () => {
   const repoRoot = path.join(__dirname, '../../../../..');
   const manager = new AgentDevContextManager(repoRoot);
   let contextName: string;

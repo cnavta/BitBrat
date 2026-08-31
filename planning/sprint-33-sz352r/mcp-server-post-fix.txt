@@ -1,0 +1,1258 @@
+
+> bitbrat-platform@0.36.3 test
+> jest tests/common/mcp-server.spec.ts
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.682Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.703Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.704Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.705Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.706Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.706Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.707Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.707Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.708Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.708Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.709Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.709Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.710Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.710Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.711Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-31T01:24:42.711Z","service":"test-mcp-server","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.748Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.749Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.750Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.750Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.751Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.751Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.752Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.753Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.753Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.754Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.754Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.754Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.755Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.755Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.756Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.756Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.756Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-31T01:24:42.757Z","service":"test-mcp-server","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.764Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.764Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.765Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.765Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.766Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.766Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.766Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.767Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.767Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.768Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.768Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.769Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.769Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.770Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.770Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.770Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.771Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-31T01:24:42.771Z","service":"test-mcp-server","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.warn
+    {"ts":"2026-08-31T01:24:42.775Z","service":"test-mcp-server","level":"warn","severity":"WARNING","msg":"mcp_server.auth_failed","path":"/mcp","ip":"::ffff:127.0.0.1"}
+
+      178 |   warn(msg: string, context?: Record<string, unknown>) {
+      179 |     if (!this.shouldLog('warn')) return;
+    > 180 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      181 |   }
+      182 |
+      183 |   info(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.warn (src/common/logging.ts:180:13)
+      at authMiddleware (src/common/base-server.ts:2046:28)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at next (node_modules/router/lib/route.js:157:13)
+      at Route.dispatch (node_modules/router/lib/route.js:117:3)
+      at handle (node_modules/router/index.js:435:11)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at node_modules/router/index.js:295:15
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at node_modules/body-parser/lib/read.js:171:5
+      at invokeCallback (node_modules/raw-body/index.js:238:16)
+      at done (node_modules/raw-body/index.js:227:7)
+      at IncomingMessage.onEnd (node_modules/raw-body/index.js:287:7)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.777Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.778Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.778Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.778Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.779Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.779Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.780Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.780Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.780Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.781Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.781Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.782Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.782Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.782Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.783Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.783Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.784Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-31T01:24:42.784Z","service":"test-mcp-server","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.warn
+    {"ts":"2026-08-31T01:24:42.787Z","service":"test-mcp-server","level":"warn","severity":"WARNING","msg":"mcp_server.auth_failed","path":"/mcp","ip":"::ffff:127.0.0.1"}
+
+      178 |   warn(msg: string, context?: Record<string, unknown>) {
+      179 |     if (!this.shouldLog('warn')) return;
+    > 180 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      181 |   }
+      182 |
+      183 |   info(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.warn (src/common/logging.ts:180:13)
+      at authMiddleware (src/common/base-server.ts:2046:28)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at next (node_modules/router/lib/route.js:157:13)
+      at Route.dispatch (node_modules/router/lib/route.js:117:3)
+      at handle (node_modules/router/index.js:435:11)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at node_modules/router/index.js:295:15
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at node_modules/body-parser/lib/read.js:171:5
+      at invokeCallback (node_modules/raw-body/index.js:238:16)
+      at done (node_modules/raw-body/index.js:227:7)
+      at IncomingMessage.onEnd (node_modules/raw-body/index.js:287:7)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.788Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.789Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.789Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.790Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.790Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.791Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.791Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.791Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.792Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.792Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.793Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.793Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.793Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.794Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.794Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.795Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.795Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-31T01:24:42.796Z","service":"test-mcp-server","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.801Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.801Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.802Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.802Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.803Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.803Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.804Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.804Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.805Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.805Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.805Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.806Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.806Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.807Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.807Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.807Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.808Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-31T01:24:42.808Z","service":"test-mcp-server","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.814Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.814Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.815Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.815Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.816Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.816Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.817Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.817Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.818Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.818Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.819Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.819Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.819Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.820Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.821Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.821Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.821Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-31T01:24:42.822Z","service":"test-mcp-server","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.826Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.826Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.827Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.827Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.828Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.828Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.828Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.829Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.829Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.830Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.830Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.830Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.831Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.831Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.832Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.832Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.832Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-31T01:24:42.833Z","service":"test-mcp-server","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.841Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.842Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.842Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.843Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.843Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.844Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.844Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.844Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.845Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.845Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.846Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.846Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.846Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.847Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.847Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.848Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.848Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-31T01:24:42.848Z","service":"test-mcp-server","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.851Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.852Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.852Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.853Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.853Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.854Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.854Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.855Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.855Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.856Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.856Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.857Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.857Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.858Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.858Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-31T01:24:42.859Z","service":"test-mcp-server","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.859Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.860Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.860Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.861Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.861Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.861Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.862Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.862Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.863Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.863Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.863Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.864Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.864Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.865Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.865Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.866Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.866Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-31T01:24:42.866Z","service":"test-mcp-server","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.868Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"test_tool"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.869Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.869Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.870Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.870Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.871Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.871Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.872Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.872Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.873Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.873Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.874Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.874Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.874Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.875Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.875Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.876Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.876Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-31T01:24:42.877Z","service":"test-mcp-server","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.879Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.resource_registered","name":"test_resource","uri":"file://test"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.879Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.880Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.880Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.881Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.881Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.881Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.882Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.882Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.883Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.883Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.883Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.884Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.885Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.885Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.885Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.886Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.886Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-31T01:24:42.887Z","service":"test-mcp-server","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.889Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.prompt_registered","name":"test_prompt"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.889Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-31T01:24:42.889Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+PASS tests/common/mcp-server.spec.ts
+  McpServer
+    Endpoints Registration
+      ✓ should register /mcp endpoint (70 ms)
+    Security
+      ✓ should allow access if MCP_AUTH_TOKEN is not set (14 ms)
+      ✓ should return 401 if MCP_AUTH_TOKEN is set and token is missing (14 ms)
+      ✓ should return 401 if MCP_AUTH_TOKEN is set and token is incorrect (11 ms)
+      ✓ should allow access if correct token is provided in header (13 ms)
+      ✓ should allow access if correct token is provided in query (13 ms)
+    Error Handling
+      ✓ should handle invalid JSON-RPC request (12 ms)
+      ✓ should handle malformed request body (15 ms)
+    Registration Helpers
+      ✓ should use description and version from architecture.yaml (18 ms)
+      ✓ should register a tool correctly (10 ms)
+      ✓ should register a resource correctly (10 ms)
+      ✓ should register a prompt correctly (9 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       12 passed, 12 total
+Snapshots:   0 total
+Time:        3.754 s, estimated 4 s
+Ran all test suites matching /tests\/common\/mcp-server.spec.ts/i.
+Jest did not exit one second after the test run has completed.
+
+'This usually means that there are asynchronous operations that weren't stopped in your tests. Consider running Jest with `--detectOpenHandles` to troubleshoot this issue.

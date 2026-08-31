@@ -1,0 +1,679 @@
+# Sprint 33 Prioritized Backlog
+# Test Infrastructure Phase 4 - Remaining Failures Remediation
+
+sprint:
+  id: sprint-33-[tbd]
+  title: "Test Infrastructure Phase 4 - Remaining Failures Remediation"
+  goal: "Reduce failing test suites from 5 to ≤3 through strategic fixes and test stability analysis"
+  status: planning
+  duration_estimate: "2 - 3 hours"
+  context_from_sprint_32:
+    baseline_failing_suites: 5
+    baseline_failing_tests: 9
+    baseline_pass_rate: "97.1%"
+    baseline_runtime: "34.9s"
+  target_metrics:
+    failing_suites: "≤3 (conservative) or 0 (stretch)"
+    failing_tests: "≤3 (conservative) or 0 (stretch)"
+    pass_rate: ">99% (conservative) or 100% (stretch)"
+    runtime: "<40s"
+  success_criteria:
+    must_have:
+      - "Multi-run baseline complete (T2)"
+      - "mcp-server 10/10 passing (T4)"
+      - "Failing suites ≤3"
+    nice_to_have:
+      - "Flaky tests resolved (T6, T7)"
+      - "Failing suites ≤2"
+    stretch:
+      - "100% pass rate (0 failing suites)"
+
+# Phase 0: Setup & Baseline
+phase_0_setup:
+  title: "Setup & Multi-Run Baseline"
+  duration: "20 minutes"
+  priority: P0
+  dependencies: []
+  critical: true
+  description: "Establish baseline and run multi-iteration test suite to identify flaky tests"
+
+  tasks:
+    - id: T0
+      title: "Environment Setup"
+      description: "Start Sprint 33, install dependencies, build"
+      priority: P0
+      estimate: "5 min"
+      dependencies: []
+      deliverable: "Sprint 33 worktree ready"
+      commands:
+        - "Start sprint via MCP tool (sprint-mcp)"
+        - "cd .worktrees/sprint-33-[id]"
+        - "npm ci"
+        - "npm run build"
+      validation: "npm run build completes successfully"
+
+    - id: T1
+      title: "Capture Sprint 32 Baseline"
+      description: "Document current state (5 failing suites from Sprint 32)"
+      priority: P0
+      estimate: "10 min"
+      dependencies: [T0]
+      deliverable: "baseline-metrics.md"
+      commands:
+        - "npm test 2>&1 | tee planning/sprint-33-[id]/baseline-from-sprint-32.txt"
+        - "grep -E 'Test Suites:|Tests:' baseline-from-sprint-32.txt > baseline-summary.txt"
+      expected_results:
+        failing_suites: 5
+        failing_tests: 9
+        suites:
+          - "agent-dev-e2e.test.ts (Category A)"
+          - "jetstream-validation.test.ts (Category A)"
+          - "mcp-server.spec.ts (Category D - 3/10 tests)"
+          - "proxy-invoker-timeout-coordination.spec.ts (Category C - flaky?)"
+          - "preference.test.ts (Category C - flaky?)"
+      validation: "Baseline captured, 5 failing suites confirmed"
+
+    - id: T2
+      title: "Multi-Run Baseline (5 Iterations)"
+      description: "Run test suite 5 times to identify flaky vs consistent failures"
+      priority: P0
+      estimate: "5 min"
+      dependencies: [T1]
+      deliverable: "stability-analysis.txt, failure-frequency.txt, multi-run-categorization.md"
+      purpose: "Distinguish flaky tests (Category C) from legitimate bugs (Category D)"
+      commands:
+        - |
+          for i in {1..5}; do
+            echo "=== RUN $i/5 ===" | tee -a planning/sprint-33-[id]/stability-analysis.txt
+            npm test 2>&1 | grep -E "(FAIL|Test Suites:|Tests:)" | tee -a planning/sprint-33-[id]/stability-analysis.txt
+            echo "" | tee -a planning/sprint-33-[id]/stability-analysis.txt
+          done
+        - "grep 'FAIL' planning/sprint-33-[id]/stability-analysis.txt | sort | uniq -c | tee planning/sprint-33-[id]/failure-frequency.txt"
+      categorization_rules:
+        consistent_failure: "5/5 failures → Category D (fix immediately)"
+        flaky: "2-4/5 failures → Category C (needs isolation/retry)"
+        noise: "0-1/5 failures → Environmental noise (monitor only)"
+      expected_outcome:
+        agent_dev_e2e: "5/5 failures (Category A confirmed)"
+        jetstream_validation: "5/5 failures (Category A confirmed)"
+        mcp_server: "5/5 failures (Category D confirmed)"
+        proxy_invoker: "X/5 failures (TBD - categorize based on result)"
+        preference: "X/5 failures (TBD - categorize based on result)"
+      validation: "Multi-run complete, failure patterns documented"
+
+# Phase 1: Category D - mcp-server Auth Tests
+phase_1_mcp_server:
+  title: "Fix mcp-server Auth Tests (Category D)"
+  duration: "60 minutes"
+  priority: P1
+  dependencies: [phase_0_setup]
+  critical: true
+  description: "Fix 3 failing auth tests in mcp-server.spec.ts (401 vs 404 issue)"
+  expected_impact: "3 tests fixed, mcp-server 10/10 passing"
+
+  tasks:
+    - id: T3
+      title: "Investigate mcp-server Auth Test Failures"
+      description: "Determine root cause of 401 vs 404 issue in auth tests"
+      priority: P1
+      estimate: "30 min"
+      dependencies: [T2]
+      current_status: "7/10 passing, 3 auth tests failing"
+      files:
+        - tests/common/mcp-server.spec.ts
+        - src/common/mcp-server.ts
+        - src/common/base-server.ts
+      root_cause_hypotheses:
+        hypothesis_1: "Sprint 324 refactoring removed /sse endpoint registration"
+        hypothesis_2: "Auth middleware not attached in correct order"
+        hypothesis_3: "MCP SDK 2.0 changed endpoint structure (/sse → /message)"
+      investigation_steps:
+        - "npm test -- tests/common/mcp-server.spec.ts 2>&1 | tee planning/sprint-33-[id]/mcp-server-isolation.txt"
+        - "grep -A 10 '✕' planning/sprint-33-[id]/mcp-server-isolation.txt > mcp-server-failures.txt"
+        - "git log --oneline --grep='Sprint 324' -10"
+        - "git log --oneline -- src/common/mcp-server.ts src/common/base-server.ts | head -20"
+        - "Compare Sprint 324 endpoint registration changes"
+      deliverable: "mcp-server-investigation.md with root cause and fix approach"
+      expected_finding: "One of the three hypotheses confirmed, fix approach identified"
+      validation: "Root cause documented with evidence"
+
+    - id: T4
+      title: "Fix mcp-server Auth Tests"
+      description: "Apply fix identified in T3 investigation"
+      priority: P1
+      estimate: "30 min"
+      dependencies: [T3]
+      files:
+        - tests/common/mcp-server.spec.ts (if test updates needed)
+        - src/common/mcp-server.ts (if endpoint registration needed)
+        - src/common/base-server.ts (if middleware attachment needed)
+      fix_patterns:
+        pattern_1_endpoint_registration:
+          description: "Add missing /sse endpoint"
+          code: |
+            // src/common/mcp-server.ts
+            this.app.get('/sse', authMiddleware, sseHandler);
+        pattern_2_middleware_order:
+          description: "Ensure auth middleware attached before routes"
+          code: |
+            // src/common/base-server.ts
+            if (process.env.MCP_AUTH_TOKEN) {
+              this.app.use(authMiddleware); // BEFORE routes
+            }
+        pattern_3_test_expectations:
+          description: "Update test expectations if Sprint 324 intentionally changed behavior"
+          code: |
+            // tests/common/mcp-server.spec.ts
+            expect(response.status).toBe(404); // Update from 401 if endpoint truly removed
+      validation:
+        isolation: "npm test -- tests/common/mcp-server.spec.ts"
+        full_suite: "npm test 2>&1 | grep 'mcp-server'"
+        expected_result: "10/10 tests passing (was 7/10)"
+      deliverable: "Code fixes or test updates, validation output"
+      success_metric: "mcp-server.spec.ts 100% passing"
+
+# Phase 2: Category C - Flaky Test Remediation
+phase_2_flaky_tests:
+  title: "Analyze & Fix Flaky Tests (Category C)"
+  duration: "45 minutes"
+  priority: P2
+  dependencies: [phase_0_setup]
+  description: "Remediate proxy-invoker-timeout-coordination and preference.test.ts based on multi-run results"
+  expected_impact: "0-2 tests fixed (depends on T2 multi-run categorization)"
+  note: "Skip if T2 shows 0-1/5 failures (environmental noise)"
+
+  tasks:
+    - id: T5
+      title: "Analyze proxy-invoker-timeout-coordination Flakiness"
+      description: "Determine if flaky, consistent, or noise based on T2 results"
+      priority: P2
+      estimate: "20 min"
+      dependencies: [T2]
+      files:
+        - tests/common/mcp/proxy-invoker-timeout-coordination.spec.ts
+      decision_tree:
+        if_5_of_5_failures:
+          action: "Reclassify as Category D, proceed to fix"
+          rationale: "Consistent failure, not flaky"
+        if_2_to_4_of_5_failures:
+          action: "Confirm flaky, analyze root cause, apply fix in T6"
+          rationale: "True flaky test, needs isolation/retry"
+        if_0_to_1_of_5_failures:
+          action: "Environmental noise, defer/skip"
+          rationale: "Not worth investment, monitor only"
+      investigation_steps:
+        - "Analyze T2 failure frequency output"
+        - "If flaky: Run in isolation 10 times to confirm pattern"
+        - "Check NATS connection timing, test ordering, shared state"
+      likely_root_causes:
+        - "NATS connection race condition (needs wait for stable connection)"
+        - "Test ordering dependency (beforeAll/afterAll issues)"
+        - "Shared state pollution between tests"
+        - "Resource cleanup timing (afterEach incomplete)"
+      deliverable: "proxy-invoker-analysis.md with categorization and fix approach"
+      validation: "Flakiness pattern confirmed, fix approach identified or skip decision made"
+
+    - id: T6
+      title: "Fix proxy-invoker-timeout-coordination (If Flaky)"
+      description: "Apply isolation/retry fix based on T5 analysis"
+      priority: P2
+      estimate: "25 min"
+      dependencies: [T5]
+      conditional: "Only execute if T5 determines test is flaky (2-4/5 failures)"
+      skip_if: "T5 shows 0-1/5 failures (noise) or 5/5 failures (needs deeper investigation)"
+      files:
+        - tests/common/mcp/proxy-invoker-timeout-coordination.spec.ts
+      fix_patterns:
+        pattern_1_test_isolation:
+          description: "Ensure clean NATS connection for each test"
+          code: |
+            beforeEach(async () => {
+              messageBus = new MessageBus();
+              await messageBus.connect();
+              await new Promise(resolve => setTimeout(resolve, 200)); // Wait for stable connection
+            });
+            afterEach(async () => {
+              await messageBus.disconnect();
+            });
+        pattern_2_retry_logic:
+          description: "Add Jest retry for flaky test"
+          code: |
+            // jest.config.js
+            retryTimes: 2, // For this specific suite
+        pattern_3_skip_when_unavailable:
+          description: "Skip gracefully when NATS unavailable"
+          code: |
+            beforeAll(async () => {
+              try {
+                await messageBus.connect();
+              } catch {
+                console.log('⏭️  Skipping (NATS unavailable)');
+                return;
+              }
+            });
+      validation:
+        multi_run: "for i in {1..10}; do npm test -- proxy-invoker-timeout-coordination.spec.ts; done"
+        target: "10/10 passes"
+      deliverable: "Test fixes with 100% stability in 10-run validation"
+      success_metric: "10/10 passes in multi-run validation"
+
+    - id: T7
+      title: "Analyze & Fix preference.test.ts (If Flaky)"
+      description: "Same pattern as T5-T6 for preference.test.ts"
+      priority: P2
+      estimate: "25 min"
+      dependencies: [T2]
+      conditional: "Only execute if T2 determines test is flaky"
+      files:
+        - tools/brat/src/cli/code/__tests__/preference.test.ts
+      decision_tree:
+        same_as_t5: "Use same categorization logic as T5"
+      likely_root_causes:
+        - "File loading race condition"
+        - "Filesystem cache issues"
+        - "Path resolution in different environments"
+        - "Missing file cleanup from other tests"
+        - "File locking issues"
+      fix_patterns:
+        pattern_1_filesystem_isolation:
+          code: |
+            beforeEach(async () => {
+              jest.clearAllMocks();
+              const prefPath = path.join(__dirname, '.bratrc');
+              if (!fs.existsSync(prefPath)) {
+                await fs.promises.writeFile(prefPath, '{}');
+              }
+            });
+            afterEach(async () => {
+              const prefPath = path.join(__dirname, '.bratrc');
+              if (fs.existsSync(prefPath)) {
+                await fs.promises.unlink(prefPath);
+              }
+            });
+        pattern_2_retry_logic:
+          code: "jest.retryTimes(2);"
+        pattern_3_mock_filesystem:
+          code: "jest.mock('fs'); // Mock filesystem for unit test"
+      validation:
+        multi_run: "for i in {1..10}; do npm test -- preference.test.ts; done"
+        target: "10/10 passes"
+      deliverable: "Test fixes with 100% stability"
+      success_metric: "10/10 passes in multi-run validation"
+
+# Phase 3: Category A - Infrastructure Assessment
+phase_3_category_a:
+  title: "Category A - Infrastructure Assessment & Deferral"
+  duration: "15 minutes"
+  priority: P3
+  dependencies: [phase_1_mcp_server, phase_2_flaky_tests]
+  description: "Document why infrastructure tests are acceptable to defer"
+  expected_impact: "No test fixes, clear documentation of deferral rationale"
+
+  tasks:
+    - id: T8
+      title: "Document Category A Deferral Decision"
+      description: "Formally document why agent-dev-e2e and jetstream-validation are acceptable to defer"
+      priority: P3
+      estimate: "15 min"
+      dependencies: [T4, T6, T7]
+      files:
+        - "planning/sprint-33-[id]/category-a-deferral.md"
+      failing_tests:
+        - "agent-dev-e2e.test.ts (Docker build)"
+        - "jetstream-validation.test.ts (Docker build)"
+      root_cause: "Missing bitbrat-base Docker image in local environment"
+      impact_assessment:
+        core_platform: "Not affected (infrastructure validation only)"
+        developer_experience: "Not blocking (deployment infra, not runtime)"
+        production_risk: "Low (validated in CI/CD)"
+      cost_benefit_analysis:
+        cost_to_fix:
+          - "Build bitbrat-base image: 2-3 hours"
+          - "Maintain image across environments: Ongoing"
+          - "Image size/storage overhead: Non-trivial"
+        benefit:
+          - "2 additional tests pass locally"
+          - "Validates agent-dev provisioning works"
+        verdict: "Cost exceeds benefit for local development"
+      decision: "DEFER to future sprint when Docker infrastructure investment justified"
+      mitigation:
+        - "Create GitHub issue to track"
+        - "Document in test infrastructure guide"
+        - "Mark as expected failures in README"
+      deliverable: "category-a-deferral.md with full justification"
+      validation: "Deferral documented, issue created"
+      alternative_option:
+        title: "Build minimal bitbrat-base image (if time permits)"
+        estimate: "30 min bonus task"
+        dockerfile: |
+          FROM node:20-alpine
+          RUN npm install -g npm@latest
+          WORKDIR /app
+          COPY package*.json ./
+          RUN npm ci --production
+          COPY . .
+          RUN npm run build
+
+# Phase 4: Validation & Documentation
+phase_4_validation:
+  title: "Final Validation & Sprint Documentation"
+  duration: "30 minutes"
+  priority: P0
+  dependencies: [phase_1_mcp_server, phase_2_flaky_tests, phase_3_category_a]
+  critical: true
+  description: "Measure sprint impact and complete documentation"
+
+  tasks:
+    - id: T9
+      title: "Final Validation - Measure Sprint Impact"
+      description: "Run full test suite and compare to baseline"
+      priority: P0
+      estimate: "15 min"
+      dependencies: [T4, T6, T7]
+      deliverable: "final-metrics.md"
+      validation:
+        command: "npm test 2>&1 | tee planning/sprint-33-[id]/final-validation.txt"
+        extract_metrics: "grep -E 'Test Suites:|Tests:' final-validation.txt"
+      expected_results_conservative:
+        failing_suites: 2
+        failing_tests: 2
+        tests_fixed: 7
+        pass_rate: ">99%"
+        breakdown:
+          fixed:
+            - "mcp-server: 10/10 (was 7/10) → 3 tests fixed"
+            - "proxy-invoker: 100% stable (if was flaky) → 1-2 tests fixed"
+            - "preference: 100% stable (if was flaky) → 1-2 tests fixed"
+          deferred:
+            - "agent-dev-e2e: Still failing (Category A, documented)"
+            - "jetstream-validation: Still failing (Category A, documented)"
+      expected_results_stretch:
+        failing_suites: 0
+        failing_tests: 0
+        pass_rate: "100%"
+        condition: "Category A optionally fixed via minimal Docker image"
+      metrics_comparison:
+        sprint_32_end:
+          failing_suites: 5
+          failing_tests: 9
+        sprint_33_target:
+          failing_suites: "≤3"
+          failing_tests: "≤3"
+        sprint_33_actual: "TBD from validation"
+      deliverable: "final-metrics.md with before/after comparison"
+      validation: "Metrics captured, sprint goal achieved (≤3 failing suites)"
+
+    - id: T10
+      title: "Complete Sprint Artifacts & Celebrate"
+      description: "Document sprint completion and learnings"
+      priority: P0
+      estimate: "15 min"
+      dependencies: [T9]
+      deliverables:
+        - "verification-report.md"
+        - "retro.md"
+        - "key-learnings.md"
+        - "sprint-summary.md"
+      key_themes:
+        - "Multi-run baseline methodology validated as critical tool"
+        - "mcp-server auth test fix pattern (Sprint 324 refactoring impacts)"
+        - "Flaky test remediation patterns (isolation, retry, skip)"
+        - "Category A deferral justification (cost-benefit analysis)"
+        - "Sprint 30 → 31 → 32 → 33 journey: 48 failures → X failures"
+      celebration_themes:
+        conservative_success: "5 → 2 failing suites (60% improvement)"
+        stretch_success: "5 → 0 failing suites (100% pass rate achieved)"
+      validation: "All artifacts complete, sprint marked as complete"
+
+# Success Criteria
+success_criteria:
+  must_have:
+    - title: "Multi-run baseline complete (5 iterations)"
+      tasks: [T2]
+      status: pending
+      metric: "Stability analysis complete with categorization"
+
+    - title: "mcp-server 10/10 passing"
+      tasks: [T3, T4]
+      status: pending
+      baseline: "7/10 passing (3 auth tests failing)"
+      target: "10/10 passing"
+      metric: "3 tests fixed"
+
+    - title: "Failing suites ≤3"
+      tasks: [T9]
+      status: pending
+      baseline: "5 failing suites"
+      target: "≤3 failing suites"
+      metric: "2+ suites fixed"
+
+  nice_to_have:
+    - title: "Flaky tests resolved or documented"
+      tasks: [T5, T6, T7]
+      status: pending
+      condition: "If T2 identifies flaky tests"
+
+    - title: "Failing suites ≤2"
+      tasks: [T9]
+      status: pending
+      baseline: "5 failing suites"
+      target: "≤2 failing suites"
+
+    - title: "Category A deferral documented"
+      tasks: [T8]
+      status: pending
+      deliverable: "category-a-deferral.md"
+
+  stretch:
+    - title: "100% pass rate (0 failing suites)"
+      tasks: [T9]
+      status: pending
+      condition: "All categories resolved including Category A"
+      likelihood: "30% (requires Category A fix)"
+
+    - title: "Multi-run validation shows 5/5 passes for all tests"
+      tasks: [T9]
+      status: pending
+      validation: "Run full suite 5 times, all passes"
+
+# Metrics Tracking
+metrics:
+  sprint_32_end:
+    runtime: "34.9s"
+    failing_suites: 5
+    failing_tests: 9
+    pass_rate: "97.1%"
+    breakdown:
+      category_a: 2  # agent-dev-e2e, jetstream-validation
+      category_c: 2  # proxy-invoker, preference (presumed flaky)
+      category_d: 1  # mcp-server (3 tests)
+
+  sprint_33_targets:
+    conservative:
+      runtime: "<40s (maintain)"
+      failing_suites: "≤3"
+      failing_tests: "≤3"
+      pass_rate: ">99%"
+    stretch:
+      runtime: "<40s"
+      failing_suites: 0
+      failing_tests: 0
+      pass_rate: "100%"
+
+  sprint_33_actual:
+    # To be filled during execution
+    after_mcp_server_fix:
+      failing_suites: null  # Expected: 4 (5 - 1)
+      failing_tests: null   # Expected: 6 (9 - 3)
+
+    after_flaky_test_fixes:
+      failing_suites: null  # Expected: 2-4 (depends on T2)
+      failing_tests: null   # Expected: 2-6
+
+    final:
+      runtime: null
+      failing_suites: null  # Target: ≤3
+      failing_tests: null   # Target: ≤3
+      pass_rate: null       # Target: >99%
+
+  cumulative_sprint_30_to_33:
+    # Sprint 30 baseline → Sprint 33 end
+    runtime:
+      sprint_30_baseline: "501s"
+      sprint_33_target: "<40s"
+      improvement_target: ">92%"
+
+    failing_suites:
+      sprint_30_baseline: 48
+      sprint_33_target: "≤3"
+      improvement_target: ">93%"
+
+    failing_tests:
+      sprint_30_baseline: 112
+      sprint_33_target: "≤3"
+      improvement_target: ">97%"
+
+# Risk Management
+risks:
+  - id: RISK-1
+    description: "mcp-server root cause unclear or complex"
+    likelihood: medium
+    impact: high
+    blocks: "P1 goal (must-have)"
+    mitigation: "Timebox T3 investigation to 30 minutes"
+    contingency: "Escalate to maintainer, create dedicated bug-fix sprint, document as known issue"
+
+  - id: RISK-2
+    description: "Flaky tests prove difficult to stabilize"
+    likelihood: medium
+    impact: medium
+    blocks: "Nice-to-have goal"
+    mitigation: "Use retry logic as fallback, accept some flakiness"
+    contingency: "Mark as 'known flaky', document pattern, defer to future sprint"
+
+  - id: RISK-3
+    description: "Multi-run baseline inconclusive (all tests inconsistent)"
+    likelihood: low
+    impact: low
+    mitigation: "Run 10 iterations instead of 5, increase sample size"
+    contingency: "Use best judgment based on Sprint 32 observations"
+
+  - id: RISK-4
+    description: "Category A tests require more investment than expected"
+    likelihood: low
+    impact: low
+    blocks: "Stretch goal only"
+    mitigation: "Use minimal Docker image approach if attempting"
+    contingency: "Accept deferral, document clearly"
+
+  - id: RISK-5
+    description: "Fixes introduce regressions in other tests"
+    likelihood: low
+    impact: high
+    mitigation: "Run full suite after each phase, granular commits"
+    contingency: "Rollback to previous commit, re-investigate"
+
+# Sprint 32 Learnings Applied
+learnings_applied:
+  - learning: "Multi-run baselines detect flaky tests early"
+    sprint_source: "Sprint 32 (2 new failures appeared)"
+    application: "T2 multi-run baseline as P0 task"
+    impact: "Prevents chasing environmental noise"
+
+  - learning: "Hypothesis-driven investigation is efficient"
+    sprint_source: "Sprint 32 (MCP v2 + Sprint 324 prediction accurate)"
+    application: "T3 has 3 clear hypotheses to test"
+    impact: "Focused investigation, faster root cause"
+
+  - learning: "Pattern recognition accelerates fixes"
+    sprint_source: "Sprint 32 (same MCP v2 fix across 3 suites)"
+    application: "T4 fix patterns documented upfront"
+    impact: "Faster implementation once root cause found"
+
+  - learning: "Realistic goal setting prevents disappointment"
+    sprint_source: "Sprint 32 (0 suites goal too ambitious, <5 achieved)"
+    application: "Conservative goal (≤3) with stretch (0)"
+    impact: "Guaranteed success, bonus if exceeded"
+
+  - learning: "Document deferrals with justification"
+    sprint_source: "Sprint 32 (Category A deferred with rationale)"
+    application: "T8 formal deferral documentation"
+    impact: "Clear decision trail, prevents revisiting"
+
+# Dependencies & Execution Order
+execution_order:
+  - phase: phase_0_setup
+    sequence: [T0, T1, T2]
+    blocking: true
+    critical: true
+    description: "Must complete multi-run baseline before any fixes"
+
+  - phase: phase_1_mcp_server
+    sequence: [T3, T4]
+    depends_on: phase_0_setup
+    blocking: false
+    critical: true
+    can_parallelize_with: [phase_2_flaky_tests]
+    description: "T3 investigation, then T4 fix (sequential)"
+
+  - phase: phase_2_flaky_tests
+    sequence: [T5, T6, T7]
+    depends_on: phase_0_setup
+    blocking: false
+    can_parallelize_with: [phase_1_mcp_server]
+    conditional: "T6 and T7 only if T2 shows flakiness"
+    description: "T5 and T7 analysis can run in parallel, fixes are conditional"
+
+  - phase: phase_3_category_a
+    sequence: [T8]
+    depends_on: [phase_1_mcp_server, phase_2_flaky_tests]
+    blocking: false
+    description: "Documentation task, low priority"
+
+  - phase: phase_4_validation
+    sequence: [T9, T10]
+    depends_on: [phase_1_mcp_server, phase_2_flaky_tests, phase_3_category_a]
+    blocking: false
+    critical: true
+    description: "T10 can partially overlap with T9"
+
+# Future Work (Post-Sprint 33)
+future_sprints:
+  sprint_34_option_1:
+    condition: "If Sprint 33 achieves 100% pass rate"
+    title: "Test Infrastructure Phase 5 - Optimization"
+    focus: "Test stratification, parallel execution, coverage reporting"
+    tasks:
+      - "Separate unit/integration/e2e tests via Jest projects"
+      - "Enable parallel test execution (remove maxWorkers:1)"
+      - "Add test coverage reporting and thresholds"
+      - "Refactor Bit.close() for proper cleanup (remove EventEmitter bandaid)"
+      - "Create BitTestFactory helper class"
+    estimate: "2-3 hours"
+
+  sprint_34_option_2:
+    condition: "If Sprint 33 has remaining failures (>3 suites)"
+    title: "Test Infrastructure Phase 4.5 - Remaining Bugs"
+    focus: "Deep dive on remaining failures"
+    tasks:
+      - "Fix any remaining Category D bugs"
+      - "Build bitbrat-base image for Category A"
+      - "Investigate persistent flaky tests"
+    estimate: "2-3 hours"
+
+  later_sprints:
+    - "CI/CD integration to catch flaky tests earlier"
+    - "Test performance profiling and optimization"
+    - "Automated test health dashboard"
+
+# Sprint Characteristics
+sprint_characteristics:
+  goal_type: "Strategic remediation (data-driven approach)"
+  approach: "Multi-run baseline → targeted fixes → documentation"
+  celebration_worthy: "YES - Major milestone if ≤2 suites or 100% achieved"
+  incremental_progress:
+    - "Sprint 30: 48 → 11 suites (-77%)"
+    - "Sprint 31: 11 → 7 suites (-36%)"
+    - "Sprint 32: 7 → 5 suites (-29%)"
+    - "Sprint 33: 5 → X suites (target: ≤3, -40%+)"
+  total_journey_target: "48 failing suites → ≤3 failing suites (>93% improvement)"
