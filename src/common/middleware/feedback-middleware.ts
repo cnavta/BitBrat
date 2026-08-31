@@ -132,6 +132,18 @@ interface OperationState {
 
   /** Original message text */
   originalMessage: string;
+
+  /** Source event for routing context (ingress/egress/identity) */
+  sourceEvent: InternalEventV2;
+
+  /** Timer for initial progress message */
+  initialTimer?: NodeJS.Timeout;
+
+  /** Timer for periodic update messages */
+  updateTimer?: NodeJS.Timeout;
+
+  /** Timer for timeout warning */
+  timeoutTimer?: NodeJS.Timeout;
 }
 
 /**
@@ -171,7 +183,7 @@ export class FeedbackMiddleware {
   /**
    * Process event before it's published via next().
    *
-   * Detects operation_context annotation and emits progress if needed.
+   * Detects operation_context annotation and starts proactive progress tracking.
    *
    * @param event - Event being published
    */
@@ -197,36 +209,37 @@ export class FeedbackMiddleware {
       return;
     }
 
-    // Track or update operation state
-    const state = this.getOrCreateState(event, operationContext);
-
-    // Calculate elapsed time
-    const elapsedMs = Date.now() - state.startedAt.getTime();
-
-    // Determine if progress message is needed
-    const stage = this.determineStage(state, elapsedMs);
-
-    if (stage) {
-      // Send progress message
-      await this.sendProgressMessage(event, state, stage, elapsedMs);
-
-      // Update state
-      state.stage = stage;
-      state.lastProgressAt = new Date();
-    }
+    // Start tracking if not already tracked
+    // getOrCreateState will set up timers for new operations
+    this.getOrCreateState(event, operationContext);
   }
 
   /**
    * Clean up tracking for completed operation.
    *
-   * Call this after operation completes or times out.
+   * Clears all active timers and removes tracking state.
    *
    * @param correlationId - Operation correlationId
    */
   completeOperation(correlationId: string): void {
-    const deleted = this.operationTracking.delete(correlationId);
-    if (deleted) {
-      this.logger.debug('Operation tracking completed', { correlationId });
+    const state = this.operationTracking.get(correlationId);
+    if (state) {
+      // Clear all active timers
+      if (state.initialTimer) {
+        clearTimeout(state.initialTimer);
+      }
+      if (state.updateTimer) {
+        clearInterval(state.updateTimer);
+      }
+      if (state.timeoutTimer) {
+        clearTimeout(state.timeoutTimer);
+      }
+
+      // Remove from tracking
+      this.operationTracking.delete(correlationId);
+      this.logger.debug('Operation tracking completed and timers cleared', {
+        correlationId,
+      });
     }
   }
 
@@ -309,6 +322,7 @@ export class FeedbackMiddleware {
       stage: 'initial',
       operationContext,
       originalMessage: event.message?.text || '',
+      sourceEvent: event, // Store for routing context in progress messages
     };
 
     this.operationTracking.set(event.correlationId, state);
@@ -320,37 +334,90 @@ export class FeedbackMiddleware {
       startedAtSource,
     });
 
+    // Start proactive progress tracking with timers
+    this.startTracking(state);
+
     return state;
   }
 
   /**
-   * Determine if progress message should be sent and what stage.
+   * Start proactive progress tracking with timers.
    *
-   * Returns null if no message needed.
+   * Sets up timers to send progress messages at configured thresholds.
+   *
+   * @param state - Operation state to track
    */
-  private determineStage(
+  private startTracking(state: OperationState): void {
+    // Calculate time already elapsed (operation might have started before we saw it)
+    const alreadyElapsedMs = Date.now() - state.startedAt.getTime();
+
+    // Schedule initial progress message
+    const initialDelayMs = Math.max(0, this.config.initialThresholdMs - alreadyElapsedMs);
+    state.initialTimer = setTimeout(() => {
+      this.sendTimedProgressMessage(state, 'initial').catch((err) => {
+        this.logger.error('Failed to send initial progress', {
+          correlationId: state.correlationId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
+
+      // After initial message, start periodic updates
+      state.updateTimer = setInterval(() => {
+        this.sendTimedProgressMessage(state, 'update').catch((err) => {
+          this.logger.error('Failed to send update progress', {
+            correlationId: state.correlationId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+      }, this.config.updateIntervalMs);
+    }, initialDelayMs);
+
+    // Schedule timeout warning
+    const timeoutDelayMs = Math.max(0, this.config.timeoutThresholdMs - alreadyElapsedMs);
+    state.timeoutTimer = setTimeout(() => {
+      this.sendTimedProgressMessage(state, 'timeout').catch((err) => {
+        this.logger.error('Failed to send timeout progress', {
+          correlationId: state.correlationId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
+    }, timeoutDelayMs);
+
+    this.logger.debug('Progress timers scheduled', {
+      correlationId: state.correlationId,
+      alreadyElapsedMs,
+      initialDelayMs,
+      timeoutDelayMs,
+    });
+  }
+
+  /**
+   * Send progress message from timer callback.
+   *
+   * Wrapper around sendProgressMessage for timer-triggered progress.
+   *
+   * @param state - Operation state
+   * @param stage - Progress stage
+   */
+  private async sendTimedProgressMessage(
     state: OperationState,
-    elapsedMs: number
-  ): ProgressStage | null {
-    // Timeout threshold
-    if (elapsedMs >= this.config.timeoutThresholdMs && state.stage !== 'timeout') {
-      return 'timeout';
+    stage: ProgressStage
+  ): Promise<void> {
+    // Check if operation still tracked (might have completed)
+    if (!this.operationTracking.has(state.correlationId)) {
+      this.logger.debug('Operation no longer tracked, skipping progress message', {
+        correlationId: state.correlationId,
+        stage,
+      });
+      return;
     }
 
-    // Update threshold
-    if (state.lastProgressAt) {
-      const timeSinceLastProgress = Date.now() - state.lastProgressAt.getTime();
-      if (timeSinceLastProgress >= this.config.updateIntervalMs) {
-        return 'update';
-      }
-    }
+    const elapsedMs = Date.now() - state.startedAt.getTime();
+    await this.sendProgressMessage(state.sourceEvent, state, stage, elapsedMs);
 
-    // Initial threshold
-    if (!state.lastProgressAt && elapsedMs >= this.config.initialThresholdMs) {
-      return 'initial';
-    }
-
-    return null;
+    // Update state
+    state.stage = stage;
+    state.lastProgressAt = new Date();
   }
 
   /**
