@@ -248,6 +248,10 @@ export function coerceType(value: string): string | number | boolean {
   if (lowerValue === 'true') return true;
   if (lowerValue === 'false') return false;
 
+  // Special number values
+  if (value === 'Infinity') return Infinity;
+  if (value === '-Infinity') return -Infinity;
+
   // Number coercion
   // Check if it looks like a number (handles integer, float, hex, scientific notation)
   const numericPattern = /^-?(?:0x[\da-f]+|\d+\.?\d*(?:e[+-]?\d+)?)$/i;
