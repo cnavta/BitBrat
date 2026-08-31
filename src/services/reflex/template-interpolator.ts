@@ -12,6 +12,7 @@
 
 import { getFieldValue } from './field-accessor.js';
 import { logger } from '../../common/logging';
+import { MatchCaptures } from '../../types/reflex.js';
 
 /**
  * Regular expression to match {{field.path}} placeholders.
@@ -214,4 +215,241 @@ export function validateTemplate(template: string): {
   }
 
   return { isValid: true };
+}
+
+// ============================================================================
+// CAPTURE-BASED INTERPOLATION (Sprint 34)
+// ============================================================================
+
+/**
+ * Attempts to coerce a string value to a more specific type.
+ *
+ * Coercion rules:
+ * - "true"/"false" (case-insensitive) → boolean
+ * - Numeric strings (integer, float, hex, scientific) → number
+ * - Everything else → string (unchanged)
+ *
+ * @param value - String value to coerce
+ * @returns Coerced value (number, boolean, or original string)
+ *
+ * @example
+ * coerceType('50') // 50 (number)
+ * coerceType('3.14') // 3.14 (number)
+ * coerceType('true') // true (boolean)
+ * coerceType('FALSE') // false (boolean)
+ * coerceType('0x10') // 16 (number)
+ * coerceType('1e3') // 1000 (number)
+ * coerceType('hello') // 'hello' (string)
+ * coerceType('50px') // '50px' (string, mixed content)
+ */
+export function coerceType(value: string): string | number | boolean {
+  // Boolean coercion (case-insensitive)
+  const lowerValue = value.toLowerCase();
+  if (lowerValue === 'true') return true;
+  if (lowerValue === 'false') return false;
+
+  // Special number values
+  if (value === 'Infinity') return Infinity;
+  if (value === '-Infinity') return -Infinity;
+
+  // Number coercion
+  // Check if it looks like a number (handles integer, float, hex, scientific notation)
+  const numericPattern = /^-?(?:0x[\da-f]+|\d+\.?\d*(?:e[+-]?\d+)?)$/i;
+  if (numericPattern.test(value)) {
+    const num = Number(value);
+    if (!isNaN(num)) {
+      return num;
+    }
+  }
+
+  // Default: keep as string
+  return value;
+}
+
+/**
+ * Interpolates capture placeholders (${N} or $N) in a template string.
+ *
+ * Replaces ${0}, ${1}, ${N} and $0, $1, $N with captured values.
+ * Missing captures are left as placeholders (graceful degradation).
+ *
+ * @param template - Template string with ${N} or $N placeholders
+ * @param captures - Captured substrings from pattern matching
+ * @returns Interpolated string
+ *
+ * @example
+ * // Single capture
+ * interpolateCapturesInTemplate('Bid placed: ${1}', { 0: '!bid 50', 1: '50' })
+ * // Returns: 'Bid placed: 50'
+ *
+ * @example
+ * // Multiple captures
+ * interpolateCapturesInTemplate('Timer: ${1}s - ${2}', { 0: 'full', 1: '30', 2: 'Break time' })
+ * // Returns: 'Timer: 30s - Break time'
+ *
+ * @example
+ * // Shell syntax
+ * interpolateCapturesInTemplate('Value: $1', { 0: '!cmd 100', 1: '100' })
+ * // Returns: 'Value: 100'
+ *
+ * @example
+ * // Missing capture (graceful degradation)
+ * interpolateCapturesInTemplate('Missing: ${10}', { 0: 'full' })
+ * // Returns: 'Missing: ${10}'
+ */
+export function interpolateCapturesInTemplate(template: string, captures?: MatchCaptures): string {
+  if (!captures) {
+    return template;
+  }
+
+  let result = template;
+
+  // Replace ${N} syntax (brace syntax)
+  result = result.replace(/\$\{(\d+)\}/g, (match, indexStr) => {
+    const index = parseInt(indexStr, 10);
+    const capturedValue = captures[index];
+    return capturedValue !== undefined ? stringifyValue(capturedValue) : match;
+  });
+
+  // Replace $N syntax (shell syntax)
+  // Use negative lookbehind to avoid matching ${N}
+  result = result.replace(/(?<!\{)\$(\d+)(?!\})/g, (match, indexStr) => {
+    const index = parseInt(indexStr, 10);
+    const capturedValue = captures[index];
+    return capturedValue !== undefined ? stringifyValue(capturedValue) : match;
+  });
+
+  return result;
+}
+
+/**
+ * Interpolates a single parameter value with captures and type coercion.
+ *
+ * Handles three scenarios:
+ * 1. Pure ${N} placeholder: Replaces with coerced value (number/boolean if possible)
+ * 2. Mixed string with ${N}: Replaces placeholder but keeps as string
+ * 3. No placeholders: Returns value as-is
+ *
+ * Supports both ${N} and $N syntax.
+ *
+ * @param value - Parameter value template (can be string, number, boolean, object, etc.)
+ * @param captures - Captured substrings from pattern matching
+ * @returns Interpolated and potentially coerced value
+ *
+ * @example
+ * // Pure placeholder with coercion
+ * interpolateCapturesInParameter('${1}', { 0: '!bid 50', 1: '50' })
+ * // Returns: 50 (number, not string)
+ *
+ * @example
+ * // Mixed string (no coercion)
+ * interpolateCapturesInParameter('Amount: ${1}', { 0: '!bid 50', 1: '50' })
+ * // Returns: 'Amount: 50' (string)
+ *
+ * @example
+ * // Shell syntax
+ * interpolateCapturesInParameter('$1', { 0: '!bid 50', 1: '50' })
+ * // Returns: 50 (number)
+ *
+ * @example
+ * // Non-string value (passed through)
+ * interpolateCapturesInParameter(42, { 0: 'ignored' })
+ * // Returns: 42 (unchanged)
+ */
+export function interpolateCapturesInParameter(value: any, captures?: MatchCaptures): any {
+  // If value is not a string, no interpolation needed
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  // If no captures provided, return as-is
+  if (!captures) {
+    return value;
+  }
+
+  // Check if value is a pure placeholder (for type coercion)
+  // Matches: ${N} or $N where N is a digit
+  const pureCaptureBrace = /^\$\{(\d+)\}$/;
+  const pureCaptureShell = /^\$(\d+)$/;
+
+  const braceMatch = value.match(pureCaptureBrace);
+  const shellMatch = value.match(pureCaptureShell);
+
+  // Pure ${N} or $N: Replace and coerce
+  if (braceMatch || shellMatch) {
+    const index = parseInt((braceMatch || shellMatch)![1], 10);
+    const capturedValue = captures[index];
+
+    if (capturedValue !== undefined) {
+      // Coerce the captured string to appropriate type
+      return coerceType(capturedValue);
+    } else {
+      // Missing capture: keep placeholder
+      return value;
+    }
+  }
+
+  // Mixed string: Replace all placeholders but keep as string
+  return interpolateCapturesInTemplate(value, captures);
+}
+
+/**
+ * Interpolates all parameter values in a parameter object with captures.
+ *
+ * Recursively processes all string values in the parameter object,
+ * interpolating captures and applying type coercion where appropriate.
+ *
+ * @param parameters - Parameter template object
+ * @param captures - Captured substrings from pattern matching
+ * @returns Interpolated parameter object with coerced types
+ *
+ * @example
+ * // Simple parameter with coercion
+ * interpolateCapturesInParameters({ amount: '${1}' }, { 0: '!bid 50', 1: '50' })
+ * // Returns: { amount: 50 } (number, not string)
+ *
+ * @example
+ * // Mixed parameters
+ * interpolateCapturesInParameters(
+ *   { duration: '${1}', message: 'Timer: ${1}s' },
+ *   { 0: '!timer 30', 1: '30' }
+ * )
+ * // Returns: { duration: 30, message: 'Timer: 30s' }
+ *
+ * @example
+ * // Nested object
+ * interpolateCapturesInParameters(
+ *   { config: { value: '${1}', label: 'Value: ${1}' } },
+ *   { 0: 'full', 1: '100' }
+ * )
+ * // Returns: { config: { value: 100, label: 'Value: 100' } }
+ */
+export function interpolateCapturesInParameters(
+  parameters: Record<string, any>,
+  captures?: MatchCaptures
+): Record<string, any> {
+  if (!captures) {
+    return parameters;
+  }
+
+  const result: Record<string, any> = {};
+
+  for (const [key, value] of Object.entries(parameters)) {
+    if (typeof value === 'string') {
+      // String value: interpolate with potential coercion
+      result[key] = interpolateCapturesInParameter(value, captures);
+    } else if (Array.isArray(value)) {
+      // Array: recursively interpolate each element
+      result[key] = value.map((item) =>
+        typeof item === 'string' ? interpolateCapturesInParameter(item, captures) : item
+      );
+    } else if (value !== null && typeof value === 'object') {
+      // Nested object: recursively interpolate
+      result[key] = interpolateCapturesInParameters(value, captures);
+    } else {
+      // Primitive non-string (number, boolean, null): pass through
+      result[key] = value;
+    }
+  }
+
+  return result;
 }

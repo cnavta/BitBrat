@@ -3,7 +3,7 @@ import { Bit } from '../common/base-server';
 import type { PublisherResource } from '../common/resources/publisher-manager';
 import { type IReflexRepository, createReflexRepository } from '../services/reflex/reflex-repository.js';
 import { ReflexCache, createReflexCache } from '../services/reflex/reflex-cache.js';
-import { selectReflexes } from '../services/reflex/reflex-selector.js';
+import { selectReflexes, selectReflexesWithCaptures } from '../services/reflex/reflex-selector.js';
 import { executeReflex } from '../services/reflex/reflex-executor.js';
 import { validateRegexPattern } from '../services/reflex/pattern-matcher.js';
 import { metrics } from '../services/reflex/reflex-metrics.js';
@@ -131,10 +131,10 @@ export class ReflexServer extends Bit {
             eventType: event.type,
           });
 
-          // Step 1: Select matching reflexes from cache
+          // Step 1: Select matching reflexes from cache (with capture extraction - Sprint 34)
           const matchStart = Date.now();
           const reflexes = this.cache.getAll();
-          const matchedReflexes = selectReflexes(event, reflexes);
+          const matchedReflexes = selectReflexesWithCaptures(event, reflexes);
           const matchLatency = Date.now() - matchStart;
 
           // Record match latency
@@ -171,17 +171,19 @@ export class ReflexServer extends Bit {
           metrics.incrementMatchCount(true);
 
           // Path 2: Match found → execute reflex → complete()
-          const reflex = matchedReflexes[0]; // Phase 1: only first match
+          const { reflex, captures } = matchedReflexes[0]; // Phase 1: only first match (Sprint 34: with captures)
           logger.info('reflex.event.matched', {
             correlationId: event.correlationId,
             reflexId: reflex.id,
             reflexName: reflex.name,
             priority: reflex.priority,
+            hasCaptures: !!captures,
           });
 
-          // Execute reflex
+          // Execute reflex (Sprint 34: pass captures for parameter interpolation)
           const result = await executeReflex(reflex, event, {
             correlationId: event.correlationId,
+            captures,
           });
 
           const totalLatency = Date.now() - startTime;

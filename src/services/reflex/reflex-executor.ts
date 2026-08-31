@@ -12,7 +12,7 @@
  * the reflex services.
  */
 
-import { Reflex, ReflexExecutionResult } from '../../types/reflex.js';
+import { Reflex, ReflexExecutionResult, MatchCaptures } from '../../types/reflex.js';
 import { logger } from '../../common/logging';
 import { InternalEventV2, CandidateV1 } from '../../types/events.js';
 import { buildParameters } from './parameter-builder.js';
@@ -23,11 +23,11 @@ import { buildCandidates } from './candidate-builder.js';
  * Executes a reflex: builds parameters, calls tool, generates candidate.
  *
  * Process:
- * 1. Build parameters using parameter builder
+ * 1. Build parameters using parameter builder (with captures if provided)
  * 2. Execute MCP tool using tool executor
- * 3. Build candidate if candidateTemplate is defined
+ * 3. Build candidate if candidateTemplate is defined (with captures if provided)
  * 4. Track execution latency
- * 5. Return result with success/error status
+ * 5. Return result with success/error status and captures
  *
  * Note: Statistics updates (successCount, errorCount) are handled by
  * the caller to avoid tight coupling with storage layer.
@@ -37,19 +37,21 @@ import { buildCandidates } from './candidate-builder.js';
  * @param config - Execution configuration
  * @param config.authToken - MCP authentication token (override)
  * @param config.correlationId - Correlation ID for tracing
- * @returns Execution result with status, result, candidate, latency
+ * @param config.captures - Optional captured substrings from pattern matching
+ * @returns Execution result with status, result, candidate, latency, captures
  *
  * @example
+ * // Without captures
  * const result = await executeReflex(reflex, event, {
  *   correlationId: event.correlationId
  * });
  *
- * if (result.status === 'success') {
- *   console.log('Tool result:', result.result);
- *   if (result.candidate) {
- *     console.log('Generated candidate:', result.candidate.text);
- *   }
- * }
+ * @example
+ * // With captures (from pattern matching)
+ * const result = await executeReflex(reflex, event, {
+ *   correlationId: event.correlationId,
+ *   captures: { 0: '!bid 50', 1: '50' }
+ * });
  */
 export async function executeReflex(
   reflex: Reflex,
@@ -57,10 +59,11 @@ export async function executeReflex(
   config: {
     authToken?: string;
     correlationId?: string;
+    captures?: MatchCaptures;
   } = {}
 ): Promise<ReflexExecutionResult> {
   const startTime = Date.now();
-  const { authToken, correlationId = event.correlationId } = config;
+  const { authToken, correlationId = event.correlationId, captures } = config;
 
   try {
     logger.info('[reflex-executor] Starting reflex execution:', {
@@ -68,14 +71,15 @@ export async function executeReflex(
       reflexName: reflex.name,
       tool: reflex.action?.tool,
       hasAction: !!reflex.action,
+      hasCaptures: !!captures,
       correlationId,
     });
 
     // Step 1 & 2: Execute MCP tool if action is defined
     let toolResult: any = undefined;
     if (reflex.action) {
-      // Build parameters from template + event
-      const parameters = buildParameters(reflex.action.parameters, event);
+      // Build parameters from template + event + captures
+      const parameters = buildParameters(reflex.action.parameters, event, captures);
 
       logger.debug('[reflex-executor] Parameters built:', {
         reflexId: reflex.id,
@@ -99,7 +103,7 @@ export async function executeReflex(
     let candidates: CandidateV1[] | undefined;
     if (reflex.candidateTemplate) {
       try {
-        candidates = buildCandidates(reflex.candidateTemplate, reflex, event, toolResult || {});
+        candidates = buildCandidates(reflex.candidateTemplate, reflex, event, toolResult || {}, captures);
         logger.debug('[reflex-executor] Candidate(s) generated:', {
           reflexId: reflex.id,
           candidateCount: candidates.length,
@@ -134,6 +138,7 @@ export async function executeReflex(
       status: 'success',
       result: toolResult,
       candidates,
+      captures,
       latency,
     };
   } catch (error) {
