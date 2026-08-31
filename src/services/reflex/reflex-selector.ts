@@ -13,10 +13,10 @@
  * support multiple matches or chaining.
  */
 
-import { Reflex } from '../../types/reflex.js';
+import { Reflex, ReflexMatch } from '../../types/reflex.js';
 import { logger } from '../../common/logging';
 import { InternalEventV2 } from '../../types/events.js';
-import { matchReflex } from './reflex-matcher.js';
+import { matchReflex, matchReflexWithCaptures } from './reflex-matcher.js';
 
 /**
  * Selects matching reflexes from a list, prioritized by priority field.
@@ -66,6 +66,74 @@ export function selectReflexes(event: InternalEventV2, reflexes: Reflex[]): Refl
           reflex.name
         );
         return [reflex]; // Phase 1: Return only first match
+      }
+    }
+
+    // No matches found
+    logSelection(event, reflexes.length, activeReflexes.length, 0, performance.now() - startTime);
+    return [];
+  } catch (error) {
+    logger.error('reflex.selector.error', { error: error instanceof Error ? error.message : String(error) });
+    return [];
+  }
+}
+
+/**
+ * Selects matching reflexes with capture extraction (Sprint 34).
+ *
+ * Returns reflexes along with their captured values from pattern matching.
+ * This enables parameter interpolation with $1, $2, etc. in tool parameters.
+ *
+ * @param event - Event to match against
+ * @param reflexes - List of all available reflexes
+ * @returns Array containing matched reflex with captures, or empty array
+ *
+ * @example
+ * const matches = selectReflexesWithCaptures(event, reflexes);
+ * if (matches.length > 0) {
+ *   const { reflex, captures } = matches[0];
+ *   // captures = { 0: '!bid 50', 1: '50' }
+ *   await executeReflex(reflex, event, { captures });
+ * }
+ */
+export function selectReflexesWithCaptures(
+  event: InternalEventV2,
+  reflexes: Reflex[]
+): ReflexMatch[] {
+  const startTime = performance.now();
+
+  try {
+    // Step 1: Filter to only active reflexes
+    const activeReflexes = reflexes.filter(reflex => reflex.active);
+
+    if (activeReflexes.length === 0) {
+      logSelection(event, reflexes.length, 0, 0, performance.now() - startTime);
+      return [];
+    }
+
+    // Step 2: Sort by priority (ascending - lower number = higher priority)
+    const sortedReflexes = activeReflexes.sort((a, b) => a.priority - b.priority);
+
+    // Step 3: Find first match WITH capture extraction
+    for (const reflex of sortedReflexes) {
+      const matchResult = matchReflexWithCaptures(event, reflex);
+
+      if (matchResult.matched) {
+        const latency = performance.now() - startTime;
+        logSelection(
+          event,
+          reflexes.length,
+          activeReflexes.length,
+          1,
+          latency,
+          reflex.id,
+          reflex.name
+        );
+
+        return [{
+          reflex,
+          captures: matchResult.captures,
+        }];
       }
     }
 

@@ -118,6 +118,24 @@ export interface MatchResult {
 }
 
 /**
+ * Represents a reflex that matched an event, including any captured values.
+ * Used by selector to return both the reflex and its captures for execution.
+ *
+ * @example
+ * {
+ *   reflex: { id: 'bid', match: { pattern: '^!bid (\\d+)$', ... }, ... },
+ *   captures: { 0: '!bid 50', 1: '50' }
+ * }
+ */
+export interface ReflexMatch {
+  /** The matched reflex */
+  reflex: Reflex;
+
+  /** Captured substrings from pattern matching (if any) */
+  captures?: MatchCaptures;
+}
+
+/**
  * Optional conditions for filtering when a reflex should trigger.
  * All conditions use AND logic - all must match for the reflex to execute.
  *
