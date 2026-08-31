@@ -28,7 +28,8 @@ import { randomUUID } from 'crypto';
 
 const execAsync = promisify(exec);
 
-describe('Agent-Dev End-to-End (!ping test) - T3.1', () => {
+// TODO: Category A - Requires bitbrat-base Docker image - deferred per Sprint 32/33 decision
+describe.skip('Agent-Dev End-to-End (!ping test) - T3.1', () => {
   const repoRoot = path.join(__dirname, '../../../../..');
   const manager = new AgentDevContextManager(repoRoot);
   let contextName: string;
