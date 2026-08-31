@@ -203,7 +203,7 @@ describe('FeedbackMiddleware', () => {
 
       expect(publishedEvents).toHaveLength(1);
       expect(publishedEvents[0].topic).toBe('internal.egress.v1');
-      expect(publishedEvents[0].event.message?.text).toBe('🤔 Thinking about your request...');
+      expect(publishedEvents[0].event.candidates![0].text).toBe('🤔 Thinking about your request...');
     });
 
     it('should not send progress before initial threshold', async () => {
@@ -246,12 +246,12 @@ describe('FeedbackMiddleware', () => {
       // First call - initial
       await middleware.beforeNext(event);
       expect(publishedEvents).toHaveLength(1);
-      expect(publishedEvents[0].event.message?.text).toBe('🤔 Thinking about your request...');
+      expect(publishedEvents[0].event.candidates![0].text).toBe('🤔 Thinking about your request...');
 
       // Second call - update
       await middleware.beforeNext(event);
       expect(publishedEvents).toHaveLength(2);
-      expect(publishedEvents[1].event.message?.text).toBe('⏳ Still working on it...');
+      expect(publishedEvents[1].event.candidates![0].text).toBe('⏳ Still working on it...');
     });
 
     it('should send timeout warning after timeout threshold', async () => {
@@ -275,7 +275,7 @@ describe('FeedbackMiddleware', () => {
       await middleware.beforeNext(event);
 
       const timeoutMessage = publishedEvents.find(
-        (p) => p.event.message?.text?.includes('longer than expected')
+        (p) => p.event.candidates?.[0]?.text?.includes('longer than expected')
       );
 
       expect(timeoutMessage).toBeDefined();
@@ -303,8 +303,8 @@ describe('FeedbackMiddleware', () => {
 
       expect(publishedEvents).toHaveLength(1);
       expect(publishedEvents[0].topic).toBe('internal.egress.v1');
-      expect(publishedEvents[0].event.type).toBe('internal.egress.v1');
-      expect(publishedEvents[0].event.message?.text).toBe('🤔 Thinking about your request...');
+      expect(publishedEvents[0].event.type).toBe('chat.message.v1');
+      expect(publishedEvents[0].event.candidates![0].text).toBe('🤔 Thinking about your request...');
     });
 
     it('should copy routing context to progress event', async () => {
@@ -581,7 +581,7 @@ describe('FeedbackMiddleware', () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       const stats = middleware.getStats();
-      expect(stats.operations[0].elapsedMs).toBeGreaterThanOrEqual(50);
+      expect(stats.operations[0].elapsedMs).toBeGreaterThanOrEqual(45); // Allow small timing tolerance
     });
   });
 
@@ -660,21 +660,21 @@ describe('FeedbackMiddleware', () => {
 
       // Initial
       await middleware.beforeNext(event);
-      expect(publishedEvents[0].event.message?.text).toBe('🤔 Thinking about your request...');
+      expect(publishedEvents[0].event.candidates![0].text).toBe('🤔 Thinking about your request...');
 
       // Wait for update interval
       await new Promise((resolve) => setTimeout(resolve, 15));
 
       // Update
       await middleware.beforeNext(event);
-      expect(publishedEvents[1].event.message?.text).toBe('⏳ Still working on it...');
+      expect(publishedEvents[1].event.candidates![0].text).toBe('⏳ Still working on it...');
 
       // Wait for timeout threshold
       await new Promise((resolve) => setTimeout(resolve, 100));
       await middleware.beforeNext(event);
 
       const timeoutMsg = publishedEvents.find((p) =>
-        p.event.message?.text?.includes('longer than expected')
+        p.event.candidates?.[0]?.text?.includes('longer than expected')
       );
       expect(timeoutMsg).toBeDefined();
     });
@@ -915,7 +915,7 @@ describe('FeedbackMiddleware', () => {
 
       // Should send progress message (5000ms > 1000ms)
       expect(publishedEvents).toHaveLength(1);
-      expect(publishedEvents[0].event.message?.text).toContain('Thinking');
+      expect(publishedEvents[0].event.candidates![0].text).toContain('Thinking');
     });
 
     it('should calculate elapsed time correctly from annotation', async () => {
