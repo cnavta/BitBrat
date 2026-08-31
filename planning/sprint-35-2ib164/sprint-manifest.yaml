@@ -5,7 +5,8 @@ goal: Fix progress middleware to create chat.message.v1 events with candidates
   messages are properly routed to egress
 owner: navta3
 createdAt: 2026-08-31T16:45:37.729Z
-status: in-progress
+status: complete
 links:
   branch: feature/sprint-35-2ib164-progress-middleware-event-stru
 notes: Sprint initialized via MCP start-sprint tool
+completionMode: normal
