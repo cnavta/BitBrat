@@ -46,6 +46,78 @@ export interface PatternMatch {
 }
 
 /**
+ * Captured substrings from pattern matching.
+ *
+ * Index 0 always contains the full matched string.
+ * Indexes 1+ contain regex capture groups (if present).
+ *
+ * For non-regex patterns (exact, contains, prefix, suffix),
+ * only index 0 is populated with the matched portion.
+ *
+ * @example Single capture group
+ * ```typescript
+ * // Pattern: /!bid (\d+)/
+ * // Input: "!bid 50"
+ * // Result: { 0: "!bid 50", 1: "50" }
+ * ```
+ *
+ * @example Multiple capture groups
+ * ```typescript
+ * // Pattern: /!timer (\d+) (.+)/
+ * // Input: "!timer 30 Take a break"
+ * // Result: { 0: "!timer 30 Take a break", 1: "30", 2: "Take a break" }
+ * ```
+ *
+ * @example Non-regex pattern (exact)
+ * ```typescript
+ * // Pattern: "!ping" (exact match)
+ * // Input: "!ping"
+ * // Result: { 0: "!ping" }
+ * ```
+ */
+export interface MatchCaptures {
+  /** Full matched string (always present if match succeeded) */
+  0: string;
+
+  /** Capture group N (1-indexed, optional based on regex pattern) */
+  [index: number]: string | undefined;
+}
+
+/**
+ * Result of pattern matching with optional capture extraction.
+ *
+ * @example Match with captures
+ * ```typescript
+ * {
+ *   matched: true,
+ *   captures: { 0: "!bid 50", 1: "50" }
+ * }
+ * ```
+ *
+ * @example Match without captures (no capture groups in pattern)
+ * ```typescript
+ * {
+ *   matched: true,
+ *   captures: { 0: "!ping" }
+ * }
+ * ```
+ *
+ * @example No match
+ * ```typescript
+ * {
+ *   matched: false
+ * }
+ * ```
+ */
+export interface MatchResult {
+  /** Whether the pattern matched */
+  matched: boolean;
+
+  /** Captured substrings (only present if matched is true) */
+  captures?: MatchCaptures;
+}
+
+/**
  * Optional conditions for filtering when a reflex should trigger.
  * All conditions use AND logic - all must match for the reflex to execute.
  *
@@ -261,6 +333,19 @@ export interface ReflexExecutionResult {
    * When candidateTemplate is an array, multiple candidates are generated.
    */
   candidates?: any[]; // Array of InternalCandidate from events.ts
+
+  /**
+   * Captured substrings from pattern matching (if pattern contained capture groups).
+   * Available for use in template interpolation and tool parameters.
+   *
+   * @example
+   * ```typescript
+   * // Pattern: /!bid (\d+)/
+   * // Input: "!bid 50"
+   * // captures: { 0: "!bid 50", 1: "50" }
+   * ```
+   */
+  captures?: MatchCaptures;
 
   /** Error details (on failure) */
   error?: {
