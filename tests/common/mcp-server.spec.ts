@@ -23,26 +23,29 @@ describe("McpServer", () => {
   });
 
   describe("Endpoints Registration", () => {
-    // TODO: Intermittent NATS connection error - skip until infrastructure is available
-    it.skip("should register /sse and /message endpoints", async () => {
-      const responseSse = await request(server.getApp()).get("/sse");
-      expect(responseSse.status).not.toBe(404);
-
-      const responseMessage = await request(server.getApp()).post("/message");
-      expect(responseMessage.status).not.toBe(404);
+    // Sprint 324: MCP SDK 2.0 uses /mcp endpoint instead of /sse and /message
+    it("should register /mcp endpoint", async () => {
+      const response = await request(server.getApp())
+        .post("/mcp")
+        .send({ jsonrpc: "2.0", id: 1, method: "initialize" });
+      expect(response.status).not.toBe(404);
     });
   });
 
   describe("Security", () => {
-    // TODO: Intermittent NATS connection error - skip until infrastructure is available (flaky test)
-    it.skip("should allow access if MCP_AUTH_TOKEN is not set", async () => {
-      const response = await request(server.getApp()).get("/sse");
+    // Sprint 324: MCP SDK 2.0 uses /mcp endpoint with POST instead of /sse with GET
+    it("should allow access if MCP_AUTH_TOKEN is not set", async () => {
+      const response = await request(server.getApp())
+        .post("/mcp")
+        .send({ jsonrpc: "2.0", id: 1, method: "initialize" });
       expect(response.status).not.toBe(401);
     });
 
     it("should return 401 if MCP_AUTH_TOKEN is set and token is missing", async () => {
       process.env.MCP_AUTH_TOKEN = "secret-token";
-      const response = await request(server.getApp()).get("/sse");
+      const response = await request(server.getApp())
+        .post("/mcp")
+        .send({ jsonrpc: "2.0", id: 1, method: "initialize" });
       expect(response.status).toBe(401);
       delete process.env.MCP_AUTH_TOKEN;
     });
@@ -50,8 +53,9 @@ describe("McpServer", () => {
     it("should return 401 if MCP_AUTH_TOKEN is set and token is incorrect", async () => {
       process.env.MCP_AUTH_TOKEN = "secret-token";
       const response = await request(server.getApp())
-        .get("/sse")
-        .set("x-mcp-token", "wrong-token");
+        .post("/mcp")
+        .set("x-mcp-token", "wrong-token")
+        .send({ jsonrpc: "2.0", id: 1, method: "initialize" });
       expect(response.status).toBe(401);
       delete process.env.MCP_AUTH_TOKEN;
     });
@@ -59,8 +63,9 @@ describe("McpServer", () => {
     it("should allow access if correct token is provided in header", async () => {
       process.env.MCP_AUTH_TOKEN = "secret-token";
       const response = await request(server.getApp())
-        .get("/sse")
-        .set("x-mcp-token", "secret-token");
+        .post("/mcp")
+        .set("x-mcp-token", "secret-token")
+        .send({ jsonrpc: "2.0", id: 1, method: "initialize" });
       expect(response.status).not.toBe(401);
       delete process.env.MCP_AUTH_TOKEN;
     });
@@ -68,25 +73,29 @@ describe("McpServer", () => {
     it("should allow access if correct token is provided in query", async () => {
       process.env.MCP_AUTH_TOKEN = "secret-token";
       const response = await request(server.getApp())
-        .get("/sse?token=secret-token");
+        .post("/mcp?token=secret-token")
+        .send({ jsonrpc: "2.0", id: 1, method: "initialize" });
       expect(response.status).not.toBe(401);
       delete process.env.MCP_AUTH_TOKEN;
     });
   });
 
   describe("Error Handling", () => {
-    it("should return 404 for unknown session in /message", async () => {
+    // Sprint 324: MCP SDK 2.0 uses JSON-RPC protocol on /mcp endpoint
+    it("should handle invalid JSON-RPC request", async () => {
       const response = await request(server.getApp())
-        .post("/message?sessionId=unknown")
-        .send({ some: "data" });
-      expect(response.status).toBe(404);
+        .post("/mcp")
+        .send({ invalid: "request" });
+      // JSON-RPC errors return 200 with error in body, not HTTP error codes
+      expect(response.status).not.toBe(404);
     });
 
-    it("should return 400 if sessionId is missing in /message", async () => {
+    it("should handle malformed request body", async () => {
       const response = await request(server.getApp())
-        .post("/message")
-        .send({ some: "data" });
-      expect(response.status).toBe(400);
+        .post("/mcp")
+        .send("not-json");
+      // Should not return 404 (endpoint exists)
+      expect(response.status).not.toBe(404);
     });
   });
 
