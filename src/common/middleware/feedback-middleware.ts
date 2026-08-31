@@ -54,6 +54,13 @@ export interface FeedbackMiddlewareConfig {
   timeoutThresholdMs?: number;
 
   /**
+   * Maximum operation lifetime (ms) before automatic cleanup.
+   * Prevents memory leaks from operations that never complete.
+   * Default: 300000ms (5 minutes)
+   */
+  maxOperationLifetimeMs?: number;
+
+  /**
    * Enable progress feedback (feature flag).
    * Default: true
    */
@@ -144,6 +151,9 @@ interface OperationState {
 
   /** Timer for timeout warning */
   timeoutTimer?: NodeJS.Timeout;
+
+  /** Timer for maximum lifetime cleanup (failsafe) */
+  maxLifetimeTimer?: NodeJS.Timeout;
 }
 
 /**
@@ -170,6 +180,7 @@ export class FeedbackMiddleware {
       initialThresholdMs: config?.initialThresholdMs ?? 2000,
       updateIntervalMs: config?.updateIntervalMs ?? 5000,
       timeoutThresholdMs: config?.timeoutThresholdMs ?? 30000,
+      maxOperationLifetimeMs: config?.maxOperationLifetimeMs ?? 300000, // 5 minutes
       enabled: config?.enabled ?? true,
       useCustomMessages: config?.useCustomMessages ?? false,
       promptTemplate: config?.promptTemplate ?? DEFAULT_PROMPT_TEMPLATE,
@@ -234,6 +245,9 @@ export class FeedbackMiddleware {
       if (state.timeoutTimer) {
         clearTimeout(state.timeoutTimer);
       }
+      if (state.maxLifetimeTimer) {
+        clearTimeout(state.maxLifetimeTimer);
+      }
 
       // Remove from tracking
       this.operationTracking.delete(correlationId);
@@ -241,6 +255,22 @@ export class FeedbackMiddleware {
         correlationId,
       });
     }
+  }
+
+  /**
+   * Shutdown all progress tracking.
+   *
+   * Clears all operations and timers. Call when service is shutting down.
+   * CRITICAL: Prevents timer leaks on service restart/shutdown.
+   */
+  shutdown(): void {
+    const correlationIds = Array.from(this.operationTracking.keys());
+    for (const correlationId of correlationIds) {
+      this.completeOperation(correlationId);
+    }
+    this.logger.info('FeedbackMiddleware shutdown complete', {
+      clearedOperations: correlationIds.length,
+    });
   }
 
   /**
@@ -353,41 +383,79 @@ export class FeedbackMiddleware {
 
     // Schedule initial progress message
     const initialDelayMs = Math.max(0, this.config.initialThresholdMs - alreadyElapsedMs);
-    state.initialTimer = setTimeout(() => {
-      this.sendTimedProgressMessage(state, 'initial').catch((err) => {
+    state.initialTimer = setTimeout(async () => {
+      try {
+        await this.sendTimedProgressMessage(state, 'initial');
+
+        // After initial message, start periodic updates
+        // CRITICAL: Only start interval if operation still tracked
+        if (this.operationTracking.has(state.correlationId)) {
+          state.updateTimer = setInterval(async () => {
+            try {
+              await this.sendTimedProgressMessage(state, 'update');
+            } catch (err) {
+              this.logger.error('Failed to send update progress, clearing interval', {
+                correlationId: state.correlationId,
+                error: err instanceof Error ? err.message : String(err),
+              });
+              // CRITICAL: Clear interval on error to prevent infinite failing updates
+              if (state.updateTimer) {
+                clearInterval(state.updateTimer);
+                state.updateTimer = undefined;
+              }
+            }
+          }, this.config.updateIntervalMs);
+        }
+      } catch (err) {
         this.logger.error('Failed to send initial progress', {
           correlationId: state.correlationId,
           error: err instanceof Error ? err.message : String(err),
         });
-      });
-
-      // After initial message, start periodic updates
-      state.updateTimer = setInterval(() => {
-        this.sendTimedProgressMessage(state, 'update').catch((err) => {
-          this.logger.error('Failed to send update progress', {
-            correlationId: state.correlationId,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        });
-      }, this.config.updateIntervalMs);
+        // Initial timer is one-shot, no cleanup needed
+      }
     }, initialDelayMs);
 
     // Schedule timeout warning
     const timeoutDelayMs = Math.max(0, this.config.timeoutThresholdMs - alreadyElapsedMs);
-    state.timeoutTimer = setTimeout(() => {
-      this.sendTimedProgressMessage(state, 'timeout').catch((err) => {
+    state.timeoutTimer = setTimeout(async () => {
+      try {
+        await this.sendTimedProgressMessage(state, 'timeout');
+      } catch (err) {
         this.logger.error('Failed to send timeout progress', {
           correlationId: state.correlationId,
           error: err instanceof Error ? err.message : String(err),
         });
-      });
+      } finally {
+        // CRITICAL: Clear update interval after timeout (operation likely stuck/failed)
+        if (state.updateTimer) {
+          clearInterval(state.updateTimer);
+          state.updateTimer = undefined;
+        }
+      }
     }, timeoutDelayMs);
+
+    // Schedule maximum lifetime cleanup (failsafe)
+    // CRITICAL: Prevents memory leaks from operations that never call completeOperation()
+    const maxLifetimeDelayMs = Math.max(
+      0,
+      this.config.maxOperationLifetimeMs - alreadyElapsedMs
+    );
+    state.maxLifetimeTimer = setTimeout(() => {
+      this.logger.warn('Operation exceeded maximum lifetime, forcing cleanup', {
+        correlationId: state.correlationId,
+        maxLifetimeMs: this.config.maxOperationLifetimeMs,
+        elapsedMs: Date.now() - state.startedAt.getTime(),
+      });
+      // Force cleanup to prevent memory leak
+      this.completeOperation(state.correlationId);
+    }, maxLifetimeDelayMs);
 
     this.logger.debug('Progress timers scheduled', {
       correlationId: state.correlationId,
       alreadyElapsedMs,
       initialDelayMs,
       timeoutDelayMs,
+      maxLifetimeDelayMs,
     });
   }
 

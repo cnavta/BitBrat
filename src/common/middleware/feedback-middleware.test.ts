@@ -16,8 +16,12 @@ describe('FeedbackMiddleware', () => {
   let mockLogger: Logger;
   let publishedEvents: Array<{ topic: string; event: InternalEventV2 }>;
   let mockPublish: (topic: string, event: InternalEventV2) => Promise<void>;
+  let middleware: FeedbackMiddleware | null = null;
 
   beforeEach(() => {
+    // Use fake timers for predictable timer behavior
+    jest.useFakeTimers();
+
     // Mock logger
     mockLogger = pino({ level: 'silent' }) as unknown as Logger;
 
@@ -26,6 +30,21 @@ describe('FeedbackMiddleware', () => {
     mockPublish = async (topic: string, event: InternalEventV2) => {
       publishedEvents.push({ topic, event });
     };
+  });
+
+  afterEach(() => {
+    // Clean up any middleware instance
+    if (middleware) {
+      // Clear all tracked operations and their timers
+      const stats = middleware.getStats();
+      stats.operations.forEach((op) => {
+        middleware!.completeOperation(op.correlationId);
+      });
+      middleware = null;
+    }
+
+    // Restore real timers
+    jest.useRealTimers();
   });
 
   const createMockEvent = (overrides?: Partial<InternalEventV2>): InternalEventV2 => ({
@@ -184,13 +203,13 @@ describe('FeedbackMiddleware', () => {
 
   describe('Threshold Detection', () => {
     it('should send initial progress after initial threshold', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
         },
         {
-          initialThresholdMs: 0, // Immediate
+          initialThresholdMs: 2000, // 2 seconds
           useCustomMessages: false, // Template messages
         }
       );
@@ -201,13 +220,20 @@ describe('FeedbackMiddleware', () => {
 
       await middleware.beforeNext(event);
 
+      // Timers scheduled but not fired yet
+      expect(publishedEvents).toHaveLength(0);
+
+      // Advance time to initial threshold
+      await jest.advanceTimersByTimeAsync(2000);
+
+      // Initial progress message should be sent
       expect(publishedEvents).toHaveLength(1);
       expect(publishedEvents[0].topic).toBe('internal.egress.v1');
       expect(publishedEvents[0].event.candidates![0].text).toBe('🤔 Thinking about your request...');
     });
 
     it('should not send progress before initial threshold', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
@@ -222,6 +248,9 @@ describe('FeedbackMiddleware', () => {
       });
 
       await middleware.beforeNext(event);
+
+      // Advance time but not to threshold
+      await jest.advanceTimersByTimeAsync(5000);
 
       expect(publishedEvents).toHaveLength(0);
     });
