@@ -10,51 +10,58 @@
  * Result: { sourceName: "FailOverlay", visible: true, scene: "MainScene" }
  */
 
-import { interpolateTemplate } from './template-interpolator.js';
+import { interpolateTemplate, interpolateCapturesInParameters } from './template-interpolator.js';
 import { InternalEventV2 } from '../../types/events.js';
+import { MatchCaptures } from '../../types/reflex.js';
 
 /**
  * Builds final tool parameters from a parameter template and event data.
  *
  * Process:
- * 1. Iterate over all keys in the parameter template
- * 2. For string values: Apply template interpolation
+ * 1. Apply capture interpolation first (${N} placeholders) if captures provided
+ * 2. For string values: Apply event template interpolation ({{field.path}})
  * 3. For non-string values: Preserve as-is (numbers, booleans, objects, arrays)
  * 4. For nested objects: Recursively apply interpolation
  *
- * @param parameterTemplate - Template object with potential {{field.path}} placeholders
+ * @param parameterTemplate - Template object with potential {{field.path}} and ${N} placeholders
  * @param event - Event to extract field values from
+ * @param captures - Optional captured substrings from pattern matching
  * @returns Fully interpolated parameter object ready for MCP tool invocation
  *
  * @example
+ * // Without captures
  * const template = {
  *   sourceName: "FailOverlay",
  *   visible: true,
- *   sceneName: "{{scene}}",
- *   metadata: {
- *     user: "{{identity.user.displayName}}",
- *     timestamp: "{{ingress.ingressAt}}"
- *   }
+ *   sceneName: "{{scene}}"
  * };
- *
  * buildParameters(template, event)
- * // {
- * //   sourceName: "FailOverlay",
- * //   visible: true,
- * //   sceneName: "MainScene",
- * //   metadata: {
- * //     user: "JohnDoe",
- * //     timestamp: "2026-07-04T12:00:00Z"
- * //   }
- * // }
+ * // { sourceName: "FailOverlay", visible: true, sceneName: "MainScene" }
+ *
+ * @example
+ * // With captures (Sprint 34)
+ * const template = {
+ *   amount: "${1}",  // Will be coerced to number if pure placeholder
+ *   message: "Bid of ${1} placed"  // Will stay string
+ * };
+ * buildParameters(template, event, { 0: "!bid 50", 1: "50" })
+ * // { amount: 50, message: "Bid of 50 placed" }
  */
 export function buildParameters(
   parameterTemplate: Record<string, any>,
-  event: InternalEventV2
+  event: InternalEventV2,
+  captures?: MatchCaptures
 ): Record<string, any> {
+  // Step 1: Apply capture interpolation first (if captures provided)
+  let workingTemplate = parameterTemplate;
+  if (captures) {
+    workingTemplate = interpolateCapturesInParameters(parameterTemplate, captures);
+  }
+
+  // Step 2: Apply event field interpolation
   const result: Record<string, any> = {};
 
-  for (const [key, value] of Object.entries(parameterTemplate)) {
+  for (const [key, value] of Object.entries(workingTemplate)) {
     result[key] = interpolateValue(value, event);
   }
 

@@ -15,28 +15,36 @@
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../../common/logging';
 import { CandidateV1, InternalEventV2 } from '../../types/events.js';
-import { Reflex } from '../../types/reflex.js';
+import { Reflex, MatchCaptures } from '../../types/reflex.js';
 import { getFieldValue } from './field-accessor.js';
+import { interpolateCapturesInTemplate } from './template-interpolator.js';
 
 /**
- * Builds candidate(s) from template(s) with dual-context interpolation.
+ * Builds candidate(s) from template(s) with multi-context interpolation.
  *
  * Process:
- * 1. Parse template(s) for {{event.path}} and {{result.path}} placeholders
- * 2. Replace {{event.path}} with values from event
- * 3. Replace {{result.path}} with values from tool result
- * 4. Build CandidateV1 object(s) with source='reflex'
+ * 1. Apply capture interpolation first (${N} placeholders) if captures provided (Sprint 34)
+ * 2. Parse template(s) for {{event.path}} and {{result.path}} placeholders
+ * 3. Replace {{event.path}} with values from event
+ * 4. Replace {{result.path}} with values from tool result
+ * 5. Build CandidateV1 object(s) with source='reflex'
  *
  * @param templates - Single template string or array of template strings
  * @param reflex - Reflex that generated these candidates (for metadata)
  * @param event - Event being processed
  * @param toolResult - Result from MCP tool execution
+ * @param captures - Optional captured substrings from pattern matching (Sprint 34)
  * @returns Array of CandidateV1 objects ready to add to event.candidates
  *
- * @example Single template
+ * @example Single template (existing)
  * const template = "Command executed by {{event.identity.user.displayName}}! Result: {{result.status}}";
  * buildCandidates(template, reflex, event, result)
  * // [{ id: '...', text: 'Command executed by JohnDoe! Result: success', ... }]
+ *
+ * @example With captures (Sprint 34)
+ * const template = "Bid of ${1} placed by {{event.identity.user.displayName}}!";
+ * buildCandidates(template, reflex, event, result, { 0: '!bid 50', 1: '50' })
+ * // [{ id: '...', text: 'Bid of 50 placed by JohnDoe!', ... }]
  *
  * @example Multiple templates
  * const templates = ["Pong!", "Pong from {{event.identity.user.displayName}}!"];
@@ -50,14 +58,15 @@ export function buildCandidates(
   templates: string | string[],
   reflex: Reflex,
   event: InternalEventV2,
-  toolResult: any
+  toolResult: any,
+  captures?: MatchCaptures
 ): CandidateV1[] {
   // Normalize to array
   const templateArray = Array.isArray(templates) ? templates : [templates];
 
   // Build a candidate for each template
   return templateArray.map((template) => {
-    const text = interpolateDualContext(template, event, toolResult);
+    const text = interpolateDualContext(template, event, toolResult, captures);
 
     const candidate: CandidateV1 = {
       id: uuidv4(),
@@ -89,15 +98,17 @@ export function buildCandidate(
   template: string,
   reflex: Reflex,
   event: InternalEventV2,
-  toolResult: any
+  toolResult: any,
+  captures?: MatchCaptures
 ): CandidateV1 {
-  return buildCandidates(template, reflex, event, toolResult)[0];
+  return buildCandidates(template, reflex, event, toolResult, captures)[0];
 }
 
 /**
- * Interpolates a template with dual context (event + result).
+ * Interpolates a template with multi-context (captures + event + result).
  *
  * Supports multiple placeholder formats:
+ * - ${N} or $N - Pattern match captures (Sprint 34) - processed FIRST
  * - {{event.field.path}} - Extracts from event object
  * - {{result.field.path}} - Extracts from tool result
  * - {{user.field}} - Shorthand for {{event.identity.external.field}}
@@ -106,10 +117,22 @@ export function buildCandidate(
  * @param template - Template string with placeholders
  * @param event - Event object for {{event.path}}
  * @param toolResult - Tool result for {{result.path}}
+ * @param captures - Optional captured substrings from pattern matching (Sprint 34)
  * @returns Interpolated string
  */
-function interpolateDualContext(template: string, event: InternalEventV2, toolResult: any): string {
+function interpolateDualContext(
+  template: string,
+  event: InternalEventV2,
+  toolResult: any,
+  captures?: MatchCaptures
+): string {
   let result = template;
+
+  // Step 0: Apply capture interpolation FIRST (Sprint 34)
+  // This handles ${N} and $N syntax before event/result interpolation
+  if (captures) {
+    result = interpolateCapturesInTemplate(result, captures);
+  }
 
   // Replace {{event.path}} placeholders
   result = result.replace(/\{\{event\.([^}]+)\}\}/g, (match, path) => {
@@ -130,8 +153,15 @@ function interpolateDualContext(template: string, event: InternalEventV2, toolRe
   });
 
   // Replace ${...} and ${{...}} syntax (alternate template syntax)
+  // Note: After capture interpolation above, only non-numeric ${...} patterns remain
   result = result.replace(/\$\{\{?([^}]+)\}\}?/g, (match, path) => {
     const trimmedPath = path.trim();
+
+    // Skip if this looks like a capture placeholder (numeric only)
+    // This shouldn't happen after capture interpolation, but safety check
+    if (/^\d+$/.test(trimmedPath)) {
+      return match; // Keep as-is (already processed or missing capture)
+    }
 
     // Check for prefixes
     if (trimmedPath.startsWith('event.')) {
