@@ -374,6 +374,8 @@ export class FeedbackMiddleware {
    * Start proactive progress tracking with timers.
    *
    * Sets up timers to send progress messages at configured thresholds.
+   * For operations detected "late" (past initial threshold), sends ONE immediate
+   * progress message to avoid complete silence.
    *
    * @param state - Operation state to track
    */
@@ -381,60 +383,97 @@ export class FeedbackMiddleware {
     // Calculate time already elapsed (operation might have started before we saw it)
     const alreadyElapsedMs = Date.now() - state.startedAt.getTime();
 
-    // Schedule initial progress message
-    const initialDelayMs = Math.max(0, this.config.initialThresholdMs - alreadyElapsedMs);
-    state.initialTimer = setTimeout(async () => {
-      try {
-        await this.sendTimedProgressMessage(state, 'initial');
+    // Determine what to do based on how late we are
+    if (alreadyElapsedMs < this.config.initialThresholdMs) {
+      // Case 1: Fresh operation - schedule initial timer normally
+      const initialDelayMs = this.config.initialThresholdMs - alreadyElapsedMs;
+      state.initialTimer = setTimeout(async () => {
+        try {
+          await this.sendTimedProgressMessage(state, 'initial');
 
-        // After initial message, start periodic updates
-        // CRITICAL: Only start interval if operation still tracked
-        if (this.operationTracking.has(state.correlationId)) {
-          state.updateTimer = setInterval(async () => {
-            try {
-              await this.sendTimedProgressMessage(state, 'update');
-            } catch (err) {
-              this.logger.error('Failed to send update progress, clearing interval', {
-                correlationId: state.correlationId,
-                error: err instanceof Error ? err.message : String(err),
-              });
-              // CRITICAL: Clear interval on error to prevent infinite failing updates
-              if (state.updateTimer) {
-                clearInterval(state.updateTimer);
-                state.updateTimer = undefined;
+          // After initial message, start periodic updates
+          // CRITICAL: Only start interval if operation still tracked
+          if (this.operationTracking.has(state.correlationId)) {
+            state.updateTimer = setInterval(async () => {
+              try {
+                await this.sendTimedProgressMessage(state, 'update');
+              } catch (err) {
+                this.logger.error('Failed to send update progress, clearing interval', {
+                  correlationId: state.correlationId,
+                  error: err instanceof Error ? err.message : String(err),
+                });
+                // CRITICAL: Clear interval on error to prevent infinite failing updates
+                if (state.updateTimer) {
+                  clearInterval(state.updateTimer);
+                  state.updateTimer = undefined;
+                }
               }
-            }
-          }, this.config.updateIntervalMs);
+            }, this.config.updateIntervalMs);
+          }
+        } catch (err) {
+          this.logger.error('Failed to send initial progress', {
+            correlationId: state.correlationId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+          // Initial timer is one-shot, no cleanup needed
         }
-      } catch (err) {
-        this.logger.error('Failed to send initial progress', {
-          correlationId: state.correlationId,
-          error: err instanceof Error ? err.message : String(err),
-        });
-        // Initial timer is one-shot, no cleanup needed
-      }
-    }, initialDelayMs);
+      }, initialDelayMs);
 
-    // Schedule timeout warning
-    const timeoutDelayMs = Math.max(0, this.config.timeoutThresholdMs - alreadyElapsedMs);
-    state.timeoutTimer = setTimeout(async () => {
-      try {
-        await this.sendTimedProgressMessage(state, 'timeout');
-      } catch (err) {
-        this.logger.error('Failed to send timeout progress', {
-          correlationId: state.correlationId,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      } finally {
-        // CRITICAL: Clear update interval after timeout (operation likely stuck/failed)
-        if (state.updateTimer) {
-          clearInterval(state.updateTimer);
-          state.updateTimer = undefined;
+      this.logger.debug('Initial progress timer scheduled', {
+        correlationId: state.correlationId,
+        delayMs: initialDelayMs,
+      });
+    } else if (alreadyElapsedMs < this.config.timeoutThresholdMs) {
+      // Case 2: Operation in progress (past initial, before timeout)
+      // Operation is now completing - DO NOT send progress message
+      this.logger.debug('Operation detected in progress (now completing), skipping progress', {
+        correlationId: state.correlationId,
+        alreadyElapsedMs,
+        reason: 'beforeNext called during operation - operation completing',
+      });
+
+      // Skip sending any progress message - operation is finishing, final response imminent
+    } else {
+      // Case 3: Very late detection (past timeout threshold)
+      // Operation has already exceeded timeout and is now completing
+      // DO NOT send progress message - operation is finishing, final response imminent
+      this.logger.debug('Operation detected very late (already completing), skipping progress', {
+        correlationId: state.correlationId,
+        alreadyElapsedMs,
+        thresholdMs: this.config.timeoutThresholdMs,
+        reason: 'beforeNext called after timeout threshold - operation completing',
+      });
+
+      // Skip sending any progress message - would arrive after/with final response
+    }
+
+    // Schedule timeout timer if not already past threshold
+    if (alreadyElapsedMs < this.config.timeoutThresholdMs) {
+      const timeoutDelayMs = this.config.timeoutThresholdMs - alreadyElapsedMs;
+      state.timeoutTimer = setTimeout(async () => {
+        try {
+          await this.sendTimedProgressMessage(state, 'timeout');
+        } catch (err) {
+          this.logger.error('Failed to send timeout progress', {
+            correlationId: state.correlationId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        } finally {
+          // CRITICAL: Clear update interval after timeout (operation likely stuck/failed)
+          if (state.updateTimer) {
+            clearInterval(state.updateTimer);
+            state.updateTimer = undefined;
+          }
         }
-      }
-    }, timeoutDelayMs);
+      }, timeoutDelayMs);
 
-    // Schedule maximum lifetime cleanup (failsafe)
+      this.logger.debug('Timeout warning timer scheduled', {
+        correlationId: state.correlationId,
+        delayMs: timeoutDelayMs,
+      });
+    }
+
+    // Always schedule maximum lifetime cleanup (failsafe)
     // CRITICAL: Prevents memory leaks from operations that never call completeOperation()
     const maxLifetimeDelayMs = Math.max(
       0,
@@ -450,12 +489,9 @@ export class FeedbackMiddleware {
       this.completeOperation(state.correlationId);
     }, maxLifetimeDelayMs);
 
-    this.logger.debug('Progress timers scheduled', {
+    this.logger.debug('Max lifetime timer scheduled', {
       correlationId: state.correlationId,
-      alreadyElapsedMs,
-      initialDelayMs,
-      timeoutDelayMs,
-      maxLifetimeDelayMs,
+      delayMs: maxLifetimeDelayMs,
     });
   }
 

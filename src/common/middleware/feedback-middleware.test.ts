@@ -256,14 +256,14 @@ describe('FeedbackMiddleware', () => {
     });
 
     it('should send update progress after update interval', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
         },
         {
-          initialThresholdMs: 0,
-          updateIntervalMs: 0, // Immediate updates
+          initialThresholdMs: 2000,
+          updateIntervalMs: 5000,
           useCustomMessages: false,
         }
       );
@@ -272,27 +272,29 @@ describe('FeedbackMiddleware', () => {
         annotations: [createOperationContext('image_generation')],
       });
 
-      // First call - initial
       await middleware.beforeNext(event);
+
+      // Advance to initial threshold
+      await jest.advanceTimersByTimeAsync(2000);
       expect(publishedEvents).toHaveLength(1);
       expect(publishedEvents[0].event.candidates![0].text).toBe('🤔 Thinking about your request...');
 
-      // Second call - update
-      await middleware.beforeNext(event);
+      // Advance to first update (5s after initial)
+      await jest.advanceTimersByTimeAsync(5000);
       expect(publishedEvents).toHaveLength(2);
       expect(publishedEvents[1].event.candidates![0].text).toBe('⏳ Still working on it...');
     });
 
     it('should send timeout warning after timeout threshold', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
         },
         {
-          initialThresholdMs: 0,
-          updateIntervalMs: 0,
-          timeoutThresholdMs: 0, // Immediate timeout
+          initialThresholdMs: 2000,
+          updateIntervalMs: 5000,
+          timeoutThresholdMs: 30000,
           useCustomMessages: false,
         }
       );
@@ -302,6 +304,9 @@ describe('FeedbackMiddleware', () => {
       });
 
       await middleware.beforeNext(event);
+
+      // Advance to timeout threshold
+      await jest.advanceTimersByTimeAsync(30000);
 
       const timeoutMessage = publishedEvents.find(
         (p) => p.event.candidates?.[0]?.text?.includes('longer than expected')
@@ -313,13 +318,13 @@ describe('FeedbackMiddleware', () => {
 
   describe('Template Messages (Phase 1)', () => {
     it('should send template message directly to egress', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
         },
         {
-          initialThresholdMs: 0,
+          initialThresholdMs: 100,
           useCustomMessages: false,
         }
       );
@@ -329,6 +334,7 @@ describe('FeedbackMiddleware', () => {
       });
 
       await middleware.beforeNext(event);
+      await jest.advanceTimersByTimeAsync(100);
 
       expect(publishedEvents).toHaveLength(1);
       expect(publishedEvents[0].topic).toBe('internal.egress.v1');
@@ -337,13 +343,13 @@ describe('FeedbackMiddleware', () => {
     });
 
     it('should copy routing context to progress event', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
         },
         {
-          initialThresholdMs: 0,
+          initialThresholdMs: 100,
           useCustomMessages: false,
         }
       );
@@ -364,6 +370,7 @@ describe('FeedbackMiddleware', () => {
       });
 
       await middleware.beforeNext(event);
+      await jest.advanceTimersByTimeAsync(100);
 
       const progressEvent = publishedEvents[0].event;
       expect(progressEvent.ingress).toEqual(event.ingress);
@@ -371,13 +378,13 @@ describe('FeedbackMiddleware', () => {
     });
 
     it('should add progress_feedback annotation', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
         },
         {
-          initialThresholdMs: 0,
+          initialThresholdMs: 100,
           useCustomMessages: false,
         }
       );
@@ -387,6 +394,7 @@ describe('FeedbackMiddleware', () => {
       });
 
       await middleware.beforeNext(event);
+      await jest.advanceTimersByTimeAsync(100);
 
       const progressEvent = publishedEvents[0].event;
       const feedbackAnnotation = progressEvent.annotations?.find(
@@ -407,13 +415,13 @@ describe('FeedbackMiddleware', () => {
 
   describe('LLM-Generated Messages (Phase 2+)', () => {
     it('should create progress event for LLM generation', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
         },
         {
-          initialThresholdMs: 0,
+          initialThresholdMs: 100,
           useCustomMessages: true, // Enable LLM messages
         }
       );
@@ -425,6 +433,7 @@ describe('FeedbackMiddleware', () => {
       });
 
       await middleware.beforeNext(event);
+      await jest.advanceTimersByTimeAsync(100);
 
       expect(publishedEvents).toHaveLength(1);
       expect(publishedEvents[0].topic).toBe('internal.ingress.v1');
@@ -432,13 +441,13 @@ describe('FeedbackMiddleware', () => {
     });
 
     it('should include prompt annotation for LLM', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
         },
         {
-          initialThresholdMs: 0,
+          initialThresholdMs: 100,
           useCustomMessages: true,
         }
       );
@@ -453,6 +462,7 @@ describe('FeedbackMiddleware', () => {
       });
 
       await middleware.beforeNext(event);
+      await jest.advanceTimersByTimeAsync(100);
 
       const progressEvent = publishedEvents[0].event;
       const promptAnnotation = progressEvent.annotations?.find((a) => a.kind === 'prompt');
@@ -463,13 +473,13 @@ describe('FeedbackMiddleware', () => {
     });
 
     it('should include progress_context annotation', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
         },
         {
-          initialThresholdMs: 0,
+          initialThresholdMs: 100,
           useCustomMessages: true,
         }
       );
@@ -481,6 +491,7 @@ describe('FeedbackMiddleware', () => {
       });
 
       await middleware.beforeNext(event);
+      await jest.advanceTimersByTimeAsync(100);
 
       const progressEvent = publishedEvents[0].event;
       const contextAnnotation = progressEvent.annotations?.find(
@@ -502,13 +513,13 @@ describe('FeedbackMiddleware', () => {
     it('should support custom prompt template', async () => {
       const customTemplate = 'Custom prompt: {operation} - {originalMessage}';
 
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
         },
         {
-          initialThresholdMs: 0,
+          initialThresholdMs: 100,
           useCustomMessages: true,
           promptTemplate: customTemplate,
         }
@@ -524,6 +535,7 @@ describe('FeedbackMiddleware', () => {
       });
 
       await middleware.beforeNext(event);
+      await jest.advanceTimersByTimeAsync(100);
 
       const progressEvent = publishedEvents[0].event;
       const promptAnnotation = progressEvent.annotations?.find((a) => a.kind === 'prompt');
@@ -590,7 +602,7 @@ describe('FeedbackMiddleware', () => {
     });
 
     it('should track elapsed time', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
@@ -606,11 +618,13 @@ describe('FeedbackMiddleware', () => {
 
       await middleware.beforeNext(event);
 
-      // Wait a bit
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Advance fake timers by 50ms
+      await jest.advanceTimersByTimeAsync(50);
 
       const stats = middleware.getStats();
-      expect(stats.operations[0].elapsedMs).toBeGreaterThanOrEqual(45); // Allow small timing tolerance
+      // Allow timing tolerance (fake timers vs real Date.now() can have 1-2ms variance)
+      expect(stats.operations[0].elapsedMs).toBeGreaterThanOrEqual(48);
+      expect(stats.operations[0].elapsedMs).toBeLessThanOrEqual(52);
     });
   });
 
@@ -670,15 +684,15 @@ describe('FeedbackMiddleware', () => {
 
   describe('Progress Stages', () => {
     it('should progress through stages: initial → update → timeout', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
         },
         {
-          initialThresholdMs: 0,
-          updateIntervalMs: 10, // Ensure initial is sent first
-          timeoutThresholdMs: 100, // Timeout after 100ms
+          initialThresholdMs: 100,
+          updateIntervalMs: 200,
+          timeoutThresholdMs: 500,
           useCustomMessages: false,
         }
       );
@@ -687,20 +701,20 @@ describe('FeedbackMiddleware', () => {
         annotations: [createOperationContext('image_generation')],
       });
 
-      // Initial
       await middleware.beforeNext(event);
+
+      // Advance to initial threshold (100ms)
+      await jest.advanceTimersByTimeAsync(100);
+      expect(publishedEvents).toHaveLength(1);
       expect(publishedEvents[0].event.candidates![0].text).toBe('🤔 Thinking about your request...');
 
-      // Wait for update interval
-      await new Promise((resolve) => setTimeout(resolve, 15));
-
-      // Update
-      await middleware.beforeNext(event);
+      // Advance to first update (200ms after initial)
+      await jest.advanceTimersByTimeAsync(200);
+      expect(publishedEvents).toHaveLength(2);
       expect(publishedEvents[1].event.candidates![0].text).toBe('⏳ Still working on it...');
 
-      // Wait for timeout threshold
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      await middleware.beforeNext(event);
+      // Advance to timeout (remaining time: 500ms total - 100ms initial = 400ms, already advanced 300ms, need 200ms more)
+      await jest.advanceTimersByTimeAsync(200);
 
       const timeoutMsg = publishedEvents.find((p) =>
         p.event.candidates?.[0]?.text?.includes('longer than expected')
@@ -709,13 +723,13 @@ describe('FeedbackMiddleware', () => {
     });
 
     it('should not send duplicate messages for same stage', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
         },
         {
-          initialThresholdMs: 0,
+          initialThresholdMs: 100,
           updateIntervalMs: 10000, // Long interval
           useCustomMessages: false,
         }
@@ -725,11 +739,13 @@ describe('FeedbackMiddleware', () => {
         annotations: [createOperationContext('image_generation')],
       });
 
-      // Initial
       await middleware.beforeNext(event);
+
+      // Advance to initial threshold
+      await jest.advanceTimersByTimeAsync(100);
       expect(publishedEvents).toHaveLength(1);
 
-      // Immediate second call - should not send another message
+      // Second call to beforeNext should not send another message (timers already running)
       await middleware.beforeNext(event);
       expect(publishedEvents).toHaveLength(1); // Still 1
     });
@@ -738,7 +754,7 @@ describe('FeedbackMiddleware', () => {
   // Sprint 21: Tests for annotation timestamp extraction fix
   describe('Annotation Timestamp Extraction (Sprint 21)', () => {
     it('should use startedAt from annotation (number format)', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
@@ -768,13 +784,15 @@ describe('FeedbackMiddleware', () => {
 
       await middleware.beforeNext(event);
 
-      // Should send progress message because 3000ms > 1000ms threshold
-      expect(publishedEvents).toHaveLength(1);
-      expect(publishedEvents[0].topic).toBe('internal.egress.v1');
+      // Operation is completing (beforeNext called) - should NOT send progress message
+      await jest.advanceTimersByTimeAsync(0);
+
+      // Should NOT send any progress message (operation already finishing)
+      expect(publishedEvents).toHaveLength(0);
     });
 
     it('should use startedAt from annotation (ISO string format)', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
@@ -804,12 +822,15 @@ describe('FeedbackMiddleware', () => {
 
       await middleware.beforeNext(event);
 
-      // Should send progress message
-      expect(publishedEvents).toHaveLength(1);
+      // Operation is completing (beforeNext called) - should NOT send progress message
+      await jest.advanceTimersByTimeAsync(0);
+
+      // Should NOT send any progress message (operation already finishing)
+      expect(publishedEvents).toHaveLength(0);
     });
 
     it('should fallback to current time when no startedAt in annotation', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
@@ -838,12 +859,15 @@ describe('FeedbackMiddleware', () => {
 
       await middleware.beforeNext(event);
 
-      // Should NOT send progress message because elapsed time ~0ms
+      // Advance timers to check if message would be sent
+      await jest.advanceTimersByTimeAsync(0);
+
+      // Should NOT send progress message because elapsed time ~0ms (timer scheduled for 1000ms in future)
       expect(publishedEvents).toHaveLength(0);
     });
 
     it('should fallback to current time when startedAt is invalid', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
@@ -872,12 +896,15 @@ describe('FeedbackMiddleware', () => {
 
       await middleware.beforeNext(event);
 
-      // Should NOT send progress message (fallback to current time)
+      // Advance timers to check if message would be sent
+      await jest.advanceTimersByTimeAsync(0);
+
+      // Should NOT send progress message (fallback to current time, timer scheduled for 1000ms in future)
       expect(publishedEvents).toHaveLength(0);
     });
 
     it('should NOT send progress when annotation shows elapsed < threshold', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
@@ -907,12 +934,15 @@ describe('FeedbackMiddleware', () => {
 
       await middleware.beforeNext(event);
 
-      // Should NOT send progress message (500ms < 2000ms)
+      // Advance by a small amount - should not send yet (needs 1500ms more)
+      await jest.advanceTimersByTimeAsync(100);
+
+      // Should NOT send progress message (500ms + 100ms = 600ms < 2000ms)
       expect(publishedEvents).toHaveLength(0);
     });
 
-    it('should send progress when annotation shows elapsed > threshold', async () => {
-      const middleware = new FeedbackMiddleware(
+    it('should skip progress when annotation shows elapsed > threshold', async () => {
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
@@ -942,24 +972,26 @@ describe('FeedbackMiddleware', () => {
 
       await middleware.beforeNext(event);
 
-      // Should send progress message (5000ms > 1000ms)
-      expect(publishedEvents).toHaveLength(1);
-      expect(publishedEvents[0].event.candidates![0].text).toContain('Thinking');
+      // Operation is completing (beforeNext called) - should NOT send progress message
+      await jest.advanceTimersByTimeAsync(0);
+
+      // Should NOT send any progress message (operation already finishing)
+      expect(publishedEvents).toHaveLength(0);
     });
 
     it('should calculate elapsed time correctly from annotation', async () => {
-      const middleware = new FeedbackMiddleware(
+      middleware = new FeedbackMiddleware(
         {
           getLogger: () => mockLogger,
           publish: mockPublish,
         },
         {
-          initialThresholdMs: 1000,
+          initialThresholdMs: 5000, // Set threshold higher than elapsed time
           useCustomMessages: false,
         }
       );
 
-      // Create annotation with precise timestamp
+      // Create annotation with precise timestamp (within threshold)
       const exactlyThreeSecondsAgo = Date.now() - 3000;
       const event = createMockEvent({
         annotations: [
@@ -978,6 +1010,9 @@ describe('FeedbackMiddleware', () => {
 
       await middleware.beforeNext(event);
 
+      // Advance to when timer should fire (5000ms threshold - 3000ms already elapsed = 2000ms remaining)
+      await jest.advanceTimersByTimeAsync(2000);
+
       // Verify progress message sent
       expect(publishedEvents).toHaveLength(1);
 
@@ -990,9 +1025,9 @@ describe('FeedbackMiddleware', () => {
 
       if (progressAnnotation?.value) {
         const progressData = JSON.parse(progressAnnotation.value);
-        // Elapsed time should be approximately 3000ms (with small tolerance for test execution time)
-        expect(progressData.elapsedMs).toBeGreaterThanOrEqual(2900);
-        expect(progressData.elapsedMs).toBeLessThanOrEqual(3100);
+        // Elapsed time should be approximately 5000ms (3000ms already + 2000ms advance)
+        expect(progressData.elapsedMs).toBeGreaterThanOrEqual(4900);
+        expect(progressData.elapsedMs).toBeLessThanOrEqual(5100);
       }
     });
   });
