@@ -1,0 +1,145 @@
+
+> bitbrat-platform@0.36.2 test
+> jest src/common/mcp/__tests__/client-manager-notifications.test.ts
+
+FAIL src/common/mcp/__tests__/client-manager-notifications.test.ts
+  McpClientManager Notification Handling
+    setupNotificationHandlers
+      ✕ registers handlers for all three notification types (3 ms)
+      ✓ logs when handlers are successfully registered (1 ms)
+      ✓ handles errors during handler registration gracefully
+    Notification-triggered re-discovery
+      ✕ schedules re-discovery when ToolListChangedNotification is received (1 ms)
+      ✕ debounces rapid successive notifications (1 ms)
+      ✕ respects MCP_NOTIFICATION_DEBOUNCE_MS environment variable
+      ✕ re-discovers all types (tools, resources, prompts) on any notification
+      ✕ logs notification receipt and refresh actions
+      ✕ logs errors during re-discovery without throwing
+    Cleanup on shutdown
+      ✕ clears pending notification debounce timers
+
+  ● McpClientManager Notification Handling › setupNotificationHandlers › registers handlers for all three notification types
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: {"def": {"shape": {"method": {"def": {"type": "literal", "values": ["notifications/tools/list_changed"]}, "type": "literal", "values": Set {"notifications/tools/list_changed"}}, "params": {"def": {"innerType": {"clone": [Function bound clone], "def": {"shape": {"_meta": {"def": {"innerType": [ZodObject], "type": "optional"}, "type": "optional", "unwrap": [Function anonymous]}}, "type": "object"}, "extend": [Function bound extend], "loose": [Function bound loose], "merge": [Function bound merge], "optional": [Function bound optional], "type": "object"}, "type": "optional"}, "type": "optional", "unwrap": [Function anonymous]}}, "type": "object"}, "type": "object"}, Any<Function>
+    Received
+           1: "notifications/tools/list_changed", [Function anonymous]
+           2: "notifications/resources/list_changed", [Function anonymous]
+           3: "notifications/prompts/list_changed", [Function anonymous]
+
+    Number of calls: 3
+
+      86 |       // Verify handlers were registered
+      87 |       expect(mockClient.setNotificationHandler).toHaveBeenCalledTimes(3);
+    > 88 |       expect(mockClient.setNotificationHandler).toHaveBeenCalledWith(
+         |                                                 ^
+      89 |         /* @mcp-codemod-error ToolListChangedNotificationSchema is no longer the setRequestHandler/setNotificationHandler key in v2 — handlers register by the method string 'notifications/tools/list_changed'. Update registration assertions/lookups (e.g. against a setRequestHandler mock) to compare against 'notifications/tools/list_changed'. */
+      90 |         ToolListChangedNotificationSchema,
+      91 |         expect.any(Function)
+
+      at Object.<anonymous> (src/common/mcp/__tests__/client-manager-notifications.test.ts:88:49)
+
+  ● McpClientManager Notification Handling › Notification-triggered re-discovery › schedules re-discovery when ToolListChangedNotification is received
+
+    TypeError: Cannot read properties of undefined (reading '1')
+
+      175 |       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
+      176 |         (call: any) => call[0] === ToolListChangedNotificationSchema
+    > 177 |       )[1];
+          |        ^
+      178 |
+      179 |       // Spy on discoverTools
+      180 |       const discoverToolsSpy = jest.spyOn(manager as any, 'discoverTools');
+
+      at Object.<anonymous> (src/common/mcp/__tests__/client-manager-notifications.test.ts:177:8)
+
+  ● McpClientManager Notification Handling › Notification-triggered re-discovery › debounces rapid successive notifications
+
+    TypeError: Cannot read properties of undefined (reading '1')
+
+      216 |       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
+      217 |         (call: any) => call[0] === ToolListChangedNotificationSchema
+    > 218 |       )[1];
+          |        ^
+      219 |
+      220 |       const discoverToolsSpy = jest.spyOn(manager as any, 'discoverTools').mockResolvedValue(undefined);
+      221 |
+
+      at Object.<anonymous> (src/common/mcp/__tests__/client-manager-notifications.test.ts:218:8)
+
+  ● McpClientManager Notification Handling › Notification-triggered re-discovery › respects MCP_NOTIFICATION_DEBOUNCE_MS environment variable
+
+    TypeError: Cannot read properties of undefined (reading '1')
+
+      257 |       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
+      258 |         (call: any) => call[0] === ToolListChangedNotificationSchema
+    > 259 |       )[1];
+          |        ^
+      260 |
+      261 |       const discoverToolsSpy = jest.spyOn(manager as any, 'discoverTools').mockResolvedValue(undefined);
+      262 |
+
+      at Object.<anonymous> (src/common/mcp/__tests__/client-manager-notifications.test.ts:259:8)
+
+  ● McpClientManager Notification Handling › Notification-triggered re-discovery › re-discovers all types (tools, resources, prompts) on any notification
+
+    TypeError: Cannot read properties of undefined (reading '1')
+
+      295 |       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
+      296 |         (call: any) => call[0] === ToolListChangedNotificationSchema
+    > 297 |       )[1];
+          |        ^
+      298 |
+      299 |       const discoverToolsSpy = jest.spyOn(manager as any, 'discoverTools').mockResolvedValue(undefined);
+      300 |       const discoverResourcesSpy = jest.spyOn(manager as any, 'discoverResources').mockResolvedValue(undefined);
+
+      at Object.<anonymous> (src/common/mcp/__tests__/client-manager-notifications.test.ts:297:8)
+
+  ● McpClientManager Notification Handling › Notification-triggered re-discovery › logs notification receipt and refresh actions
+
+    TypeError: Cannot read properties of undefined (reading '1')
+
+      342 |       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
+      343 |         (call: any) => call[0] === ToolListChangedNotificationSchema
+    > 344 |       )[1];
+          |        ^
+      345 |
+      346 |       jest.spyOn(manager as any, 'discoverTools').mockResolvedValue(undefined);
+      347 |       jest.spyOn(manager as any, 'discoverResources').mockResolvedValue(undefined);
+
+      at Object.<anonymous> (src/common/mcp/__tests__/client-manager-notifications.test.ts:344:8)
+
+  ● McpClientManager Notification Handling › Notification-triggered re-discovery › logs errors during re-discovery without throwing
+
+    TypeError: Cannot read properties of undefined (reading '1')
+
+      405 |       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
+      406 |         (call: any) => call[0] === ToolListChangedNotificationSchema
+    > 407 |       )[1];
+          |        ^
+      408 |
+      409 |       // Make discoverTools throw an error
+      410 |       jest.spyOn(manager as any, 'discoverTools').mockRejectedValue(new Error('Discovery failed'));
+
+      at Object.<anonymous> (src/common/mcp/__tests__/client-manager-notifications.test.ts:407:8)
+
+  ● McpClientManager Notification Handling › Cleanup on shutdown › clears pending notification debounce timers
+
+    TypeError: Cannot read properties of undefined (reading '1')
+
+      453 |       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
+      454 |         (call: any) => call[0] === ToolListChangedNotificationSchema
+    > 455 |       )[1];
+          |        ^
+      456 |
+      457 |       const discoverToolsSpy = jest.spyOn(manager as any, 'discoverTools').mockResolvedValue(undefined);
+      458 |
+
+      at Object.<anonymous> (src/common/mcp/__tests__/client-manager-notifications.test.ts:455:8)
+
+Test Suites: 1 failed, 1 total
+Tests:       8 failed, 2 passed, 10 total
+Snapshots:   0 total
+Time:        2.889 s, estimated 8 s
+Ran all test suites matching /src\/common\/mcp\/__tests__\/client-manager-notifications.test.ts/i.

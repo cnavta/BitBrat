@@ -86,18 +86,15 @@ describe('McpClientManager Notification Handling', () => {
       // Verify handlers were registered
       expect(mockClient.setNotificationHandler).toHaveBeenCalledTimes(3);
       expect(mockClient.setNotificationHandler).toHaveBeenCalledWith(
-        /* @mcp-codemod-error ToolListChangedNotificationSchema is no longer the setRequestHandler/setNotificationHandler key in v2 — handlers register by the method string 'notifications/tools/list_changed'. Update registration assertions/lookups (e.g. against a setRequestHandler mock) to compare against 'notifications/tools/list_changed'. */
-        ToolListChangedNotificationSchema,
+        'notifications/tools/list_changed',
         expect.any(Function)
       );
       expect(mockClient.setNotificationHandler).toHaveBeenCalledWith(
-        /* @mcp-codemod-error ResourceListChangedNotificationSchema is no longer the setRequestHandler/setNotificationHandler key in v2 — handlers register by the method string 'notifications/resources/list_changed'. Update registration assertions/lookups (e.g. against a setRequestHandler mock) to compare against 'notifications/resources/list_changed'. */
-        ResourceListChangedNotificationSchema,
+        'notifications/resources/list_changed',
         expect.any(Function)
       );
       expect(mockClient.setNotificationHandler).toHaveBeenCalledWith(
-        /* @mcp-codemod-error PromptListChangedNotificationSchema is no longer the setRequestHandler/setNotificationHandler key in v2 — handlers register by the method string 'notifications/prompts/list_changed'. Update registration assertions/lookups (e.g. against a setRequestHandler mock) to compare against 'notifications/prompts/list_changed'. */
-        PromptListChangedNotificationSchema,
+        'notifications/prompts/list_changed',
         expect.any(Function)
       );
     });
@@ -173,7 +170,7 @@ describe('McpClientManager Notification Handling', () => {
 
       // Get the handler that was registered
       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
-        (call: any) => call[0] === ToolListChangedNotificationSchema
+        (call: any) => call[0] === 'notifications/tools/list_changed'
       )[1];
 
       // Spy on discoverTools
@@ -214,7 +211,7 @@ describe('McpClientManager Notification Handling', () => {
       (manager as any).setupNotificationHandlers(mockClient, config.name, []);
 
       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
-        (call: any) => call[0] === ToolListChangedNotificationSchema
+        (call: any) => call[0] === 'notifications/tools/list_changed'
       )[1];
 
       const discoverToolsSpy = jest.spyOn(manager as any, 'discoverTools').mockResolvedValue(undefined);
@@ -255,7 +252,7 @@ describe('McpClientManager Notification Handling', () => {
       (manager as any).setupNotificationHandlers(mockClient, config.name, []);
 
       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
-        (call: any) => call[0] === ToolListChangedNotificationSchema
+        (call: any) => call[0] === 'notifications/tools/list_changed'
       )[1];
 
       const discoverToolsSpy = jest.spyOn(manager as any, 'discoverTools').mockResolvedValue(undefined);
@@ -293,7 +290,7 @@ describe('McpClientManager Notification Handling', () => {
       (manager as any).setupNotificationHandlers(mockClient, config.name, []);
 
       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
-        (call: any) => call[0] === ToolListChangedNotificationSchema
+        (call: any) => call[0] === 'notifications/tools/list_changed'
       )[1];
 
       const discoverToolsSpy = jest.spyOn(manager as any, 'discoverTools').mockResolvedValue(undefined);
@@ -340,7 +337,7 @@ describe('McpClientManager Notification Handling', () => {
       (manager as any).setupNotificationHandlers(mockClient, config.name, []);
 
       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
-        (call: any) => call[0] === ToolListChangedNotificationSchema
+        (call: any) => call[0] === 'notifications/tools/list_changed'
       )[1];
 
       jest.spyOn(manager as any, 'discoverTools').mockResolvedValue(undefined);
@@ -403,7 +400,7 @@ describe('McpClientManager Notification Handling', () => {
       (manager as any).setupNotificationHandlers(mockClient, config.name, []);
 
       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
-        (call: any) => call[0] === ToolListChangedNotificationSchema
+        (call: any) => call[0] === 'notifications/tools/list_changed'
       )[1];
 
       // Make discoverTools throw an error
@@ -451,7 +448,7 @@ describe('McpClientManager Notification Handling', () => {
       (manager as any).setupNotificationHandlers(mockClient, config.name, []);
 
       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
-        (call: any) => call[0] === ToolListChangedNotificationSchema
+        (call: any) => call[0] === 'notifications/tools/list_changed'
       )[1];
 
       const discoverToolsSpy = jest.spyOn(manager as any, 'discoverTools').mockResolvedValue(undefined);

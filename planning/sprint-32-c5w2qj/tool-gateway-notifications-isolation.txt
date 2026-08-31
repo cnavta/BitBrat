@@ -1,0 +1,1363 @@
+
+> bitbrat-platform@0.36.2 test
+> jest tests/apps/tool-gateway-notifications.spec.ts
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.503Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.529Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.530Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.531Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.531Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.532Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.532Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.533Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.533Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.534Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.534Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.535Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.535Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.536Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.536Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.537Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.545Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.545Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/tools"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.546Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/v1/tools/:id"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.547Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/resources"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.558Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.platform_tools.registered","tools":["agent.sendProgressUpdate"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.559Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.notifications.broadcasting","sessionCount":2,"types":["tools","resources","prompts"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.560Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"tool_gateway.notifications.sent","sessionId":"llm-bot-1-test"}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+          at async Promise.allSettled (index 0)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.561Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"tool_gateway.notifications.sent","sessionId":"query-analyzer-1-test"}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+          at async Promise.allSettled (index 1)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.561Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.notifications.broadcast_complete","sessionCount":2,"successCount":2,"errorCount":0}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.561Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"test"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.561Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.562Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.563Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.563Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.564Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.564Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.565Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.565Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.565Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.566Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.567Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.567Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.568Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.568Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.568Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.569Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.569Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.573Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.573Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/tools"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.573Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/v1/tools/:id"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.574Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/resources"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.574Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.platform_tools.registered","tools":["agent.sendProgressUpdate"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.575Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"tool_gateway.notifications.no_sessions","message":"No active sessions to notify"}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.575Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"test"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.576Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.576Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.576Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.577Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.577Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.578Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.578Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.578Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.579Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.579Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.580Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.581Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.581Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.582Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.582Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.583Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.583Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.586Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.586Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/tools"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.587Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/v1/tools/:id"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.587Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/resources"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.588Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.platform_tools.registered","tools":["agent.sendProgressUpdate"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.589Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.notifications.broadcasting","sessionCount":2,"types":["tools","resources","prompts"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.warn
+    {"ts":"2026-08-30T22:15:45.590Z","service":"tool-gateway","level":"warn","severity":"WARNING","msg":"tool_gateway.notifications.send_failed","sessionId":"llm-bot-1-test","error":"Connection closed","stack":"Error: Connection closed\n    at Object.<anonymous> (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/tests/apps/tool-gateway-notifications.spec.ts:101:15)\n    at /Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-mock/build/index.js:397:39\n    at Object.<anonymous> (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-mock/build/index.js:404:13)\n    at Object.mockConstructor [as notification] (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-mock/build/index.js:148:19)\n    at /Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/src/apps/tool-gateway.ts:780:18\n    at Array.map (<anonymous>)\n    at ToolGatewayServer.broadcastListChangedNotifications (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/src/apps/tool-gateway.ts:776:43)\n    at /Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/tests/apps/tool-gateway-notifications.spec.ts:106:25\n    at Object.<anonymous> (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/expect/build/toThrowMatchers.js:74:11)\n    at Object.throwingMatcher [as toThrow] (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/expect/build/index.js:320:21)\n    at Object.<anonymous> (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/tests/apps/tool-gateway-notifications.spec.ts:107:14)\n    at Promise.then.completed (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/utils.js:298:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/utils.js:231:10)\n    at _callCircusTest (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/run.js:316:40)\n    at _runTest (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/run.js:252:3)\n    at _runTestsForDescribeBlock (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/run.js:126:9)\n    at _runTestsForDescribeBlock (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/run.js:121:9)\n    at _runTestsForDescribeBlock (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/run.js:121:9)\n    at run (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/run.js:71:3)\n    at runAndTransformResultsToJestFormat (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)\n    at jestAdapter (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)\n    at runTestInternal (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-runner/build/runTest.js:367:16)\n    at runTest (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-runner/build/runTest.js:444:34)"}
+
+      178 |   warn(msg: string, context?: Record<string, unknown>) {
+      179 |     if (!this.shouldLog('warn')) return;
+    > 180 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      181 |   }
+      182 |
+      183 |   info(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.warn (src/common/logging.ts:180:13)
+      at src/apps/tool-gateway.ts:809:18
+          at Array.map (<anonymous>)
+      at ToolGatewayServer.broadcastListChangedNotifications (src/apps/tool-gateway.ts:776:43)
+      at tests/apps/tool-gateway-notifications.spec.ts:106:25
+      at Object.<anonymous> (node_modules/expect/build/toThrowMatchers.js:74:11)
+      at Object.throwingMatcher [as toThrow] (node_modules/expect/build/index.js:320:21)
+      at Object.<anonymous> (tests/apps/tool-gateway-notifications.spec.ts:107:14)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.592Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"tool_gateway.notifications.sent","sessionId":"query-analyzer-1-test"}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+          at async Promise.allSettled (index 1)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.592Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.notifications.broadcast_complete","sessionCount":2,"successCount":1,"errorCount":1}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.592Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"test"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.592Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.593Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.593Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.594Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.594Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.594Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.595Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.595Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.596Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.596Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.597Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.597Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.597Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.598Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.598Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.599Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.599Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.601Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.601Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/tools"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.602Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/v1/tools/:id"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.603Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/resources"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.604Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.platform_tools.registered","tools":["agent.sendProgressUpdate"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.605Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.notifications.broadcasting","sessionCount":2,"types":["tools","resources","prompts"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.607Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"tool_gateway.notifications.sent","sessionId":"llm-bot-1-test"}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+          at async Promise.allSettled (index 0)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.607Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"tool_gateway.notifications.sent","sessionId":"query-analyzer-1-test"}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+          at async Promise.allSettled (index 1)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.607Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.notifications.broadcast_complete","sessionCount":2,"successCount":2,"errorCount":0}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.608Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"test"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.608Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.609Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.609Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.609Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.610Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.610Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.611Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.611Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.611Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.612Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.612Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.613Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.613Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.613Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.618Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.619Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.619Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.621Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.622Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/tools"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.622Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/v1/tools/:id"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.622Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/resources"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.623Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.platform_tools.registered","tools":["agent.sendProgressUpdate"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.623Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.notifications.broadcasting","sessionCount":2,"types":["tools","resources","prompts"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.warn
+    {"ts":"2026-08-30T22:15:45.624Z","service":"tool-gateway","level":"warn","severity":"WARNING","msg":"tool_gateway.notifications.send_failed","sessionId":"llm-bot-1-test","error":"Send failed","stack":"Error: Send failed\n    at Object.<anonymous> (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/tests/apps/tool-gateway-notifications.spec.ts:144:15)\n    at /Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-mock/build/index.js:397:39\n    at Object.<anonymous> (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-mock/build/index.js:404:13)\n    at Object.mockConstructor [as notification] (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-mock/build/index.js:148:19)\n    at /Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/src/apps/tool-gateway.ts:780:18\n    at Array.map (<anonymous>)\n    at ToolGatewayServer.broadcastListChangedNotifications (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/src/apps/tool-gateway.ts:776:43)\n    at Object.<anonymous> (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/tests/apps/tool-gateway-notifications.spec.ts:147:23)\n    at Promise.then.completed (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/utils.js:298:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/utils.js:231:10)\n    at _callCircusTest (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/run.js:316:40)\n    at _runTest (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/run.js:252:3)\n    at _runTestsForDescribeBlock (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/run.js:126:9)\n    at _runTestsForDescribeBlock (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/run.js:121:9)\n    at _runTestsForDescribeBlock (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/run.js:121:9)\n    at run (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/run.js:71:3)\n    at runAndTransformResultsToJestFormat (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)\n    at jestAdapter (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)\n    at runTestInternal (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-runner/build/runTest.js:367:16)\n    at runTest (/Users/christophernavta/IdeaProjects/BitBratPlatform/.worktrees/sprint-32-c5w2qj/node_modules/jest-runner/build/runTest.js:444:34)"}
+
+      178 |   warn(msg: string, context?: Record<string, unknown>) {
+      179 |     if (!this.shouldLog('warn')) return;
+    > 180 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      181 |   }
+      182 |
+      183 |   info(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.warn (src/common/logging.ts:180:13)
+      at src/apps/tool-gateway.ts:809:18
+          at Array.map (<anonymous>)
+      at ToolGatewayServer.broadcastListChangedNotifications (src/apps/tool-gateway.ts:776:43)
+      at Object.<anonymous> (tests/apps/tool-gateway-notifications.spec.ts:147:23)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.625Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"tool_gateway.notifications.sent","sessionId":"query-analyzer-1-test"}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+          at async Promise.allSettled (index 1)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.625Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.notifications.broadcast_complete","sessionCount":2,"successCount":1,"errorCount":1}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.625Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"test"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.625Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.625Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.626Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.626Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.627Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.627Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.627Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.628Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.629Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.629Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.630Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.630Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.631Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.631Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.632Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.633Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.633Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.635Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.636Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/tools"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.636Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/v1/tools/:id"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.636Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/resources"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.637Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.platform_tools.registered","tools":["agent.sendProgressUpdate"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.637Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.registration.received","name":"test-bit","url":"http://test-bit:3000/sse","correlationId":"test-correlation-id"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.638Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.registration.upserted","name":"test-bit","correlationId":"test-correlation-id"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.638Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"test"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.638Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.639Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.640Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.640Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.640Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.641Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.641Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.642Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.642Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.642Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.643Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.643Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.644Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.644Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.644Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.645Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.645Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.647Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.647Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/tools"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.648Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/v1/tools/:id"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.648Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/resources"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.649Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.platform_tools.registered","tools":["agent.sendProgressUpdate"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.652Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.session.registered","sessionId":"test-agent-1788128145651-shc60q5","agentName":"test-agent","totalSessions":3,"totalContexts":1}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.652Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"test"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.652Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.653Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.653Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.654Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.654Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.654Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.655Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.655Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.655Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.656Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.656Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.657Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.657Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.657Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.658Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.659Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.659Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.661Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.662Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/tools"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.662Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/v1/tools/:id"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.663Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/resources"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.663Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.platform_tools.registered","tools":["agent.sendProgressUpdate"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.664Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"test"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.664Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.665Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.666Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.666Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.667Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.668Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.668Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.668Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.669Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.669Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.670Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.670Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.671Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.671Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.672Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.672Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.672Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.675Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.675Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/tools"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.675Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/v1/tools/:id"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.676Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/resources"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.676Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.platform_tools.registered","tools":["agent.sendProgressUpdate"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.679Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.session.registered","sessionId":"llm-bot-1788128145678-eujw3vw","agentName":"llm-bot","totalSessions":1,"totalContexts":1}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.681Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.session.registered","sessionId":"llm-bot-1788128145681-ga6i77e","agentName":"llm-bot","totalSessions":2,"totalContexts":2}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.681Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"test"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.681Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.682Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.683Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.683Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.684Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.info"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.684Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.685Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.readiness"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.685Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.685Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.config.describe"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.686Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.get"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.686Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.flags.set"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.687Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.log.level"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.687Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.drain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.688Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.shutdown"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.688Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"bit.restart"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.689Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"mcp_server.routes_initialized","endpoint":"/mcp","exposure":"platform+domain"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.689Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"FeedbackMiddleware initialized","config":{"initialThresholdMs":2000,"updateIntervalMs":5000,"timeoutThresholdMs":30000,"enabled":true,"useCustomMessages":false,"promptTemplate":"Generate a brief, encouraging progress message (max 100 chars) for the user.\n\nOriginal request: {originalMessage}\nOperation: {operation}\nElapsed time: {elapsedMs}ms\nStage: {stage}\n\nRequirements:\n- Be concise and friendly\n- Reference the user's original intent if possible\n- Use a relevant emoji\n- Don't mention technical details\n- Keep it under 100 characters"}}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.691Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/health"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.692Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/tools"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.692Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/v1/tools/:id"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.692Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/v1/resources"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.693Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.platform_tools.registered","tools":["agent.sendProgressUpdate"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.693Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.notifications.broadcasting","sessionCount":2,"types":["tools","resources","prompts"]}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.694Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"tool_gateway.notifications.sent","sessionId":"llm-bot-1-test"}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+          at async Promise.allSettled (index 0)
+
+  console.debug
+    {"ts":"2026-08-30T22:15:45.694Z","service":"tool-gateway","level":"debug","severity":"DEBUG","msg":"tool_gateway.notifications.sent","sessionId":"query-analyzer-1-test"}
+
+      at Logger.debug (src/common/logging.ts:195:13)
+          at async Promise.allSettled (index 1)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.694Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"tool_gateway.notifications.broadcast_complete","sessionCount":2,"successCount":2,"errorCount":0}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.694Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"test"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+  console.log
+    {"ts":"2026-08-30T22:15:45.694Z","service":"tool-gateway","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:185:13)
+
+FAIL tests/apps/tool-gateway-notifications.spec.ts
+  Tool Gateway Notification Broadcasting
+    broadcastListChangedNotifications
+      ✓ broadcasts all three notification types to all connected sessions (63 ms)
+      ✓ handles empty session list gracefully (14 ms)
+      ✓ continues broadcasting to other sessions if one fails (16 ms)
+      ✕ logs broadcast activity (16 ms)
+      ✓ logs individual session send failures (17 ms)
+    Registration event handling triggers notifications
+      ✓ broadcasts notifications when a new Bit registers (14 ms)
+    Session tracking
+      ✓ tracks sessions when getMcpServerForConnection is called (13 ms)
+      ✓ clears all sessions on server close (11 ms)
+      ✓ generates unique session IDs for each connection (18 ms)
+    Integration with RegistryWatcher callbacks
+      ✓ verifies broadcastListChangedNotifications method exists and is callable (12 ms)
+
+  ● Tool Gateway Notification Broadcasting › broadcastListChangedNotifications › logs broadcast activity
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: "tool_gateway.notifications.broadcast_complete", ObjectContaining {"errorCount": 0, "sessionCount": 2, "successCount": 2}
+    Received: "tool_gateway.notifications.broadcasting", {"sessionCount": 2, "types": ["tools", "resources", "prompts"]}
+
+    Number of calls: 1
+
+      125 |       );
+      126 |
+    > 127 |       expect(loggerSpy).toHaveBeenCalledWith(
+          |                         ^
+      128 |         'tool_gateway.notifications.broadcast_complete',
+      129 |         expect.objectContaining({
+      130 |           sessionCount: 2,
+
+      at Object.<anonymous> (tests/apps/tool-gateway-notifications.spec.ts:127:25)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 9 passed, 10 total
+Snapshots:   0 total
+Time:        3.164 s, estimated 9 s
+Ran all test suites matching /tests\/apps\/tool-gateway-notifications.spec.ts/i.
+Jest did not exit one second after the test run has completed.
+
+'This usually means that there are asynchronous operations that weren't stopped in your tests. Consider running Jest with `--detectOpenHandles` to troubleshoot this issue.
