@@ -1,0 +1,11 @@
+id: sprint-35-2ib164
+title: Progress Middleware Event Structure Fix
+goal: Fix progress middleware to create chat.message.v1 events with candidates
+  array instead of internal.egress.v1 with message field, ensuring progress
+  messages are properly routed to egress
+owner: navta3
+createdAt: 2026-08-31T16:45:37.729Z
+status: in-progress
+links:
+  branch: feature/sprint-35-2ib164-progress-middleware-event-stru
+notes: Sprint initialized via MCP start-sprint tool

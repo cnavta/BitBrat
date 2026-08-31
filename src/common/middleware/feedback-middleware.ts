@@ -390,6 +390,7 @@ export class FeedbackMiddleware {
     elapsedMs: number
   ): Promise<void> {
     const templateMessage = TEMPLATE_MESSAGES[stage];
+    const timestamp = new Date().toISOString();
 
     this.logger.info('Sending template progress message', {
       correlationId: event.correlationId,
@@ -398,21 +399,36 @@ export class FeedbackMiddleware {
       message: templateMessage,
     });
 
-    // Create simple egress event
+    // Create candidate for progress message
+    const candidate: import('../../types/events').CandidateV1 = {
+      id: `progress-${randomUUID()}`,
+      kind: 'text',
+      source: 'feedback-middleware',
+      createdAt: timestamp,
+      status: 'proposed',
+      priority: 0, // Highest priority - progress messages should be immediate
+      confidence: 1.0, // Template-based, deterministic
+      text: templateMessage,
+      format: 'plain',
+      reason: `Progress feedback: ${stage} (${elapsedMs}ms elapsed)`,
+      metadata: {
+        progressStage: stage,
+        elapsedMs,
+        originalCorrelationId: event.correlationId,
+      },
+    };
+
+    // Create chat message event with candidate
     const progressEvent: InternalEventV2 = {
       v: '2',
       correlationId: randomUUID(),
-      type: 'internal.egress.v1',
+      type: 'chat.message.v1', // Correct event type for chat messages
       ingress: event.ingress,
       identity: event.identity,
       egress: event.egress,
-      message: {
-        id: randomUUID(),
-        role: 'assistant',
-        text: templateMessage,
-      },
+      candidates: [candidate], // Use candidates array, not message field
       payload: {
-        type: 'internal.egress.v1',
+        type: 'chat.message.v1',
       },
       routing: {
         stage: 'response',
@@ -429,7 +445,7 @@ export class FeedbackMiddleware {
           }),
           source: 'feedback-middleware',
           id: randomUUID(),
-          createdAt: new Date().toISOString(),
+          createdAt: timestamp,
         },
       ],
     };
