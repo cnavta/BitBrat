@@ -1006,15 +1006,15 @@ export class Bit {
     }
     (event as any)[NEXT_MARK] = true;
 
-    // Sprint 377: Check for long-running operations and emit progress feedback
+    // Sprint 36: Clean up progress tracking before publishing response
     // IMPORTANT: Do this BEFORE checking routing slip, so it works for both
     // next-step dispatch AND fallback-to-egress paths
     if (this.feedbackMiddleware) {
       try {
-        await this.feedbackMiddleware.beforeNext(event);
+        this.feedbackMiddleware.completeOperation(event.correlationId);
       } catch (feedbackError: any) {
         // Never break routing due to feedback failures
-        this.logger.warn('routing.next.feedback_failed', {
+        this.logger.warn('routing.next.feedback_cleanup_failed', {
           error: feedbackError.message,
           correlationId: event.correlationId,
         });
