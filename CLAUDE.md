@@ -245,7 +245,144 @@ export class SentimentAnalyzer extends Bit {
 
 ---
 
-### 2. Integrating Chat Platforms: IngressConnector + WebhookConnector
+### 2. Implementing Long-Running Operations with Progress Feedback
+
+**Pattern for operations that take >5 seconds and need proactive user updates (Sprint 36).**
+
+When implementing operations that might take significant time (LLM inference, image generation, database queries), use the dual-phase lifecycle pattern to provide proactive progress messages DURING execution, not AFTER.
+
+```typescript
+// src/apps/image-generator.ts
+import { Bit } from '../common/base-server';
+import { InternalEventV2 } from '../types/events';
+import { randomUUID } from 'crypto';
+
+export class ImageGenerator extends Bit {
+  async setup(): Promise<void> {
+    await this.onMessage<InternalEventV2>(
+      'internal.reaction.v1',
+      async (event, attrs, ctx) => {
+        // 1. ADD ANNOTATION: Mark operation as long-running
+        event.annotations.push({
+          kind: 'operation_context',
+          value: {
+            operation: 'image_generation',
+            estimatedDurationMs: 30000,  // Helps middleware tune timers
+            startedAt: new Date().toISOString(),
+          },
+          source: this.name,
+          id: randomUUID(),
+          createdAt: new Date().toISOString(),
+        });
+
+        // 2. START TRACKING: Notify feedback middleware BEFORE processing
+        const feedbackMiddleware = this.getResource<any>('feedbackMiddleware');
+        if (feedbackMiddleware?.startTracking) {
+          try {
+            await feedbackMiddleware.startTracking(event);
+            this.logger.debug('progress_tracking_started', {
+              correlationId: event.correlationId,
+            });
+          } catch (err) {
+            // Fail-open: Progress failures never block operation
+            this.logger.warn('progress_tracking_failed', {
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+        }
+
+        // 3. PERFORM OPERATION: Do the actual work
+        try {
+          const imageUrl = await this.generateImage(event.message?.text || '');
+
+          event.candidates = [{
+            text: `Generated image: ${imageUrl}`,
+            metadata: { imageUrl },
+          }];
+        } catch (err) {
+          this.logger.error('image_generation_failed', { error: err });
+          event.candidates = [{
+            text: 'Sorry, image generation failed.',
+            metadata: { error: true },
+          }];
+        }
+
+        // 4. COMPLETE: Middleware auto-cleans up when next() is called
+        await this.next(event);
+        await ctx.ack();
+      }
+    );
+  }
+
+  private async generateImage(prompt: string): Promise<string> {
+    // Long-running operation (20-40 seconds)
+    // Middleware will send progress messages automatically
+    return await this.dalleClient.generate(prompt);
+  }
+}
+```
+
+**Critical Rules:**
+- ALWAYS add `operation_context` annotation BEFORE calling `startTracking()`
+- ALWAYS call `startTracking()` AFTER annotation, BEFORE processing
+- NEVER call `completeOperation()` manually (automatic on `next()`/`complete()`)
+- ALWAYS fail-open on progress errors (try/catch with warn-level logging)
+- OPTIONAL: Set `estimatedDurationMs` to tune timer intervals
+
+**Annotation Schema:**
+```typescript
+{
+  kind: 'operation_context',
+  value: {
+    operation: string,              // Operation name (for logging)
+    estimatedDurationMs?: number,   // Optional: helps tune timers
+    startedAt: string,              // ISO 8601 timestamp
+  },
+  source: string,                   // Service name
+  id: string,                       // Unique annotation ID
+  createdAt: string,                // ISO 8601 timestamp
+}
+```
+
+**Timeline (35-second operation):**
+```
+T+0s:   Service adds operation_context annotation
+T+0s:   Service calls feedbackMiddleware.startTracking(event)
+T+0s:   Service begins long operation (image generation)
+T+5s:   Middleware sends: "Still working on this..."
+T+15s:  Middleware sends: "This is taking longer than usual..."
+T+30s:  Middleware sends: "Still processing, almost there..."
+T+35s:  Operation completes
+T+35s:  Service calls next(event)
+T+35s:  Middleware auto-calls completeOperation() and stops timers
+T+35s:  User receives final response
+```
+
+**Configuration (architecture.yaml):**
+```yaml
+feedback-middleware:
+  profile: core
+  env:
+    - FEEDBACK_ENABLED=true
+    - FEEDBACK_INITIAL_THRESHOLD_MS=5000    # First progress at 5s
+    - FEEDBACK_UPDATE_INTERVAL_MS=10000     # Updates every 10s
+    - FEEDBACK_TIMEOUT_THRESHOLD_MS=30000   # Escalation at 30s
+```
+
+**When to Use:**
+- ✅ LLM inference (10-60 seconds)
+- ✅ Image generation (20-120 seconds)
+- ✅ Video processing (30-300 seconds)
+- ✅ Complex database queries (5-30 seconds)
+- ❌ Simple enrichment (<2 seconds) - overhead not worth it
+
+**Examples**: `llm-bot` (src/apps/llm-bot-service.ts:216), `image-gen-mcp` (Sprint 36 validation)
+
+**Documentation**: [Feedback Middleware Lifecycle](./documentation/concepts/feedback-middleware-lifecycle.md), [Progress Message Architecture](./planning/sprint-36-9bfh0j/technical-architecture.md)
+
+---
+
+### 3. Integrating Chat Platforms: IngressConnector + WebhookConnector
 
 **Pattern for external chat platforms (Twilio, Slack, Discord).**
 
@@ -305,7 +442,7 @@ export class PlatformConnectorAdapter implements IngressConnector, WebhookConnec
 
 ---
 
-### 3. Building oclif Commands for brat CLI
+### 4. Building oclif Commands for brat CLI
 
 **All new brat commands extend BratCommand (Sprint 359+).**
 
@@ -360,7 +497,7 @@ export default class Doctor extends BratCommand {
 
 ---
 
-### 4. Creating a New Bit (Service)
+### 5. Creating a New Bit (Service)
 
 ```bash
 npm run brat -- bit create <name> \
@@ -426,7 +563,7 @@ Common issues caught by agent-dev validation:
 
 ---
 
-### 5. Configuring Twitch EventSub (Sprint 16)
+### 6. Configuring Twitch EventSub (Sprint 16)
 
 **Pattern for adding/configuring Twitch platform events beyond IRC chat.**
 
@@ -484,7 +621,7 @@ twitch.eventsub.subscriptions.status()
 
 ---
 
-### 6. Deploying Secure Files (Sprint 374)
+### 7. Deploying Secure Files (Sprint 374)
 
 **Pattern for credentials/certificates that must NEVER be committed to git.**
 
@@ -521,7 +658,7 @@ services:
 
 ---
 
-### 7. Automatic Port Assignment (Sprint 379)
+### 8. Automatic Port Assignment (Sprint 379)
 
 PortManager auto-assigns unique ports for all deployments. Discovers ports via `docker ps`, assigns next available from 3001.
 
@@ -537,7 +674,7 @@ Works with remote Docker via SSH. Gracefully degrades on discovery failures.
 
 ---
 
-### 8. Using Claim Check for Event Retrieval (Sprint 24)
+### 9. Using Claim Check for Event Retrieval (Sprint 24)
 
 **Pattern for retrieving persisted events from outside the routing slip.**
 

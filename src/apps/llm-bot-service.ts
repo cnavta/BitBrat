@@ -212,6 +212,23 @@ class LlmBotServer extends Bit {
             correlationId: data.correlationId,
             operation: 'llm_request',
           });
+
+          // Sprint 36: Start progress tracking BEFORE processing
+          const feedbackMiddleware = this.getResource<any>('feedbackMiddleware');
+          if (feedbackMiddleware && typeof feedbackMiddleware.startTracking === 'function') {
+            try {
+              await feedbackMiddleware.startTracking(data);
+              logger.debug('llm_bot.progress_tracking_started', {
+                correlationId: data.correlationId,
+              });
+            } catch (err) {
+              logger.warn('llm_bot.progress_tracking_failed', {
+                correlationId: data.correlationId,
+                error: err instanceof Error ? err.message : String(err),
+              });
+              // Continue processing - progress tracking failure should not block operation
+            }
+          }
         }
 
         // Create a child span for processing for better trace visibility

@@ -192,27 +192,44 @@ export class FeedbackMiddleware {
   }
 
   /**
-   * Process event before it's published via next().
+   * Start tracking an operation immediately when it begins.
    *
-   * Detects operation_context annotation and starts proactive progress tracking.
+   * Call this when operation_context annotation is added, BEFORE processing starts.
+   * Creates tracking state and schedules all progress timers proactively.
    *
-   * @param event - Event being published
+   * **When to call**: Immediately after adding operation_context annotation, BEFORE processing.
+   *
+   * **Effect**: Schedules all progress timers (initial, update, timeout, max lifetime).
+   *
+   * **Idempotency**: Multiple calls for same correlationId are ignored.
+   *
+   * **Fail-open**: Errors logged but don't throw (progress failures don't block operations).
+   *
+   * @example
+   * ```typescript
+   * // In service after adding operation_context annotation
+   * data.annotations.push(operationContextAnnotation);
+   *
+   * const feedbackMiddleware = this.getResource<FeedbackMiddleware>('feedbackMiddleware');
+   * if (feedbackMiddleware) {
+   *   await feedbackMiddleware.startTracking(data);
+   * }
+   *
+   * // Now process event (timers already running)
+   * await processEvent(this, data);
+   * ```
+   *
+   * @param event - Event with operation_context annotation
    */
-  async beforeNext(event: InternalEventV2): Promise<void> {
-    this.logger.debug('FeedbackMiddleware.beforeNext called', {
-      correlationId: event.correlationId,
-      enabled: this.config.enabled,
-    });
-
+  async startTracking(event: InternalEventV2): Promise<void> {
     if (!this.config.enabled) {
       return;
     }
 
-    // Check for operation_context annotation
+    // Extract operation context
     const operationContext = this.extractOperationContext(event);
     if (!operationContext) {
-      // No operation tracking requested
-      this.logger.debug('FeedbackMiddleware.beforeNext: No operation_context annotation found', {
+      this.logger.debug('No operation_context annotation, skipping tracking', {
         correlationId: event.correlationId,
         annotationCount: event.annotations?.length || 0,
         annotationKinds: event.annotations?.map(a => a.kind).join(', ') || 'none',
@@ -220,9 +237,54 @@ export class FeedbackMiddleware {
       return;
     }
 
-    // Start tracking if not already tracked
-    // getOrCreateState will set up timers for new operations
-    this.getOrCreateState(event, operationContext);
+    // Check for duplicate (idempotency)
+    if (this.operationTracking.has(event.correlationId)) {
+      this.logger.debug('Operation already tracked, ignoring duplicate', {
+        correlationId: event.correlationId,
+      });
+      return;
+    }
+
+    // Extract startedAt from annotation or use current time
+    let startedAt: Date;
+    if (operationContext.startedAt) {
+      if (typeof operationContext.startedAt === 'number') {
+        startedAt = new Date(operationContext.startedAt);
+      } else if (typeof operationContext.startedAt === 'string') {
+        startedAt = new Date(operationContext.startedAt);
+      } else if (operationContext.startedAt instanceof Date) {
+        startedAt = operationContext.startedAt;
+      } else {
+        startedAt = new Date();
+        this.logger.warn('Invalid startedAt format in operation_context', {
+          correlationId: event.correlationId,
+          startedAtType: typeof operationContext.startedAt,
+        });
+      }
+    } else {
+      startedAt = new Date();
+    }
+
+    // Create tracking state
+    const state: OperationState = {
+      correlationId: event.correlationId,
+      startedAt,
+      stage: 'initial',
+      operationContext,
+      originalMessage: event.message?.text || '',
+      sourceEvent: event,
+    };
+
+    this.operationTracking.set(event.correlationId, state);
+
+    this.logger.debug('Operation tracking started proactively', {
+      correlationId: event.correlationId,
+      operation: operationContext.operation,
+      startedAt: startedAt.toISOString(),
+    });
+
+    // Schedule all timers immediately (operation is fresh)
+    this.scheduleTimers(state);
   }
 
   /**
@@ -365,120 +427,90 @@ export class FeedbackMiddleware {
     });
 
     // Start proactive progress tracking with timers
-    this.startTracking(state);
+    this.scheduleTimers(state);
 
     return state;
   }
 
   /**
-   * Start proactive progress tracking with timers.
+   * Schedule progress timers for operation.
    *
    * Sets up timers to send progress messages at configured thresholds.
    * For operations detected "late" (past initial threshold), sends ONE immediate
    * progress message to avoid complete silence.
    *
+   * This method will be simplified in IMPL-007 and IMPL-008 to remove Case 2 & 3 logic.
+   *
    * @param state - Operation state to track
    */
-  private startTracking(state: OperationState): void {
-    // Calculate time already elapsed (operation might have started before we saw it)
-    const alreadyElapsedMs = Date.now() - state.startedAt.getTime();
+  private scheduleTimers(state: OperationState): void {
+    // Sprint 36: Simplified timer scheduling (no late detection needed)
+    // Operations are always fresh when startTracking() is called
 
-    // Determine what to do based on how late we are
-    if (alreadyElapsedMs < this.config.initialThresholdMs) {
-      // Case 1: Fresh operation - schedule initial timer normally
-      const initialDelayMs = this.config.initialThresholdMs - alreadyElapsedMs;
-      state.initialTimer = setTimeout(async () => {
-        try {
-          await this.sendTimedProgressMessage(state, 'initial');
+    // Schedule initial progress timer
+    state.initialTimer = setTimeout(async () => {
+      try {
+        await this.sendTimedProgressMessage(state, 'initial');
 
-          // After initial message, start periodic updates
-          // CRITICAL: Only start interval if operation still tracked
-          if (this.operationTracking.has(state.correlationId)) {
-            state.updateTimer = setInterval(async () => {
-              try {
-                await this.sendTimedProgressMessage(state, 'update');
-              } catch (err) {
-                this.logger.error('Failed to send update progress, clearing interval', {
-                  correlationId: state.correlationId,
-                  error: err instanceof Error ? err.message : String(err),
-                });
-                // CRITICAL: Clear interval on error to prevent infinite failing updates
-                if (state.updateTimer) {
-                  clearInterval(state.updateTimer);
-                  state.updateTimer = undefined;
-                }
+        // After initial message, start periodic updates
+        // CRITICAL: Only start interval if operation still tracked
+        if (this.operationTracking.has(state.correlationId)) {
+          state.updateTimer = setInterval(async () => {
+            try {
+              await this.sendTimedProgressMessage(state, 'update');
+            } catch (err) {
+              this.logger.error('Failed to send update progress, clearing interval', {
+                correlationId: state.correlationId,
+                error: err instanceof Error ? err.message : String(err),
+              });
+              // CRITICAL: Clear interval on error to prevent infinite failing updates
+              if (state.updateTimer) {
+                clearInterval(state.updateTimer);
+                state.updateTimer = undefined;
               }
-            }, this.config.updateIntervalMs);
-          }
-        } catch (err) {
-          this.logger.error('Failed to send initial progress', {
-            correlationId: state.correlationId,
-            error: err instanceof Error ? err.message : String(err),
-          });
-          // Initial timer is one-shot, no cleanup needed
+            }
+          }, this.config.updateIntervalMs);
         }
-      }, initialDelayMs);
+      } catch (err) {
+        this.logger.error('Failed to send initial progress', {
+          correlationId: state.correlationId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        // Initial timer is one-shot, no cleanup needed
+      }
+    }, this.config.initialThresholdMs);
 
-      this.logger.debug('Initial progress timer scheduled', {
-        correlationId: state.correlationId,
-        delayMs: initialDelayMs,
-      });
-    } else if (alreadyElapsedMs < this.config.timeoutThresholdMs) {
-      // Case 2: Operation in progress (past initial, before timeout)
-      // Operation is now completing - DO NOT send progress message
-      this.logger.debug('Operation detected in progress (now completing), skipping progress', {
-        correlationId: state.correlationId,
-        alreadyElapsedMs,
-        reason: 'beforeNext called during operation - operation completing',
-      });
+    this.logger.debug('Initial progress timer scheduled', {
+      correlationId: state.correlationId,
+      delayMs: this.config.initialThresholdMs,
+    });
 
-      // Skip sending any progress message - operation is finishing, final response imminent
-    } else {
-      // Case 3: Very late detection (past timeout threshold)
-      // Operation has already exceeded timeout and is now completing
-      // DO NOT send progress message - operation is finishing, final response imminent
-      this.logger.debug('Operation detected very late (already completing), skipping progress', {
-        correlationId: state.correlationId,
-        alreadyElapsedMs,
-        thresholdMs: this.config.timeoutThresholdMs,
-        reason: 'beforeNext called after timeout threshold - operation completing',
-      });
-
-      // Skip sending any progress message - would arrive after/with final response
-    }
-
-    // Schedule timeout timer if not already past threshold
-    if (alreadyElapsedMs < this.config.timeoutThresholdMs) {
-      const timeoutDelayMs = this.config.timeoutThresholdMs - alreadyElapsedMs;
-      state.timeoutTimer = setTimeout(async () => {
-        try {
-          await this.sendTimedProgressMessage(state, 'timeout');
-        } catch (err) {
-          this.logger.error('Failed to send timeout progress', {
-            correlationId: state.correlationId,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        } finally {
-          // CRITICAL: Clear update interval after timeout (operation likely stuck/failed)
-          if (state.updateTimer) {
-            clearInterval(state.updateTimer);
-            state.updateTimer = undefined;
-          }
+    // Schedule timeout timer
+    state.timeoutTimer = setTimeout(async () => {
+      try {
+        await this.sendTimedProgressMessage(state, 'timeout');
+      } catch (err) {
+        this.logger.error('Failed to send timeout progress', {
+          correlationId: state.correlationId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      } finally {
+        // CRITICAL: Clear update interval after timeout (operation likely stuck/failed)
+        if (state.updateTimer) {
+          clearInterval(state.updateTimer);
+          state.updateTimer = undefined;
         }
-      }, timeoutDelayMs);
+      }
+    }, this.config.timeoutThresholdMs);
 
-      this.logger.debug('Timeout warning timer scheduled', {
-        correlationId: state.correlationId,
-        delayMs: timeoutDelayMs,
-      });
-    }
+    this.logger.debug('Timeout warning timer scheduled', {
+      correlationId: state.correlationId,
+      delayMs: this.config.timeoutThresholdMs,
+    });
 
-    // Always schedule maximum lifetime cleanup (failsafe)
+    // Schedule maximum lifetime cleanup (failsafe)
     // CRITICAL: Prevents memory leaks from operations that never call completeOperation()
-    const maxLifetimeDelayMs = Math.max(
-      0,
-      this.config.maxOperationLifetimeMs - alreadyElapsedMs
-    );
+    const maxLifetimeDelayMs = this.config.maxOperationLifetimeMs;
     state.maxLifetimeTimer = setTimeout(() => {
       this.logger.warn('Operation exceeded maximum lifetime, forcing cleanup', {
         correlationId: state.correlationId,

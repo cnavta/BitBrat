@@ -152,7 +152,7 @@ describe('FeedbackMiddleware', () => {
         annotations: [], // No operation_context
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
 
       expect(publishedEvents).toHaveLength(0);
       expect(middleware.getStats().activeOperations).toBe(0);
@@ -173,7 +173,7 @@ describe('FeedbackMiddleware', () => {
         annotations: [createOperationContext('image_generation', { prompt: 'a sunset' })],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
 
       expect(middleware.getStats().activeOperations).toBe(1);
     });
@@ -194,7 +194,7 @@ describe('FeedbackMiddleware', () => {
         annotations: [createOperationContext('image_generation')],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
 
       expect(publishedEvents).toHaveLength(0);
       expect(middleware.getStats().activeOperations).toBe(0);
@@ -218,7 +218,7 @@ describe('FeedbackMiddleware', () => {
         annotations: [createOperationContext('image_generation')],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
 
       // Timers scheduled but not fired yet
       expect(publishedEvents).toHaveLength(0);
@@ -247,7 +247,7 @@ describe('FeedbackMiddleware', () => {
         annotations: [createOperationContext('image_generation')],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
 
       // Advance time but not to threshold
       await jest.advanceTimersByTimeAsync(5000);
@@ -272,7 +272,7 @@ describe('FeedbackMiddleware', () => {
         annotations: [createOperationContext('image_generation')],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
 
       // Advance to initial threshold
       await jest.advanceTimersByTimeAsync(2000);
@@ -303,7 +303,7 @@ describe('FeedbackMiddleware', () => {
         annotations: [createOperationContext('image_generation')],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
 
       // Advance to timeout threshold
       await jest.advanceTimersByTimeAsync(30000);
@@ -333,7 +333,7 @@ describe('FeedbackMiddleware', () => {
         annotations: [createOperationContext('image_generation')],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
       await jest.advanceTimersByTimeAsync(100);
 
       expect(publishedEvents).toHaveLength(1);
@@ -369,7 +369,7 @@ describe('FeedbackMiddleware', () => {
         },
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
       await jest.advanceTimersByTimeAsync(100);
 
       const progressEvent = publishedEvents[0].event;
@@ -393,7 +393,7 @@ describe('FeedbackMiddleware', () => {
         annotations: [createOperationContext('image_generation')],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
       await jest.advanceTimersByTimeAsync(100);
 
       const progressEvent = publishedEvents[0].event;
@@ -432,7 +432,7 @@ describe('FeedbackMiddleware', () => {
         ],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
       await jest.advanceTimersByTimeAsync(100);
 
       expect(publishedEvents).toHaveLength(1);
@@ -461,7 +461,7 @@ describe('FeedbackMiddleware', () => {
         },
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
       await jest.advanceTimersByTimeAsync(100);
 
       const progressEvent = publishedEvents[0].event;
@@ -490,7 +490,7 @@ describe('FeedbackMiddleware', () => {
         ],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
       await jest.advanceTimersByTimeAsync(100);
 
       const progressEvent = publishedEvents[0].event;
@@ -534,7 +534,7 @@ describe('FeedbackMiddleware', () => {
         },
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
       await jest.advanceTimersByTimeAsync(100);
 
       const progressEvent = publishedEvents[0].event;
@@ -568,8 +568,8 @@ describe('FeedbackMiddleware', () => {
         annotations: [createOperationContext('video_generation')],
       });
 
-      await middleware.beforeNext(event1);
-      await middleware.beforeNext(event2);
+      await middleware.startTracking(event1);
+      await middleware.startTracking(event2);
 
       const stats = middleware.getStats();
       expect(stats.activeOperations).toBe(2);
@@ -594,7 +594,7 @@ describe('FeedbackMiddleware', () => {
         annotations: [createOperationContext('image_generation')],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
       expect(middleware.getStats().activeOperations).toBe(1);
 
       middleware.completeOperation('op-1');
@@ -616,7 +616,7 @@ describe('FeedbackMiddleware', () => {
         annotations: [createOperationContext('image_generation')],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
 
       // Advance fake timers by 50ms
       await jest.advanceTimersByTimeAsync(50);
@@ -652,7 +652,7 @@ describe('FeedbackMiddleware', () => {
         ],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
 
       expect(publishedEvents).toHaveLength(0);
       expect(middleware.getStats().activeOperations).toBe(0);
@@ -678,7 +678,7 @@ describe('FeedbackMiddleware', () => {
       });
 
       // Should not throw
-      await expect(middleware.beforeNext(event)).resolves.not.toThrow();
+      await expect(middleware.startTracking(event)).resolves.not.toThrow();
     });
   });
 
@@ -701,7 +701,7 @@ describe('FeedbackMiddleware', () => {
         annotations: [createOperationContext('image_generation')],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
 
       // Advance to initial threshold (100ms)
       await jest.advanceTimersByTimeAsync(100);
@@ -739,14 +739,14 @@ describe('FeedbackMiddleware', () => {
         annotations: [createOperationContext('image_generation')],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
 
       // Advance to initial threshold
       await jest.advanceTimersByTimeAsync(100);
       expect(publishedEvents).toHaveLength(1);
 
       // Second call to beforeNext should not send another message (timers already running)
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
       expect(publishedEvents).toHaveLength(1); // Still 1
     });
   });
@@ -782,7 +782,7 @@ describe('FeedbackMiddleware', () => {
         ],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
 
       // Operation is completing (beforeNext called) - should NOT send progress message
       await jest.advanceTimersByTimeAsync(0);
@@ -820,7 +820,7 @@ describe('FeedbackMiddleware', () => {
         ],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
 
       // Operation is completing (beforeNext called) - should NOT send progress message
       await jest.advanceTimersByTimeAsync(0);
@@ -857,7 +857,7 @@ describe('FeedbackMiddleware', () => {
         ],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
 
       // Advance timers to check if message would be sent
       await jest.advanceTimersByTimeAsync(0);
@@ -894,7 +894,7 @@ describe('FeedbackMiddleware', () => {
         ],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
 
       // Advance timers to check if message would be sent
       await jest.advanceTimersByTimeAsync(0);
@@ -932,7 +932,7 @@ describe('FeedbackMiddleware', () => {
         ],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
 
       // Advance by a small amount - should not send yet (needs 1500ms more)
       await jest.advanceTimersByTimeAsync(100);
@@ -970,7 +970,7 @@ describe('FeedbackMiddleware', () => {
         ],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
 
       // Operation is completing (beforeNext called) - should NOT send progress message
       await jest.advanceTimersByTimeAsync(0);
@@ -1008,10 +1008,11 @@ describe('FeedbackMiddleware', () => {
         ],
       });
 
-      await middleware.beforeNext(event);
+      await middleware.startTracking(event);
 
-      // Advance to when timer should fire (5000ms threshold - 3000ms already elapsed = 2000ms remaining)
-      await jest.advanceTimersByTimeAsync(2000);
+      // Sprint 36: Timers schedule from startTracking() call time, not annotation startedAt
+      // Timer fires at config threshold (5000ms) regardless of past startedAt
+      await jest.advanceTimersByTimeAsync(5000);
 
       // Verify progress message sent
       expect(publishedEvents).toHaveLength(1);
@@ -1025,10 +1026,659 @@ describe('FeedbackMiddleware', () => {
 
       if (progressAnnotation?.value) {
         const progressData = JSON.parse(progressAnnotation.value);
-        // Elapsed time should be approximately 5000ms (3000ms already + 2000ms advance)
-        expect(progressData.elapsedMs).toBeGreaterThanOrEqual(4900);
-        expect(progressData.elapsedMs).toBeLessThanOrEqual(5100);
+        // Sprint 36: Elapsed time now calculated from actual operation start (annotation)
+        // 3000ms (already elapsed) + 5000ms (timer wait) = ~8000ms
+        expect(progressData.elapsedMs).toBeGreaterThanOrEqual(7900);
+        expect(progressData.elapsedMs).toBeLessThanOrEqual(8100);
       }
+    });
+  });
+
+  // ============================================================================
+  // Sprint 36: Dual-Phase Lifecycle Tests
+  // ============================================================================
+
+  describe('Sprint 36: startTracking() - TEST-009', () => {
+    it('should create tracking state for fresh operation', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+        }
+      );
+
+      const event = createMockEvent({
+        annotations: [
+          {
+            kind: 'operation_context',
+            value: JSON.stringify({
+              operation: 'llm_request',
+              startedAt: Date.now(),
+            }),
+            source: 'llm-bot',
+            id: randomUUID(),
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+
+      await middleware.startTracking(event);
+
+      const stats = middleware.getStats();
+      expect(stats.activeOperations).toBe(1);
+      expect(stats.operations[0].correlationId).toBe(event.correlationId);
+      expect(stats.operations[0].operation).toBe('llm_request');
+    });
+
+    it('should be idempotent (duplicate calls ignored)', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+        }
+      );
+
+      const event = createMockEvent({
+        annotations: [
+          {
+            kind: 'operation_context',
+            value: JSON.stringify({
+              operation: 'llm_request',
+              startedAt: Date.now(),
+            }),
+            source: 'llm-bot',
+            id: randomUUID(),
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+
+      // Call multiple times
+      await middleware.startTracking(event);
+      await middleware.startTracking(event);
+      await middleware.startTracking(event);
+
+      // Only one tracking state should exist
+      const stats = middleware.getStats();
+      expect(stats.activeOperations).toBe(1);
+    });
+
+    it('should skip tracking if no operation_context annotation', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+        }
+      );
+
+      const event = createMockEvent({
+        annotations: [], // No operation_context
+      });
+
+      await middleware.startTracking(event);
+
+      const stats = middleware.getStats();
+      expect(stats.activeOperations).toBe(0);
+    });
+
+    it('should skip tracking if middleware disabled', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          enabled: false,
+          initialThresholdMs: 2000,
+        }
+      );
+
+      const event = createMockEvent({
+        annotations: [createOperationContext('llm_request')],
+      });
+
+      await middleware.startTracking(event);
+
+      const stats = middleware.getStats();
+      expect(stats.activeOperations).toBe(0);
+    });
+
+    it('should extract startedAt from annotation (number format)', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+        }
+      );
+
+      const startedAtMs = Date.now() - 1000; // 1 second ago
+      const event = createMockEvent({
+        annotations: [
+          {
+            kind: 'operation_context',
+            value: JSON.stringify({
+              operation: 'llm_request',
+              startedAt: startedAtMs,
+            }),
+            source: 'llm-bot',
+            id: randomUUID(),
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+
+      await middleware.startTracking(event);
+
+      const stats = middleware.getStats();
+      expect(stats.operations[0].elapsedMs).toBeGreaterThanOrEqual(900);
+      expect(stats.operations[0].elapsedMs).toBeLessThanOrEqual(1100);
+    });
+
+    it('should extract startedAt from annotation (ISO string format)', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+        }
+      );
+
+      const startedAtIso = new Date(Date.now() - 500).toISOString();
+      const event = createMockEvent({
+        annotations: [
+          {
+            kind: 'operation_context',
+            value: JSON.stringify({
+              operation: 'llm_request',
+              startedAt: startedAtIso,
+            }),
+            source: 'llm-bot',
+            id: randomUUID(),
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+
+      await middleware.startTracking(event);
+
+      const stats = middleware.getStats();
+      expect(stats.operations[0].elapsedMs).toBeGreaterThanOrEqual(400);
+      expect(stats.operations[0].elapsedMs).toBeLessThanOrEqual(600);
+    });
+
+    it('should schedule timers immediately', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+          timeoutThresholdMs: 30000,
+        }
+      );
+
+      const event = createMockEvent({
+        annotations: [createOperationContext('llm_request')],
+      });
+
+      await middleware.startTracking(event);
+
+      // No messages yet
+      expect(publishedEvents).toHaveLength(0);
+
+      // Advance to initial threshold
+      await jest.advanceTimersByTimeAsync(2000);
+
+      // Initial message sent
+      expect(publishedEvents).toHaveLength(1);
+      expect(publishedEvents[0].event.candidates![0].text).toContain('Thinking');
+    });
+  });
+
+  describe('Sprint 36: completeOperation() - TEST-010', () => {
+    it('should clear all active timers', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+          timeoutThresholdMs: 30000,
+        }
+      );
+
+      const event = createMockEvent({
+        annotations: [createOperationContext('llm_request')],
+      });
+
+      await middleware.startTracking(event);
+
+      // Verify tracking active
+      expect(middleware.getStats().activeOperations).toBe(1);
+
+      // Complete operation
+      middleware.completeOperation(event.correlationId);
+
+      // Verify tracking removed
+      expect(middleware.getStats().activeOperations).toBe(0);
+
+      // Advance timers - no messages should be sent
+      await jest.advanceTimersByTimeAsync(60000);
+      expect(publishedEvents).toHaveLength(0);
+    });
+
+    it('should be safe to call for non-existent operation', () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {}
+      );
+
+      // Should not throw
+      expect(() => {
+        middleware!.completeOperation('non-existent-correlation-id');
+      }).not.toThrow();
+    });
+
+    it('should be idempotent (multiple calls safe)', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+        }
+      );
+
+      const event = createMockEvent({
+        annotations: [createOperationContext('llm_request')],
+      });
+
+      await middleware.startTracking(event);
+
+      // Call multiple times
+      middleware.completeOperation(event.correlationId);
+      middleware.completeOperation(event.correlationId);
+      middleware.completeOperation(event.correlationId);
+
+      // Should not throw, state should be removed
+      expect(middleware.getStats().activeOperations).toBe(0);
+    });
+
+    it('should prevent timers from firing after cleanup', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+        }
+      );
+
+      const event = createMockEvent({
+        annotations: [createOperationContext('llm_request')],
+      });
+
+      await middleware.startTracking(event);
+
+      // Advance halfway to initial threshold
+      await jest.advanceTimersByTimeAsync(1000);
+
+      // Complete operation before timer fires
+      middleware.completeOperation(event.correlationId);
+
+      // Advance past initial threshold
+      await jest.advanceTimersByTimeAsync(2000);
+
+      // No messages should be sent
+      expect(publishedEvents).toHaveLength(0);
+    });
+  });
+
+  describe('Sprint 36: Timer Behavior - TEST-011', () => {
+    it('should fire initial timer at T+2s', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+          useCustomMessages: false,
+        }
+      );
+
+      const event = createMockEvent({
+        annotations: [createOperationContext('llm_request')],
+      });
+
+      await middleware.startTracking(event);
+
+      // Before threshold
+      expect(publishedEvents).toHaveLength(0);
+
+      // At threshold
+      await jest.advanceTimersByTimeAsync(2000);
+      expect(publishedEvents).toHaveLength(1);
+      expect(publishedEvents[0].event.candidates![0].text).toBe('🤔 Thinking about your request...');
+    });
+
+    it('should start update interval after initial timer', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+          updateIntervalMs: 5000,
+          useCustomMessages: false,
+        }
+      );
+
+      const event = createMockEvent({
+        annotations: [createOperationContext('llm_request')],
+      });
+
+      await middleware.startTracking(event);
+
+      // T+2s: Initial message
+      await jest.advanceTimersByTimeAsync(2000);
+      expect(publishedEvents).toHaveLength(1);
+
+      // T+7s: First update (2s + 5s)
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(publishedEvents).toHaveLength(2);
+      expect(publishedEvents[1].event.candidates![0].text).toBe('⏳ Still working on it...');
+
+      // T+12s: Second update
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(publishedEvents).toHaveLength(3);
+      expect(publishedEvents[2].event.candidates![0].text).toBe('⏳ Still working on it...');
+    });
+
+    it('should fire timeout timer at T+30s', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+          timeoutThresholdMs: 30000,
+          useCustomMessages: false,
+        }
+      );
+
+      const event = createMockEvent({
+        annotations: [createOperationContext('llm_request')],
+      });
+
+      await middleware.startTracking(event);
+
+      // Advance to just before timeout
+      await jest.advanceTimersByTimeAsync(29000);
+
+      // Timeout message not yet sent
+      const timeoutMessages = publishedEvents.filter((p) =>
+        p.event.candidates?.[0]?.text?.includes('longer than expected')
+      );
+      expect(timeoutMessages).toHaveLength(0);
+
+      // Advance past timeout threshold
+      await jest.advanceTimersByTimeAsync(1000);
+
+      // Timeout message sent
+      const timeoutMessagesAfter = publishedEvents.filter((p) =>
+        p.event.candidates?.[0]?.text?.includes('longer than expected')
+      );
+      expect(timeoutMessagesAfter).toHaveLength(1);
+    });
+
+    it('should clear update interval after timeout', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+          updateIntervalMs: 5000,
+          timeoutThresholdMs: 30000,
+          useCustomMessages: false,
+        }
+      );
+
+      const event = createMockEvent({
+        annotations: [createOperationContext('llm_request')],
+      });
+
+      await middleware.startTracking(event);
+
+      // Advance to timeout (30s)
+      await jest.advanceTimersByTimeAsync(30000);
+
+      const messagesBeforeTimeout = publishedEvents.length;
+
+      // Advance another 10 seconds
+      await jest.advanceTimersByTimeAsync(10000);
+
+      // No new update messages should be sent (interval cleared)
+      const updateMessagesAfterTimeout = publishedEvents
+        .slice(messagesBeforeTimeout)
+        .filter((p) => p.event.candidates?.[0]?.text?.includes('Still working'));
+
+      expect(updateMessagesAfterTimeout).toHaveLength(0);
+    });
+
+    it('should force cleanup at max lifetime', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+          maxOperationLifetimeMs: 60000, // 1 minute
+        }
+      );
+
+      const event = createMockEvent({
+        annotations: [createOperationContext('llm_request')],
+      });
+
+      await middleware.startTracking(event);
+
+      // Verify tracking active
+      expect(middleware.getStats().activeOperations).toBe(1);
+
+      // Advance to max lifetime
+      await jest.advanceTimersByTimeAsync(60000);
+
+      // Should be automatically cleaned up
+      expect(middleware.getStats().activeOperations).toBe(0);
+    });
+  });
+
+  describe('Sprint 36: Edge Cases - TEST-012', () => {
+    it('should handle fast operations (< 2s) without sending progress', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+        }
+      );
+
+      const event = createMockEvent({
+        annotations: [createOperationContext('llm_request')],
+      });
+
+      await middleware.startTracking(event);
+
+      // Operation completes after 1 second
+      await jest.advanceTimersByTimeAsync(1000);
+      middleware.completeOperation(event.correlationId);
+
+      // Advance past initial threshold
+      await jest.advanceTimersByTimeAsync(5000);
+
+      // No progress messages sent
+      expect(publishedEvents).toHaveLength(0);
+    });
+
+    it('should track multiple concurrent operations independently', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+        }
+      );
+
+      const event1 = createMockEvent({
+        correlationId: 'correlation-1',
+        annotations: [createOperationContext('llm_request')],
+      });
+
+      const event2 = createMockEvent({
+        correlationId: 'correlation-2',
+        annotations: [createOperationContext('image_generation')],
+      });
+
+      await middleware.startTracking(event1);
+      await middleware.startTracking(event2);
+
+      // Both tracked
+      expect(middleware.getStats().activeOperations).toBe(2);
+
+      // Complete first operation
+      middleware.completeOperation('correlation-1');
+
+      // Only second operation tracked
+      expect(middleware.getStats().activeOperations).toBe(1);
+      expect(middleware.getStats().operations[0].correlationId).toBe('correlation-2');
+    });
+
+    it('should handle publish failures gracefully', async () => {
+      const failingPublish = async () => {
+        throw new Error('Network error');
+      };
+
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: failingPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+          useCustomMessages: false,
+        }
+      );
+
+      const event = createMockEvent({
+        annotations: [createOperationContext('llm_request')],
+      });
+
+      await middleware.startTracking(event);
+
+      // Should not throw
+      await expect(jest.advanceTimersByTimeAsync(2000)).resolves.not.toThrow();
+
+      // Operation should still be tracked
+      expect(middleware.getStats().activeOperations).toBe(1);
+    });
+
+    it('should call shutdown to clear all operations', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+        }
+      );
+
+      const event1 = createMockEvent({
+        correlationId: 'correlation-1',
+        annotations: [createOperationContext('llm_request')],
+      });
+
+      const event2 = createMockEvent({
+        correlationId: 'correlation-2',
+        annotations: [createOperationContext('image_generation')],
+      });
+
+      await middleware.startTracking(event1);
+      await middleware.startTracking(event2);
+
+      expect(middleware.getStats().activeOperations).toBe(2);
+
+      // Shutdown should clear all
+      middleware.shutdown();
+
+      expect(middleware.getStats().activeOperations).toBe(0);
+    });
+
+    it('should use sourceEvent for progress message routing', async () => {
+      middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+          useCustomMessages: false,
+        }
+      );
+
+      const event = createMockEvent({
+        annotations: [createOperationContext('llm_request')],
+        ingress: {
+          ingressAt: new Date().toISOString(),
+          source: 'ingress.slack',
+          connector: 'slack',
+          channel: 'general',
+        },
+        egress: {
+          destination: 'slack',
+          connector: 'slack',
+          channel: 'C123',
+        },
+      });
+
+      await middleware.startTracking(event);
+
+      await jest.advanceTimersByTimeAsync(2000);
+
+      // Progress message should have same routing context
+      expect(publishedEvents[0].event.ingress?.connector).toBe('slack');
+      expect(publishedEvents[0].event.egress?.connector).toBe('slack');
     });
   });
 });
