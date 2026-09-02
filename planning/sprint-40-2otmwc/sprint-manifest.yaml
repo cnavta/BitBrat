@@ -6,7 +6,8 @@ goal: Implement Zod type coercion (.coerce.boolean(), .coerce.number()) across
   serialization format
 owner: claude-code
 createdAt: 2026-09-02T19:26:00.673Z
-status: in-progress
+status: complete
 links:
   branch: feature/sprint-40-2otmwc-mcp-type-coercion-for-xml-invo
 notes: Sprint initialized via MCP start-sprint tool
+completionMode: normal
