@@ -815,6 +815,12 @@ event.send({
 - Anonymous users rejected
 - Audit logging captures both real and emulated identity
 
+**Type Coercion (Sprint 40):**
+Boolean and number parameters (`waitForResponse`, `timeoutMs`) support automatic type coercion for compatibility with both XML and JSON serialization:
+- Boolean: `true`/`false` (native), `"true"`/`""` (string), `1`/`0` (number)
+- Number: `15000` (native), `"15000"` (string), `"3.14"` (decimal), `"-42"` (negative)
+- Note: Any non-empty string coerces to `true` for booleans (JavaScript `Boolean()` behavior)
+
 **Examples**:
 
 Discord command testing:

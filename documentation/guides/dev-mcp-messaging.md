@@ -71,6 +71,21 @@ Send simple chat message with platform emulation.
 - `waitForResponse` (boolean, optional): Wait for response from platform. Default: `true`
 - `timeoutMs` (number, optional): Timeout in milliseconds. Default: `15000` (15s)
 
+**Type Coercion (Sprint 40):**
+
+The `waitForResponse` and `timeoutMs` parameters support automatic type coercion to ensure compatibility with both XML and JSON parameter serialization:
+
+- **Boolean parameters** (`waitForResponse`):
+  - Native boolean values work as expected: `true` → `true`, `false` → `false`
+  - String values: `"true"` → `true`, `""` (empty string) → `false`
+  - Number values: `1` → `true`, `0` → `false`
+  - Note: ANY non-empty string coerces to `true` (JavaScript `Boolean()` constructor behavior)
+
+- **Number parameters** (`timeoutMs`):
+  - Native numbers work as expected: `15000` → `15000`
+  - Numeric strings: `"15000"` → `15000`, `"3.14"` → `3.14`, `"-42"` → `-42`
+  - Invalid strings are rejected: `"abc"` → validation error
+
 **Returns:**
 ```json
 {
@@ -126,6 +141,10 @@ Send full `InternalEventV2` event with complete control over metadata.
 - `event` (object|string, **required**): Partial `InternalEventV2` structure (object or JSON string)
 - `waitForResponse` (boolean, optional): Wait for response. Default: `true`
 - `timeoutMs` (number, optional): Timeout in milliseconds. Default: `15000`
+
+**Type Coercion (Sprint 40):**
+
+The `waitForResponse` and `timeoutMs` parameters support automatic type coercion (see `message.send` above for details).
 
 **Event structure** (all fields optional except `type`):
 ```typescript
