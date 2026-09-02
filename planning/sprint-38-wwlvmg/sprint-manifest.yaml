@@ -1,0 +1,12 @@
+id: sprint-38-wwlvmg
+title: Fix Dev MCP Tools Schema Validation
+goal: Fix JSON Schema validation errors preventing bitbrat-dev MCP tools from
+  registering in Claude Code
+owner: christophernavta
+createdAt: 2026-09-02T02:24:23.634Z
+status: complete
+links:
+  branch: feature/sprint-38-wwlvmg-fix-dev-mcp-tools-schema-valid
+notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-09-02T02:53:11.611Z
+completionMode: normal

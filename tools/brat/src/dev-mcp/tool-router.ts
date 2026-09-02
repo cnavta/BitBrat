@@ -3,10 +3,12 @@
  *
  * Registers and dispatches MCP tool calls.
  * Validates arguments against schemas and handles errors.
+ *
+ * Sprint 38: Removed zodToJsonSchema conversion - Zod v4 implements Standard Schema v1 natively,
+ * which MCP v2 supports directly. No conversion needed.
  */
 import { Tool, CallToolResult } from "@modelcontextprotocol/server";
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { ToolDefinition, TargetConnection, ToolHandler } from './types.js';
 import { TargetConnectionManager } from './target-manager.js';
@@ -39,16 +41,17 @@ export class ToolRouter {
 
   /**
    * List all registered tools (MCP format)
+   *
+   * Sprint 38: Pass Zod schemas directly to MCP. Zod v4+ implements Standard Schema v1
+   * natively via the `~standard` symbol property, which MCP v2 accepts without conversion.
    */
   listTools(): Tool[] {
     const tools: any[] = [];
     for (const def of this.tools.values()) {
-      // @ts-ignore - zodToJsonSchema can cause deep type instantiation errors
-      const schema = zodToJsonSchema(def.inputSchema);
       tools.push({
         name: def.name,
         description: def.description,
-        inputSchema: schema,
+        inputSchema: def.inputSchema, // Zod schema passed directly
       });
     }
     return tools as Tool[];
