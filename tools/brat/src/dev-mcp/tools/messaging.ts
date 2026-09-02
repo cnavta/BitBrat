@@ -337,9 +337,9 @@ export const messageSendTool: ToolDefinition = {
       .describe('Platform to emulate (default: api)'),
     userId: z.string().optional()
       .describe('User ID for identity (default: brat-chat:dev-mcp)'),
-    waitForResponse: z.boolean().optional()
+    waitForResponse: z.coerce.boolean().optional()
       .describe('Wait for response from platform (default: true)'),
-    timeoutMs: z.number().optional()
+    timeoutMs: z.coerce.number().optional()
       .describe('Timeout in milliseconds (default: 15000)'),
   }),
   handler: async (args, connection?: ConnectionContext) => {
@@ -494,9 +494,9 @@ export const eventSendTool: ToolDefinition = {
         candidates: z.array(z.any()).optional(),
       }).passthrough(),
     ]).describe('Partial InternalEventV2 structure (object or JSON string)'),
-    waitForResponse: z.boolean().optional()
+    waitForResponse: z.coerce.boolean().optional()
       .describe('Wait for response (default: true)'),
-    timeoutMs: z.number().optional()
+    timeoutMs: z.coerce.number().optional()
       .describe('Timeout in milliseconds (default: 15000)'),
   }),
   handler: async (args, connection?: ConnectionContext) => {

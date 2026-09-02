@@ -303,7 +303,7 @@ export const agentDevDestroyTool: ToolDefinition = {
   description: 'Completely destroy an agent-dev execution context and all associated resources (IRREVERSIBLE)',
   inputSchema: z.object({
     name: z.string().describe('Context name to destroy (must start with agent-dev-)'),
-    confirm: z.boolean().optional().describe('Confirmation flag (must be true)'),
+    confirm: z.coerce.boolean().optional().describe('Confirmation flag (must be true)'),
     context: z.string().optional().describe('Execution context (local, staging, prod). Defaults to server startup context.'),
   }),
   handler: async (args) => {
