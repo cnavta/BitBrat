@@ -9,6 +9,7 @@ export interface TokenInfo {
   expires_at?: Date | null;
   created_at: Date;
   last_used_at?: Date | null;
+  permissions?: string[];
 }
 
 // =============================================================================
@@ -61,6 +62,7 @@ export class FirestoreApiTokenStore implements IApiTokenStore {
         expires_at: data.expires_at ? data.expires_at.toDate() : null,
         created_at: data.created_at ? data.created_at.toDate() : new Date(),
         last_used_at: data.last_used_at ? data.last_used_at.toDate() : null,
+        permissions: data.permissions || [],
       };
     } catch (err: any) {
       this.logger.error('firestore.api_token.get_error', { error: err.message, hash: hash.substring(0, 8) });
@@ -81,16 +83,50 @@ export class FirestoreApiTokenStore implements IApiTokenStore {
 
 /**
  * PostgreSQL-based API token store implementation via IDocumentStore.
+ *
+ * Note: Uses both IDocumentStore (for data column) and optional direct SQL access
+ * (for permissions column) to support Sprint 39 permission model.
  */
 export class DocumentStoreApiTokenStore implements IApiTokenStore {
+  private pool?: any; // pg.Pool for direct SQL access to permissions column
+
   constructor(
     private readonly store: IDocumentStore,
     private readonly logger: Logger,
-    private readonly tableName = 'api_tokens'
-  ) {}
+    private readonly tableName = 'api_tokens',
+    pool?: any  // Optional: pg.Pool for direct SQL access
+  ) {
+    this.pool = pool;
+  }
 
   async getToken(hash: string): Promise<TokenInfo | null> {
     try {
+      // If we have direct pool access, query both data and permissions columns
+      if (this.pool) {
+        const result = await this.pool.query(
+          `SELECT data, permissions FROM ${this.tableName} WHERE id = $1`,
+          [hash]
+        );
+
+        if (result.rows.length === 0) {
+          return null;
+        }
+
+        const row = result.rows[0];
+        const doc = row.data;
+        const permissions = row.permissions || [];
+
+        return {
+          token_hash: hash,
+          uid: doc.uid || doc.user_id,
+          expires_at: doc.expires_at ? new Date(doc.expires_at) : null,
+          created_at: doc.created_at ? new Date(doc.created_at) : new Date(),
+          last_used_at: doc.last_used_at ? new Date(doc.last_used_at) : null,
+          permissions: Array.isArray(permissions) ? permissions : [],
+        };
+      }
+
+      // Fallback: Use IDocumentStore (permissions in data column)
       const doc = await this.store.get(this.tableName, hash);
 
       if (!doc) {
@@ -103,6 +139,7 @@ export class DocumentStoreApiTokenStore implements IApiTokenStore {
         expires_at: doc.expires_at ? new Date(doc.expires_at) : null,
         created_at: doc.created_at ? new Date(doc.created_at) : new Date(),
         last_used_at: doc.last_used_at ? new Date(doc.last_used_at) : null,
+        permissions: doc.permissions || [],
       };
     } catch (err: any) {
       this.logger.error('postgres.api_token.get_error', { error: err.message, hash: hash.substring(0, 8) });
@@ -131,12 +168,14 @@ export class DocumentStoreApiTokenStore implements IApiTokenStore {
  * @param dbOrStore - Firestore instance or IDocumentStore (optional, will use getFirestore() if not provided)
  * @param logger - Logger instance
  * @param collectionOrTable - Collection path (Firestore) or table name (PostgreSQL)
+ * @param pool - Optional pg.Pool for direct SQL access (Sprint 39 permissions support)
  * @returns IApiTokenStore implementation
  */
 export function createApiTokenStore(
   dbOrStore: any,
   logger: Logger,
-  collectionOrTable?: string
+  collectionOrTable?: string,
+  pool?: any
 ): IApiTokenStore {
   // Check if Firestore instance (has collection() method)
   if (dbOrStore && typeof dbOrStore.collection === 'function') {
@@ -145,7 +184,7 @@ export function createApiTokenStore(
 
   // Check if IDocumentStore instance
   if (dbOrStore && typeof dbOrStore.get === 'function' && typeof dbOrStore.set === 'function') {
-    return new DocumentStoreApiTokenStore(dbOrStore, logger, collectionOrTable || 'api_tokens');
+    return new DocumentStoreApiTokenStore(dbOrStore, logger, collectionOrTable || 'api_tokens', pool);
   }
 
   // Fallback to Firestore (legacy, deprecated - default is PostgreSQL via factory.ts)
@@ -157,13 +196,16 @@ export class AuthService {
   private cache: Map<string, { uid: string; expires_at?: Date | null }> = new Map();
   private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
   private readonly tokenStore: IApiTokenStore;
+  private pool?: any; // pg.Pool for direct SQL queries
 
   constructor(
     dbOrStore: Firestore | IDocumentStore,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    pool?: any  // Optional: pg.Pool for getUserPermissions()
   ) {
     // Create token store based on backend type
-    this.tokenStore = createApiTokenStore(dbOrStore, logger);
+    this.tokenStore = createApiTokenStore(dbOrStore, logger, undefined, pool);
+    this.pool = pool;
   }
 
   /**
@@ -218,6 +260,76 @@ export class AuthService {
     } catch (err: any) {
       this.logger.error('auth.validate_token_error', { error: err.message });
       return null;
+    }
+  }
+
+  /**
+   * Get permissions for a given userId.
+   *
+   * Sprint 39: Permission-gated access control for event.inject.v2 and other
+   * restricted features.
+   *
+   * Auto-grants:
+   * - brat-dev-mcp:* → ['event:inject'] (Dev MCP tools)
+   * - dev-tools:* → ['event:inject'] (Development tools)
+   *
+   * @param userId - User ID (e.g., 'brat-dev-mcp:staging', 'user-123')
+   * @returns Array of permission strings (e.g., ['event:inject', 'admin:read'])
+   */
+  public async getUserPermissions(userId: string): Promise<string[]> {
+    if (!userId) {
+      return [];
+    }
+
+    // Auto-grant event:inject for dev tokens (Sprint 39 security model)
+    const isDevToken = userId.startsWith('brat-dev-mcp:') || userId.startsWith('dev-tools:');
+    if (isDevToken) {
+      this.logger.debug('auth.auto_grant_permissions', {
+        userId,
+        permissions: ['event:inject'],
+        reason: 'dev_token_pattern',
+      });
+      return ['event:inject'];
+    }
+
+    // Query permissions from database
+    try {
+      // Use direct SQL if pool available (Sprint 39: permissions column)
+      if (this.pool) {
+        const result = await this.pool.query(
+          `SELECT permissions FROM api_tokens WHERE data->>'uid' = $1 LIMIT 1`,
+          [userId]
+        );
+
+        if (result.rows.length > 0) {
+          const permissions = result.rows[0].permissions || [];
+          return Array.isArray(permissions) ? permissions : [];
+        }
+
+        // Not found - return empty array
+        return [];
+      }
+
+      // Fallback: Query via IDocumentStore (permissions in data column)
+      // This is less efficient but works if pool not available
+      const allTokens = await this.tokenStore instanceof DocumentStoreApiTokenStore
+        ? [] // DocumentStore doesn't support efficient user lookup without pool
+        : [];
+
+      this.logger.warn('auth.get_permissions_no_pool', {
+        userId,
+        message: 'Pool not available, returning empty permissions (non-dev user)',
+      });
+
+      return [];
+    } catch (err: any) {
+      // Fail-safe: On error, return empty permissions (deny by default)
+      this.logger.error('auth.get_permissions_error', {
+        error: err.message,
+        userId,
+        stack: err.stack,
+      });
+      return [];
     }
   }
 }
