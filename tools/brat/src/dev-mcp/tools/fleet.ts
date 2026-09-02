@@ -288,7 +288,7 @@ const fleetLogsSchema = z.object({
     .describe('Start time (ISO timestamp or duration like "1h", "30m")'),
   until: z.string().optional()
     .describe('End time (ISO timestamp)'),
-  limit: z.number().default(100)
+  limit: z.coerce.number().default(100)
     .describe('Maximum number of log entries to return'),
   correlationId: z.string().optional()
     .describe('Filter by correlation ID'),
