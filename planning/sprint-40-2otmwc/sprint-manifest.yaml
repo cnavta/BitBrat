@@ -1,0 +1,12 @@
+id: sprint-40-2otmwc
+title: MCP Type Coercion for XML Invocation Compatibility
+goal: Implement Zod type coercion (.coerce.boolean(), .coerce.number()) across
+  all MCP Dev Tools to fix XML parameter serialization issues when invoking
+  tools from Claude Code, ensuring seamless invocation regardless of client
+  serialization format
+owner: claude-code
+createdAt: 2026-09-02T19:26:00.673Z
+status: in-progress
+links:
+  branch: feature/sprint-40-2otmwc-mcp-type-coercion-for-xml-invo
+notes: Sprint initialized via MCP start-sprint tool

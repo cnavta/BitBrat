@@ -208,6 +208,115 @@ describe('Messaging Tools', () => {
       const result = messageSendTool.inputSchema.safeParse(invalidArgs);
       expect(result.success).toBe(false);
     });
+
+    // Sprint 40: Type coercion tests for boolean parameters
+    // NOTE: Zod's z.coerce.boolean() uses JavaScript's Boolean() constructor
+    // which treats ANY non-empty string as true. Only empty string "" coerces to false.
+    it('should coerce string "true" to boolean true for waitForResponse', () => {
+      const args = {
+        text: 'Test',
+        waitForResponse: 'true' as any,
+      };
+
+      const result = messageSendTool.inputSchema.safeParse(args);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.waitForResponse).toBe(true);
+        expect(typeof result.data.waitForResponse).toBe('boolean');
+      }
+    });
+
+    it('should coerce empty string to boolean false for waitForResponse', () => {
+      const args = {
+        text: 'Test',
+        waitForResponse: '' as any,
+      };
+
+      const result = messageSendTool.inputSchema.safeParse(args);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.waitForResponse).toBe(false);
+        expect(typeof result.data.waitForResponse).toBe('boolean');
+      }
+    });
+
+    it('should coerce number 1 to boolean true for waitForResponse', () => {
+      const args = {
+        text: 'Test',
+        waitForResponse: 1 as any,
+      };
+
+      const result = messageSendTool.inputSchema.safeParse(args);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.waitForResponse).toBe(true);
+      }
+    });
+
+    it('should coerce number 0 to boolean false for waitForResponse', () => {
+      const args = {
+        text: 'Test',
+        waitForResponse: 0 as any,
+      };
+
+      const result = messageSendTool.inputSchema.safeParse(args);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.waitForResponse).toBe(false);
+      }
+    });
+
+    // Sprint 40: Type coercion tests for number parameters
+    it('should coerce string "15000" to number 15000 for timeoutMs', () => {
+      const args = {
+        text: 'Test',
+        timeoutMs: '15000' as any,
+      };
+
+      const result = messageSendTool.inputSchema.safeParse(args);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.timeoutMs).toBe(15000);
+        expect(typeof result.data.timeoutMs).toBe('number');
+      }
+    });
+
+    it('should coerce string "3.14" to number 3.14 for timeoutMs', () => {
+      const args = {
+        text: 'Test',
+        timeoutMs: '3.14' as any,
+      };
+
+      const result = messageSendTool.inputSchema.safeParse(args);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.timeoutMs).toBe(3.14);
+        expect(typeof result.data.timeoutMs).toBe('number');
+      }
+    });
+
+    it('should coerce string "-42" to number -42 for timeoutMs', () => {
+      const args = {
+        text: 'Test',
+        timeoutMs: '-42' as any,
+      };
+
+      const result = messageSendTool.inputSchema.safeParse(args);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.timeoutMs).toBe(-42);
+      }
+    });
+
+    it('should reject string "abc" for timeoutMs (invalid number)', () => {
+      const args = {
+        text: 'Test',
+        timeoutMs: 'abc' as any,
+      };
+
+      const result = messageSendTool.inputSchema.safeParse(args);
+      expect(result.success).toBe(false);
+    });
   });
 
   describe('event.send tool', () => {
@@ -322,6 +431,59 @@ describe('Messaging Tools', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect((result.data.event as any).customField).toBe('custom-value');
+      }
+    });
+
+    // Sprint 40: Type coercion tests for event.send
+    it('should coerce string "true" to boolean for waitForResponse', () => {
+      const args = {
+        event: {
+          type: 'chat.message.v1',
+          message: { id: 'msg1', role: 'user' as const },
+        },
+        waitForResponse: 'true' as any,
+      };
+
+      const result = eventSendTool.inputSchema.safeParse(args);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.waitForResponse).toBe(true);
+        expect(typeof result.data.waitForResponse).toBe('boolean');
+      }
+    });
+
+    it('should coerce string "5000" to number for timeoutMs', () => {
+      const args = {
+        event: {
+          type: 'chat.message.v1',
+          message: { id: 'msg1', role: 'user' as const },
+        },
+        timeoutMs: '5000' as any,
+      };
+
+      const result = eventSendTool.inputSchema.safeParse(args);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.timeoutMs).toBe(5000);
+        expect(typeof result.data.timeoutMs).toBe('number');
+      }
+    });
+
+    it('should coerce mixed string/native types correctly', () => {
+      const args = {
+        event: {
+          type: 'chat.message.v1',
+          message: { id: 'msg1', role: 'user' as const },
+        },
+        waitForResponse: 'true' as any,  // String
+        timeoutMs: 10000,                 // Number (native)
+      };
+
+      const result = eventSendTool.inputSchema.safeParse(args);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.waitForResponse).toBe(true);
+        expect(result.data.timeoutMs).toBe(10000);
       }
     });
   });
