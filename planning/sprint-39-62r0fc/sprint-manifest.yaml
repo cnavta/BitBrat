@@ -1,0 +1,11 @@
+id: sprint-39-62r0fc
+title: Dev MCP Messaging Tools
+goal: Implement Dev MCP tooling that allows coding agents to send chat messages
+  and arbitrary InternalEventV2 events to any environment via api-gateway, with
+  support for platform emulation and easy verification workflows
+owner: christophernavta
+createdAt: 2026-09-02T03:08:43.240Z
+status: in-progress
+links:
+  branch: feature/sprint-39-62r0fc-dev-mcp-messaging-tools
+notes: Sprint initialized via MCP start-sprint tool

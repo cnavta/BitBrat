@@ -9,6 +9,7 @@ import { configTools } from './tools/config.js';
 import { persistenceTools } from './tools/persistence.js';
 import { fleetTools } from './tools/fleet.js';
 import { agentDevTools } from './tools/agent-dev.js';
+import { messagingTools } from './tools/messaging.js';
 import { existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -135,12 +136,18 @@ export class DevMcpServer {
       this.toolRouter.registerTool(tool);
     }
 
-    const totalTools = configTools.length + persistenceTools.length + fleetTools.length + agentDevTools.length;
+    // Register messaging tools (Sprint 39)
+    for (const tool of messagingTools) {
+      this.toolRouter.registerTool(tool);
+    }
+
+    const totalTools = configTools.length + persistenceTools.length + fleetTools.length + agentDevTools.length + messagingTools.length;
     this.logger.info({
       config: configTools.length,
       persistence: persistenceTools.length,
       fleet: fleetTools.length,
       agentDev: agentDevTools.length,
+      messaging: messagingTools.length,
       total: totalTools,
     }, 'Registered dev tools');
   }

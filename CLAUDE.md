@@ -751,6 +751,131 @@ claim-check:
 
 ---
 
+### 10. Testing with Dev MCP Messaging Tools (Sprint 39)
+
+**Pattern for coding agents to test chat flows and verify platform behavior.**
+
+Dev MCP Messaging Tools provide MCP interfaces for sending messages and injecting events into BitBrat execution contexts. Use these tools to test agent flows, emulate platforms, and debug integration issues.
+
+```typescript
+// Pattern 1: Simple chat message testing
+message.send({
+  context: 'local',         // or 'agent-dev-test', 'staging'
+  text: 'Test message',
+  platform: 'api',          // optional: discord, twitch, slack, twilio
+  waitForResponse: true,
+  timeoutMs: 15000
+})
+
+// Pattern 2: Platform emulation (Discord, Twitch, etc.)
+message.send({
+  text: '!help',
+  platform: 'discord',
+  userId: 'test-user-123',
+  waitForResponse: true
+})
+
+// Pattern 3: Full event injection (requires event:inject permission)
+event.send({
+  context: 'local',
+  event: {
+    type: 'chat.message.v1',
+    message: {
+      id: 'msg-1',
+      role: 'user',
+      text: 'Custom test'
+    },
+    ingress: {
+      connector: 'discord',
+      source: 'ingress.discord'
+    },
+    identity: {
+      external: {
+        id: 'user-123',
+        platform: 'discord',
+        displayName: 'Test User'
+      }
+    }
+  },
+  waitForResponse: true
+})
+```
+
+**When to Use:**
+- ✅ Testing new chat commands or features
+- ✅ Verifying platform-specific routing (Discord vs Twitch)
+- ✅ Load testing message handlers
+- ✅ Debugging agent flow issues
+- ✅ Integration testing before deployment
+- ✅ Emulating rare platform events (raids, subscriptions)
+
+**Security Note:**
+- `event.send` requires `event:inject` permission
+- Dev tokens (`brat-dev-mcp:*`, `dev-tools:*`) auto-granted
+- Anonymous users rejected
+- Audit logging captures both real and emulated identity
+
+**Examples**:
+
+Discord command testing:
+```typescript
+message.send({
+  text: '!weather San Francisco',
+  platform: 'discord',
+  userId: 'test-discord-user',
+  waitForResponse: true
+})
+```
+
+Twitch chat emulation:
+```typescript
+message.send({
+  text: '!uptime',
+  platform: 'twitch',
+  userId: 'viewer_name',
+  waitForResponse: true
+})
+```
+
+Custom event with annotations:
+```typescript
+event.send({
+  event: {
+    type: 'custom.test.v1',
+    message: { id: 'msg-1', role: 'user', text: 'test' },
+    annotations: [
+      {
+        kind: 'test-data',
+        value: { key: 'value' },
+        source: 'integration-test',
+        id: 'ann-1',
+        createdAt: new Date().toISOString()
+      }
+    ]
+  }
+})
+```
+
+**Verification workflow:**
+```typescript
+// 1. Send test message
+const result = await message.send({ text: 'Test', waitForResponse: true })
+
+// 2. Extract correlationId from response
+const response = JSON.parse(result.content[0].text)
+const correlationId = response.correlationId
+
+// 3. Trace message through full pipeline
+fleet.trace({ correlationId, context: 'local' })
+
+// 4. Verify logs for expected behavior
+fleet.logs({ bit: 'llm-bot', context: 'local', limit: 20 })
+```
+
+**Documentation**: [Dev MCP Messaging Guide](./documentation/guides/dev-mcp-messaging.md)
+
+---
+
 ### Quick Reference Patterns
 
 **Adding MCP Tool:**
