@@ -771,7 +771,7 @@ services:
       requiredRoles:
         - reflex
         - admin
-    active: true
+    active: false
     description: MCP server for controlling OBS
     kind: mcp-server
     external:

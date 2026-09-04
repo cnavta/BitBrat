@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ReadResourceResult, GetPromptResult } from "@modelcontextprotocol/server";
 
-export type ToolSource = 'internal' | 'mcp' | 'firestore';
+export type ToolSource = 'internal' | 'mcp' | 'firestore' | 'composition';
 
 /**
  * Context provided during tool execution
