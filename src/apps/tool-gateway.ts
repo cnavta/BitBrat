@@ -14,6 +14,9 @@ import { ToolRegistry } from '../services/llm-bot/tools/registry';
 import { McpClientManager } from '../common/mcp/client-manager';
 import { RegistryWatcher } from '../common/mcp/registry-watcher';
 import { RbacEvaluator } from '../common/mcp/rbac';
+import { CompositionRegistry } from '../common/composition/registry';
+import { CompositionExecutor } from '../common/composition/executor';
+import { PostgresCompositionStore } from '../common/composition/postgres-composition-store';
 import { McpServerConfig, SessionContext } from '../common/mcp/types';
 import {
   createMcpServerStore,
@@ -58,6 +61,72 @@ const SendProgressUpdateSchema = z.object({
 
 type SendProgressUpdateArgs = z.infer<typeof SendProgressUpdateSchema>;
 
+/**
+ * Schemas for composition administrative MCP tools (Sprint 41 - COMP-017A)
+ * These tools provide MCP-based management of compositions, complementing the REST API.
+ */
+
+// composition.register schema
+const CompositionRegisterSchema = z.object({
+  definition: z.object({
+    apiVersion: z.string().describe('API version (e.g., "mcp-compose/v1")'),
+    kind: z.literal('Composition').describe('Resource kind (must be "Composition")'),
+    metadata: z.object({
+      name: z.string().describe('Composition name (unique identifier)'),
+      description: z.string().optional().describe('Human-readable description'),
+      version: z.number().optional().describe('Version number (auto-assigned if omitted)'),
+    }).passthrough().describe('Composition metadata'),
+    spec: z.object({
+      inputSchema: z.any().describe('JSON Schema for composition inputs'),
+      steps: z.array(z.any()).optional().describe('Execution steps (call, ifValue, etc.)'),
+      return: z.any().describe('Return value definition'),
+    }).passthrough().describe('Composition specification'),
+  }).passthrough().describe('Composition definition (YAML/JSON)'),
+});
+
+type CompositionRegisterArgs = z.infer<typeof CompositionRegisterSchema>;
+
+// composition.list schema
+const CompositionListSchema = z.object({
+  filter: z.object({
+    name: z.string().optional().describe('Filter by composition name'),
+    status: z.enum(['active', 'draft', 'archived']).optional().describe('Filter by status'),
+  }).optional().describe('Optional filters for composition list'),
+  limit: z.number().optional().describe('Maximum number of results to return'),
+  offset: z.number().optional().describe('Number of results to skip (pagination)'),
+});
+
+type CompositionListArgs = z.infer<typeof CompositionListSchema>;
+
+// composition.get schema
+const CompositionGetSchema = z.object({
+  name: z.string().describe('Composition name to retrieve'),
+  version: z.number().optional().describe('Specific version to retrieve (omit for latest)'),
+});
+
+type CompositionGetArgs = z.infer<typeof CompositionGetSchema>;
+
+// composition.delete schema
+const CompositionDeleteSchema = z.object({
+  name: z.string().describe('Composition name to delete'),
+  version: z.number().describe('Specific version to delete'),
+});
+
+type CompositionDeleteArgs = z.infer<typeof CompositionDeleteSchema>;
+
+// composition.stats schema (no parameters)
+const CompositionStatsSchema = z.object({});
+
+type CompositionStatsArgs = z.infer<typeof CompositionStatsSchema>;
+
+// composition.list_tools schema - Helper for discovering canonical tool IDs (Sprint 41 remediation)
+const CompositionListToolsSchema = z.object({
+  filter: z.string().optional().describe('Optional filter pattern (e.g., "state", "image") to search tool names'),
+  limit: z.number().optional().describe('Maximum number of tools to return (default: 100)'),
+});
+
+type CompositionListToolsArgs = z.infer<typeof CompositionListToolsSchema>;
+
 export class ToolGatewayServer extends Bit {
   private registry = new ToolRegistry();
   private mcpManager = new McpClientManager(this as any, this.registry);
@@ -90,6 +159,10 @@ export class ToolGatewayServer extends Bit {
   // Repository abstractions for persistence (Firestore or PostgreSQL via factory)
   private mcpServerStore: IMcpServerStore;
   private contextPackStore: IContextPackStore;
+  // Composition subsystem (Sprint 41)
+  private compositionRegistry?: CompositionRegistry;
+  private compositionExecutor?: CompositionExecutor;
+  private compositionsEnabled: boolean;
 
   constructor() {
     super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
@@ -117,10 +190,107 @@ export class ToolGatewayServer extends Bit {
     this.mcpServerStore = createMcpServerStore(dbOrStore);
     this.contextPackStore = createContextPackStore(dbOrStore);
 
+    // Initialize composition subsystem (Sprint 41)
+    // Feature flag: ENABLE_COMPOSITIONS (default: true)
+    this.compositionsEnabled = process.env.ENABLE_COMPOSITIONS !== 'false';
+
+    if (this.compositionsEnabled) {
+      try {
+        // Create PostgresCompositionStore for dedicated compositions table
+        const connectionString = process.env.DATABASE_URL;
+        if (!connectionString) {
+          throw new Error('DATABASE_URL required for composition subsystem');
+        }
+
+        const { Pool } = require('pg');
+        const pool = new Pool({
+          connectionString,
+          max: parseInt(process.env.POSTGRES_POOL_SIZE || '10', 10),
+          ssl: process.env.POSTGRES_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+        });
+
+        const compositionStore = new PostgresCompositionStore(pool);
+
+        // Note: Table verification happens on first use
+        // Migration 023-add-compositions-table.sql creates the table
+
+        // Create adapter for ToolRegistry to match ToolRegistryInterface
+        const toolRegistryAdapter = {
+          getTool: (toolId: string) => {
+            const tool = this.registry.getTool(toolId);
+            if (!tool) return null;
+            return {
+              id: tool.id,
+              inputSchema: tool.inputSchema,
+              source: tool.source,
+              execute: tool.execute,
+              outputSchema: (tool as any).outputSchema,
+            };
+          },
+        };
+
+        this.compositionRegistry = new CompositionRegistry(
+          compositionStore as any, // DocumentStore interface compatible
+          toolRegistryAdapter as any
+        );
+        this.compositionExecutor = new CompositionExecutor(toolRegistryAdapter as any);
+
+        this.getLogger().info('tool_gateway.composition.subsystem_initialized', {
+          storeType: 'PostgresCompositionStore',
+          connectionString: connectionString.replace(/:[^:@]+@/, ':***@'), // Mask password
+        });
+      } catch (err) {
+        this.getLogger().warn('tool_gateway.composition.init_failed', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        this.compositionsEnabled = false;
+      }
+    }
+
     this.setupApp(this.getApp() as any);
 
     // Register tool-gateway-specific tools after setup
     this.registerGatewayTools();
+
+    // Register composition administrative MCP tools (Sprint 41 - COMP-017A)
+    // CRITICAL: Always register tools even when disabled, so LLMs get clear error messages
+    // instead of empty responses (fixes empty string bug discovered in Sprint 41 verification)
+    this.registerCompositionAdminTools();
+  }
+
+  /**
+   * Helper method to register a tool-gateway platform tool in BOTH registries.
+   *
+   * This prevents the common mistake of only registering in one place:
+   * - Internal registry (this.registry) - for REST API and internal resolution
+   * - MCP server (this.registerTool) - for MCP client visibility
+   *
+   * Sprint 41: Codifies dual-registration pattern to prevent MCP exposure bugs.
+   *
+   * @param id Tool ID
+   * @param description Tool description
+   * @param schema Zod schema for validation
+   * @param handler Tool execution handler
+   */
+  private registerPlatformTool<T extends z.ZodType>(
+    id: string,
+    description: string,
+    schema: T,
+    handler: (args: z.infer<T>, extra?: any) => Promise<any>
+  ): void {
+    // 1. Register in internal ToolRegistry (for REST API + tool resolution)
+    this.registry.registerTool({
+      id,
+      displayName: id,
+      description,
+      inputSchema: schema,
+      execute: handler,
+      source: 'internal',
+    });
+
+    // 2. Register via Bit MCP interface (for MCP client exposure)
+    // Only exposed if mcpExposure is set (checked by base class)
+    this.registerTool(id, description, schema, handler);
   }
 
   /**
@@ -128,15 +298,12 @@ export class ToolGatewayServer extends Bit {
    * Sprint 22: agent.sendProgressUpdate for sending progress messages before long operations.
    */
   protected registerGatewayTools(): void {
-    // Register to tool-gateway's own registry (used for proxying to agents)
-    this.registry.registerTool({
-      id: 'agent.sendProgressUpdate',
-      displayName: 'agent.sendProgressUpdate',
-      description: 'Send a progress update message to the user before starting a long-running operation. Use this to provide immediate feedback when an action may take more than a few seconds.',
-      inputSchema: SendProgressUpdateSchema,
-      execute: this.handleSendProgressUpdate.bind(this),
-      source: 'internal',
-    });
+    this.registerPlatformTool(
+      'agent.sendProgressUpdate',
+      'Send a progress update message to the user before starting a long-running operation. Use this to provide immediate feedback when an action may take more than a few seconds.',
+      SendProgressUpdateSchema,
+      this.handleSendProgressUpdate.bind(this)
+    );
 
     this.getLogger().info('tool_gateway.platform_tools.registered', {
       tools: ['agent.sendProgressUpdate']
@@ -438,7 +605,727 @@ export class ToolGatewayServer extends Bit {
     }
   }
 
+  /**
+   * Register composition administrative MCP tools (Sprint 41 - COMP-017A).
+   * Provides MCP-based CRUD operations for compositions, complementing the REST API.
+   * Tools reuse existing REST endpoint logic for consistency.
+   */
+  private registerCompositionAdminTools(): void {
+    const logger = this.getLogger();
+
+    // Register all composition admin tools using the helper method
+    // This ensures they're exposed via BOTH internal registry AND MCP
+    this.registerPlatformTool(
+      'composition.register',
+      `Register a new composition from YAML/JSON definition.
+
+IMPORTANT: Tool IDs in composition steps MUST use CANONICAL names (e.g., 'get_state', 'generate_image'), NOT the MCP-prefixed names you see in the tools list (e.g., 'mcp_get_state', 'mcp_generate_image').
+
+Use 'composition.list_tools' to discover canonical tool IDs for composition authoring.
+
+Example:
+  steps:
+    - call: get_state              # ✅ CORRECT (canonical ID)
+      with: { key: "example" }
+    - call: mcp_get_state          # ❌ WRONG (MCP-prefixed)
+
+Returns composition metadata (id, name, version, contentHash).`,
+      CompositionRegisterSchema,
+      this.handleCompositionRegister.bind(this)
+    );
+
+    this.registerPlatformTool(
+      'composition.list',
+      'List all registered compositions with optional filtering and pagination. Returns array of composition metadata.',
+      CompositionListSchema,
+      this.handleCompositionList.bind(this)
+    );
+
+    this.registerPlatformTool(
+      'composition.get',
+      'Retrieve a specific composition by name and optional version (latest if omitted). Returns full composition definition.',
+      CompositionGetSchema,
+      this.handleCompositionGet.bind(this)
+    );
+
+    this.registerPlatformTool(
+      'composition.delete',
+      'Delete a specific composition version by name and version number. Returns deletion confirmation.',
+      CompositionDeleteSchema,
+      this.handleCompositionDelete.bind(this)
+    );
+
+    this.registerPlatformTool(
+      'composition.stats',
+      'Get composition registry statistics including total compositions, total versions, and compositions by name. Returns statistics object.',
+      CompositionStatsSchema,
+      this.handleCompositionStats.bind(this)
+    );
+
+    this.registerPlatformTool(
+      'composition.list_tools',
+      'List all available tools with CANONICAL IDs for use in compositions. Returns tools with their canonical IDs (without mcp_ prefix), descriptions, and input schemas. Use this to discover correct tool IDs when authoring compositions.',
+      CompositionListToolsSchema,
+      this.handleCompositionListTools.bind(this)
+    );
+
+    logger.info('tool_gateway.composition_admin_tools.registered', {
+      tools: ['composition.register', 'composition.list', 'composition.get', 'composition.delete', 'composition.stats', 'composition.list_tools'],
+    });
+  }
+
+  /**
+   * Handle composition.register tool invocation.
+   * Registers a new composition from YAML/JSON definition.
+   * Sprint 41 (COMP-017A): MCP administrative tool.
+   */
+  private async handleCompositionRegister(
+    args: CompositionRegisterArgs,
+    extra?: { sessionId?: string; userRoles?: string[] }
+  ): Promise<any> {
+    const logger = this.getLogger();
+
+    if (!this.compositionsEnabled || !this.compositionRegistry) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: Composition subsystem not enabled (DocumentStore not available)',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    logger.debug('composition_admin.register.start', {
+      name: args.definition.metadata.name,
+      sessionId: extra?.sessionId,
+    });
+
+    try {
+      // Register composition (same logic as REST POST /v1/compositions)
+      // Cast to any because Zod schema uses z.string() for apiVersion but type requires literal "mcp-compose/v1"
+      const compiled = await this.compositionRegistry.register(args.definition as any);
+
+      // Register as MCP tool
+      await this.registerCompositionTool(compiled);
+
+      logger.info('composition_admin.register.success', {
+        name: compiled.metadata.name,
+        version: compiled.metadata.version,
+        id: compiled.id,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                id: compiled.id,
+                name: compiled.metadata.name,
+                version: compiled.metadata.version,
+                contentHash: compiled.contentHash,
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    } catch (err) {
+      logger.error('composition_admin.register.error', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error: ${err instanceof Error ? err.message : 'Failed to register composition'}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  /**
+   * Handle composition.list tool invocation.
+   * Lists all registered compositions with optional filtering.
+   * Sprint 41 (COMP-017A): MCP administrative tool.
+   */
+  private async handleCompositionList(
+    args: CompositionListArgs,
+    extra?: { sessionId?: string; userRoles?: string[] }
+  ): Promise<any> {
+    const logger = this.getLogger();
+
+    if (!this.compositionsEnabled || !this.compositionRegistry) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: Composition subsystem not enabled (DocumentStore not available)',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    logger.debug('composition_admin.list.start', {
+      filter: args.filter,
+      sessionId: extra?.sessionId,
+    });
+
+    try {
+      // List compositions (same logic as REST GET /v1/compositions)
+      const compositions = await this.compositionRegistry.list();
+
+      // Apply optional filters
+      let filtered = compositions;
+
+      if (args.filter?.name) {
+        filtered = filtered.filter((c) => c.name === args.filter!.name);
+      }
+
+      // Apply pagination
+      const offset = args.offset || 0;
+      const limit = args.limit || filtered.length;
+      const paginated = filtered.slice(offset, offset + limit);
+
+      const result = {
+        compositions: paginated.map((c) => ({
+          id: c.id,
+          name: c.name,
+          version: c.version,
+          contentHash: c.contentHash,
+          createdAt: c.createdAt,
+          updatedAt: c.updatedAt,
+        })),
+        total: filtered.length,
+      };
+
+      logger.debug('composition_admin.list.success', {
+        total: result.total,
+        returned: result.compositions.length,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (err) {
+      logger.error('composition_admin.list.error', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error: ${err instanceof Error ? err.message : 'Failed to list compositions'}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  /**
+   * Handle composition.get tool invocation.
+   * Retrieves a specific composition by name and optional version.
+   * Sprint 41 (COMP-017A): MCP administrative tool.
+   */
+  private async handleCompositionGet(
+    args: CompositionGetArgs,
+    extra?: { sessionId?: string; userRoles?: string[] }
+  ): Promise<any> {
+    const logger = this.getLogger();
+
+    if (!this.compositionsEnabled || !this.compositionRegistry) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: Composition subsystem not enabled (DocumentStore not available)',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    logger.debug('composition_admin.get.start', {
+      name: args.name,
+      version: args.version,
+      sessionId: extra?.sessionId,
+    });
+
+    try {
+      // Get composition (same logic as REST GET /v1/compositions/:name/:version or /:name)
+      const composition = await this.compositionRegistry.get(args.name, args.version);
+
+      if (!composition) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Error: Composition not found: ${args.name}${args.version ? ` (version ${args.version})` : ''}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      logger.debug('composition_admin.get.success', {
+        name: args.name,
+        version: composition.metadata.version,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(composition, null, 2),
+          },
+        ],
+      };
+    } catch (err) {
+      logger.error('composition_admin.get.error', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error: ${err instanceof Error ? err.message : 'Failed to retrieve composition'}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  /**
+   * Handle composition.delete tool invocation.
+   * Deletes a specific composition version by name and version.
+   * Sprint 41 (COMP-017A): MCP administrative tool.
+   */
+  private async handleCompositionDelete(
+    args: CompositionDeleteArgs,
+    extra?: { sessionId?: string; userRoles?: string[] }
+  ): Promise<any> {
+    const logger = this.getLogger();
+
+    if (!this.compositionsEnabled || !this.compositionRegistry) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: Composition subsystem not enabled (DocumentStore not available)',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    logger.debug('composition_admin.delete.start', {
+      name: args.name,
+      version: args.version,
+      sessionId: extra?.sessionId,
+    });
+
+    try {
+      // Delete composition (same logic as REST DELETE /v1/compositions/:name/:version)
+      await this.compositionRegistry.delete(args.name, args.version);
+
+      // Unregister from ToolRegistry
+      this.registry.unregisterTool(args.name);
+
+      logger.info('composition_admin.delete.success', {
+        name: args.name,
+        version: args.version,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: true,
+                message: `Composition deleted: ${args.name} (version ${args.version})`,
+                deleted: {
+                  name: args.name,
+                  version: args.version,
+                },
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    } catch (err) {
+      logger.error('composition_admin.delete.error', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error: ${err instanceof Error ? err.message : 'Failed to delete composition'}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  /**
+   * Handle composition.stats tool invocation.
+   * Returns composition registry statistics.
+   * Sprint 41 (COMP-017A): MCP administrative tool.
+   */
+  private async handleCompositionStats(
+    args: CompositionStatsArgs,
+    extra?: { sessionId?: string; userRoles?: string[] }
+  ): Promise<any> {
+    const logger = this.getLogger();
+
+    if (!this.compositionsEnabled || !this.compositionRegistry) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: Composition subsystem not enabled (DocumentStore not available)',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    logger.debug('composition_admin.stats.start', {
+      sessionId: extra?.sessionId,
+    });
+
+    try {
+      // Get stats (same logic as REST GET /v1/compositions/stats)
+      const stats = await this.compositionRegistry.getStats();
+
+      logger.debug('composition_admin.stats.success', {
+        totalCompositions: stats.totalCompositions,
+        totalVersions: stats.totalVersions,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(stats, null, 2),
+          },
+        ],
+      };
+    } catch (err) {
+      logger.error('composition_admin.stats.error', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error: ${err instanceof Error ? err.message : 'Failed to get composition statistics'}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  /**
+   * Handle composition.list_tools tool invocation.
+   * Returns all available tools with CANONICAL IDs for use in compositions.
+   * Sprint 41 (Information Gap Remediation): Helper tool for discovering tool IDs.
+   */
+  private async handleCompositionListTools(
+    args: CompositionListToolsArgs,
+    extra?: { sessionId?: string; userRoles?: string[] }
+  ): Promise<any> {
+    const logger = this.getLogger();
+
+    logger.debug('composition_admin.list_tools.start', {
+      filter: args.filter,
+      limit: args.limit,
+      sessionId: extra?.sessionId,
+    });
+
+    try {
+      // Get all tools from registry (returns Record<string, BitBratTool>)
+      const toolsRecord = this.registry.getTools();
+      const allTools = Object.values(toolsRecord);
+
+      // Filter tools if pattern provided
+      let filtered = allTools;
+      if (args.filter) {
+        const pattern = args.filter.toLowerCase();
+        filtered = allTools.filter(t =>
+          t.id.toLowerCase().includes(pattern) ||
+          (t.displayName && t.displayName.toLowerCase().includes(pattern)) ||
+          (t.description && t.description.toLowerCase().includes(pattern))
+        );
+      }
+
+      // Apply limit (default 100)
+      const limit = args.limit || 100;
+      const limited = filtered.slice(0, limit);
+
+      // Format output - normalize tool IDs to canonical form
+      const tools = limited.map(t => {
+        // Strip MCP prefixes to get canonical ID
+        let canonicalId = t.id;
+
+        // Remove 'mcp_' prefix (e.g., 'mcp_get_state' -> 'get_state')
+        if (canonicalId.startsWith('mcp_')) {
+          canonicalId = canonicalId.slice(4);
+        }
+
+        // Remove 'mcp:' prefix and server name (e.g., 'mcp:generate_image' -> 'generate_image')
+        // Also handles 'mcp:server-name/tool-name' -> 'tool-name'
+        if (canonicalId.startsWith('mcp:')) {
+          const withoutPrefix = canonicalId.slice(4); // Remove 'mcp:'
+          const parts = withoutPrefix.split('/');
+          canonicalId = parts[parts.length - 1]; // Get last part (tool name)
+        }
+
+        return {
+          id: canonicalId,  // Canonical ID (no mcp_ or mcp: prefix)
+          displayName: t.displayName || canonicalId,
+          description: t.description || '',
+          source: t.source || 'unknown',
+          // Include simplified schema if available
+          hasInputSchema: !!t.inputSchema,
+        };
+      });
+
+      logger.debug('composition_admin.list_tools.success', {
+        totalTools: allTools.length,
+        filteredCount: filtered.length,
+        returnedCount: tools.length,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              totalAvailable: allTools.length,
+              filtered: filtered.length,
+              returned: tools.length,
+              tools,
+              hint: 'Use these canonical tool IDs in composition steps (e.g., steps[].call)',
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (err) {
+      logger.error('composition_admin.list_tools.error', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error: ${err instanceof Error ? err.message : 'Failed to list tools'}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  /**
+   * Load all compositions from DocumentStore and register them as tools
+   * Sprint 41: Composition subsystem integration
+   */
+  private async loadCompositions(): Promise<void> {
+    if (!this.compositionsEnabled || !this.compositionRegistry) {
+      return;
+    }
+
+    try {
+      const compositions = await this.compositionRegistry.list();
+      this.getLogger().info('tool_gateway.compositions.loaded', {
+        count: compositions.length,
+        names: compositions.map((c) => c.name),
+      });
+
+      // Register each composition as an MCP tool (COMP-014)
+      for (const record of compositions) {
+        await this.registerCompositionTool(record.compiled);
+      }
+
+      this.getLogger().info('tool_gateway.compositions.registered', {
+        count: compositions.length,
+      });
+    } catch (err) {
+      this.getLogger().error('tool_gateway.compositions.load_failed', {
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+      });
+      // Graceful degradation: Don't fail startup if compositions can't be loaded
+    }
+  }
+
+  /**
+   * Register a composition as an MCP tool
+   * Sprint 41 (COMP-014): Each composition becomes a callable tool
+   */
+  private async registerCompositionTool(composition: any): Promise<void> {
+    const toolId = composition.metadata.name;
+    const description = composition.metadata.description || `Composition: ${toolId}`;
+
+    try {
+      // Register in ToolRegistry (used for internal tool resolution)
+      this.registry.registerTool({
+        id: toolId,
+        displayName: toolId,
+        description,
+        inputSchema: composition.spec.inputSchema,
+        source: 'composition',
+        execute: async (args: unknown, extra?: any) => {
+          return await this.executeComposition(composition, args, extra);
+        },
+      });
+
+      // Register via Bit MCP interface (exposes to MCP clients)
+      this.registerTool(
+        toolId,
+        description,
+        composition.spec.inputSchema,
+        async (args: unknown, extra?: any) => {
+          return await this.executeComposition(composition, args, extra);
+        }
+      );
+
+      this.getLogger().debug('tool_gateway.composition.registered', {
+        toolId,
+        version: composition.metadata.version,
+      });
+    } catch (err) {
+      this.getLogger().error('tool_gateway.composition.registration_failed', {
+        toolId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  /**
+   * Execute a composition
+   * Sprint 41 (COMP-014): Invokes CompositionExecutor with proper ExecutionContext
+   */
+  private async executeComposition(
+    composition: any,
+    args: unknown,
+    extra?: { sessionId?: string; userRoles?: string[]; correlationId?: string }
+  ): Promise<any> {
+    if (!this.compositionExecutor) {
+      throw new Error('Composition executor not initialized');
+    }
+
+    const logger = this.getLogger();
+    const sessionId = extra?.sessionId || randomUUID();
+    const correlationId = extra?.correlationId || randomUUID();
+
+    logger.debug('tool_gateway.composition.execute', {
+      composition: composition.metadata.name,
+      version: composition.metadata.version,
+      sessionId,
+      correlationId,
+    });
+
+    try {
+      // Build execution context
+      const executionContext = {
+        input: args,
+        context: {}, // TODO: Could populate from session context if needed
+        sessionId,
+        correlationId,
+        userRoles: extra?.userRoles || ['user'],
+      };
+
+      // Execute composition
+      const result = await this.compositionExecutor.execute(composition, executionContext);
+
+      if (result.status === 'success') {
+        logger.info('tool_gateway.composition.execute.success', {
+          composition: composition.metadata.name,
+          sessionId,
+          correlationId,
+          executionTime: result.executionTime,
+          stepsExecuted: result.stepsExecuted,
+        });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result.output, null, 2),
+            },
+          ],
+        };
+      } else {
+        logger.error('tool_gateway.composition.execute.failed', {
+          composition: composition.metadata.name,
+          sessionId,
+          correlationId,
+          error: result.error,
+          errorCode: result.errorCode,
+          executionTime: result.executionTime,
+        });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Composition execution failed: ${result.error}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    } catch (err) {
+      logger.error('tool_gateway.composition.execute.exception', {
+        composition: composition.metadata.name,
+        sessionId,
+        correlationId,
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Composition execution error: ${err instanceof Error ? err.message : String(err)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
   async start(port: number) {
+    // Load compositions from DocumentStore (Sprint 41)
+    await this.loadCompositions();
+
     // Initialize MCP Registry Watcher to populate upstream tools
     this.registryWatcher = new RegistryWatcher(this as any, {
       store: this.mcpServerStore,
@@ -997,7 +1884,12 @@ export class ToolGatewayServer extends Bit {
 
         this.getLogger().debug('tool_gateway.rest.read_resource.start', { uri, context });
         const start = Date.now();
-        resource.read?.({
+
+        if (!resource.read) {
+          return res.status(500).json({ error: 'Resource does not support read operation' });
+        }
+
+        resource.read({
           userRoles: context.roles,
           userId: context.userId,
           agentName: context.agentName
@@ -1020,6 +1912,190 @@ export class ToolGatewayServer extends Bit {
             mimeType: r.mimeType
           }));
         res.json({ resources });
+      }
+    });
+
+    // ========================================================================
+    // Composition Management REST API (Sprint 41 - COMP-015)
+    // ========================================================================
+
+    // POST /v1/compositions - Register a new composition
+    this.onHTTPRequest({ path: '/v1/compositions', method: 'POST' }, async (req: Request, res: Response) => {
+      if (!this.compositionsEnabled || !this.compositionRegistry) {
+        return res.status(503).json({ error: 'Composition subsystem not enabled' });
+      }
+
+      const context = this.extractSessionContext(req);
+      this.getLogger().debug('composition_api.register.start', { context });
+
+      try {
+        const definition = req.body;
+        const compiled = await this.compositionRegistry.register(definition);
+
+        // Register as MCP tool
+        await this.registerCompositionTool(compiled);
+
+        this.getLogger().info('composition_api.register.success', {
+          name: compiled.metadata.name,
+          version: compiled.metadata.version,
+          id: compiled.id,
+        });
+
+        res.status(201).json({
+          id: compiled.id,
+          name: compiled.metadata.name,
+          version: compiled.metadata.version,
+          contentHash: compiled.contentHash,
+        });
+      } catch (err) {
+        this.getLogger().error('composition_api.register.error', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        res.status(400).json({
+          error: err instanceof Error ? err.message : 'Failed to register composition',
+        });
+      }
+    });
+
+    // GET /v1/compositions - List all compositions
+    this.onHTTPRequest('/v1/compositions', async (req: Request, res: Response) => {
+      if (!this.compositionsEnabled || !this.compositionRegistry) {
+        return res.status(503).json({ error: 'Composition subsystem not enabled' });
+      }
+
+      try {
+        const compositions = await this.compositionRegistry.list();
+
+        res.json({
+          compositions: compositions.map((c) => ({
+            id: c.id,
+            name: c.name,
+            version: c.version,
+            contentHash: c.contentHash,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt,
+          })),
+        });
+      } catch (err) {
+        this.getLogger().error('composition_api.list.error', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        res.status(500).json({
+          error: 'Failed to list compositions',
+        });
+      }
+    });
+
+    // GET /v1/compositions/stats - Get registry statistics
+    this.onHTTPRequest('/v1/compositions/stats', async (req: Request, res: Response) => {
+      if (!this.compositionsEnabled || !this.compositionRegistry) {
+        return res.status(503).json({ error: 'Composition subsystem not enabled' });
+      }
+
+      try {
+        const stats = await this.compositionRegistry.getStats();
+        res.json(stats);
+      } catch (err) {
+        this.getLogger().error('composition_api.stats.error', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        res.status(500).json({
+          error: 'Failed to get composition statistics',
+        });
+      }
+    });
+
+    // GET /v1/compositions/:name/:version - Get specific composition version
+    this.onHTTPRequest('/v1/compositions/:name/:version', async (req: Request, res: Response) => {
+      if (!this.compositionsEnabled || !this.compositionRegistry) {
+        return res.status(503).json({ error: 'Composition subsystem not enabled' });
+      }
+
+      try {
+        const { name, version } = req.params;
+        const versionNum = parseInt(version, 10);
+
+        if (isNaN(versionNum)) {
+          return res.status(400).json({ error: 'Version must be a number' });
+        }
+
+        const composition = await this.compositionRegistry.get(name, versionNum);
+
+        if (!composition) {
+          return res.status(404).json({ error: 'Composition not found' });
+        }
+
+        res.json(composition);
+      } catch (err) {
+        this.getLogger().error('composition_api.get.error', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        res.status(500).json({
+          error: 'Failed to retrieve composition',
+        });
+      }
+    });
+
+    // GET /v1/compositions/:name - Get latest version of composition
+    this.onHTTPRequest('/v1/compositions/:name', async (req: Request, res: Response) => {
+      if (!this.compositionsEnabled || !this.compositionRegistry) {
+        return res.status(503).json({ error: 'Composition subsystem not enabled' });
+      }
+
+      try {
+        const { name } = req.params;
+        const composition = await this.compositionRegistry.get(name);
+
+        if (!composition) {
+          return res.status(404).json({ error: 'Composition not found' });
+        }
+
+        res.json(composition);
+      } catch (err) {
+        this.getLogger().error('composition_api.get_latest.error', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        res.status(500).json({
+          error: 'Failed to retrieve composition',
+        });
+      }
+    });
+
+    // DELETE /v1/compositions/:name/:version - Delete specific composition version
+    this.onHTTPRequest({ path: '/v1/compositions/:name/:version', method: 'DELETE' }, async (req: Request, res: Response) => {
+      if (!this.compositionsEnabled || !this.compositionRegistry) {
+        return res.status(503).json({ error: 'Composition subsystem not enabled' });
+      }
+
+      const context = this.extractSessionContext(req);
+      this.getLogger().debug('composition_api.delete.start', { context });
+
+      try {
+        const { name, version } = req.params;
+        const versionNum = parseInt(version, 10);
+
+        if (isNaN(versionNum)) {
+          return res.status(400).json({ error: 'Version must be a number' });
+        }
+
+        await this.compositionRegistry.delete(name, versionNum);
+
+        // Unregister from ToolRegistry
+        this.registry.unregisterTool(name);
+
+        this.getLogger().info('composition_api.delete.success', {
+          name,
+          version: versionNum,
+        });
+
+        res.status(204).send();
+      } catch (err) {
+        this.getLogger().error('composition_api.delete.error', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        res.status(500).json({
+          error: err instanceof Error ? err.message : 'Failed to delete composition',
+        });
       }
     });
 

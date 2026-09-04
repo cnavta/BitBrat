@@ -1,0 +1,166 @@
+# Multi-Step Workflow Composition
+#
+# Demonstrates: Multi-step execution, data flow between steps, $steps references,
+#               tool invocation, complex data transformations
+#
+# This composition implements a multi-step workflow for processing a user request:
+# 1. Validate input
+# 2. Send progress update
+# 3. Process the request
+# 4. Send completion notification
+# 5. Return results
+#
+# Usage:
+#   POST /v1/compositions
+#   Body: <this file's contents>
+#
+#   Then invoke via:
+#   POST /v1/tools/multi_step_workflow
+#   Body: { "action": "analyze", "data": "sample text", "notify": true }
+
+apiVersion: mcp-compose/v1
+kind: Composition
+metadata:
+  name: multi_step_workflow
+  description: Multi-step workflow demonstrating data flow and tool composition
+  version: 1
+  author: BitBrat Platform
+  tags:
+    - example
+    - advanced
+    - workflow
+    - multi-step
+
+spec:
+  inputSchema:
+    type: object
+    properties:
+      action:
+        type: string
+        enum: [analyze, transform, validate]
+        description: Action to perform
+      data:
+        type: string
+        description: Input data to process
+      notify:
+        type: boolean
+        description: Whether to send progress notifications
+        default: false
+    required:
+      - action
+      - data
+
+  steps:
+    # Step 1: Validate that input data is not empty
+    - id: validation
+      ifValue:
+        condition:
+          exists:
+            $ref:
+              namespace: input
+              pointer: /data
+        then:
+          valid: true
+          message: Input validated successfully
+        else:
+          valid: false
+          message: Input data is missing
+
+    # Step 2: Send initial progress notification (conditional)
+    - id: initial_notification
+      call: agent.sendProgressUpdate
+      when:
+        all:
+          - equals:
+              - { $ref: { namespace: input, pointer: /notify } }
+              - true
+          - equals:
+              - { $ref: { namespace: steps, pointer: /validation/valid } }
+              - true
+      with:
+        message:
+          $ref:
+            namespace: input
+            pointer: /action
+        emoji: "🔄"
+        urgency: normal
+
+    # Step 3: Process the data based on action type
+    - id: processing
+      ifValue:
+        condition:
+          equals:
+            - { $ref: { namespace: steps, pointer: /validation/valid } }
+            - true
+        then:
+          # Successful processing result
+          status: completed
+          action:
+            $ref:
+              namespace: input
+              pointer: /action
+          processed_data:
+            $ref:
+              namespace: input
+              pointer: /data
+          data_length:
+            # This would normally be computed, but we'll use a placeholder
+            # In a real implementation, you might call a tool here
+            computed: true
+        else:
+          # Failed validation result
+          status: failed
+          error:
+            $ref:
+              namespace: steps
+              pointer: /validation/message
+
+    # Step 4: Send completion notification (conditional)
+    - id: completion_notification
+      call: agent.sendProgressUpdate
+      when:
+        all:
+          - equals:
+              - { $ref: { namespace: input, pointer: /notify } }
+              - true
+          - equals:
+              - { $ref: { namespace: steps, pointer: /processing/status } }
+              - completed
+      with:
+        message: Processing complete
+        emoji: "✅"
+        urgency: normal
+
+  # Return comprehensive result combining data from all steps
+  return:
+    workflow_id: multi_step_workflow_v1
+    validation:
+      $ref:
+        namespace: steps
+        pointer: /validation
+    processing:
+      $ref:
+        namespace: steps
+        pointer: /processing
+    metadata:
+      input_action:
+        $ref:
+          namespace: input
+          pointer: /action
+      notifications_enabled:
+        $ref:
+          namespace: input
+          pointer: /notify
+      steps_executed: 4
+
+  outputSchema:
+    type: object
+    properties:
+      workflow_id:
+        type: string
+      validation:
+        type: object
+      processing:
+        type: object
+      metadata:
+        type: object

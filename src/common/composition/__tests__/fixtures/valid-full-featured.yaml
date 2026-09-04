@@ -1,0 +1,82 @@
+apiVersion: mcp-compose/v1
+kind: Composition
+
+metadata:
+  name: viewer_greeting
+  description: Greet returning or new viewers with personalized message
+  version: 1
+  labels:
+    category: engagement
+    platform: twitch
+  annotations:
+    author: platform-team
+    created: "2026-09-03"
+
+spec:
+  inputSchema:
+    type: object
+    properties:
+      user_id:
+        type: string
+        description: Twitch user ID
+    required: [user_id]
+
+  contextSchema:
+    type: object
+    properties:
+      channel_id:
+        type: string
+    required: [channel_id]
+
+  outputSchema:
+    type: object
+    properties:
+      handled:
+        type: boolean
+      viewer_id:
+        type: string
+      greeting_type:
+        type: string
+        enum: [new_viewer, returning_viewer]
+    required: [handled, viewer_id, greeting_type]
+
+  steps:
+    # Step 1: Fetch user from Twitch
+    - id: user
+      call: twitch.get_user
+      with:
+        id: $input/user_id
+
+    # Step 2: Retrieve viewer memory
+    - id: memory
+      call: viewer_memory.get
+      with:
+        user_id: $steps/user/id
+        channel_id: $context/channel_id
+
+    # Step 3: Determine greeting type (conditional)
+    - id: greeting_type
+      if:
+        condition:
+          equals:
+            - $steps/memory/returning
+            - true
+        then: returning_viewer
+        else: new_viewer
+
+    # Step 4: Display OBS alert (with guard)
+    - id: alert
+      call: obs.show_alert
+      with:
+        template: $steps/greeting_type
+        name: $steps/user/display_name
+      when:
+        exists: $steps/user/display_name
+
+  return:
+    handled: true
+    viewer_id: $steps/user/id
+    greeting_type: $steps/greeting_type
+    metadata:
+      user_name: $steps/user/display_name
+      channel_id: $context/channel_id

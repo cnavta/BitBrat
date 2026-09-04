@@ -1,0 +1,22 @@
+apiVersion: mcp-compose/v1
+kind: Composition
+
+metadata:
+  name: minimal_example
+
+spec:
+  inputSchema:
+    type: object
+    properties:
+      value:
+        type: string
+    required: [value]
+
+  steps:
+    - id: echo
+      call: test.echo
+      with:
+        message: $input/value
+
+  return:
+    result: $steps/echo/output
