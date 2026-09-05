@@ -5,7 +5,7 @@ goal: Implement JsonSchemaStandardAdapter to expose composition input schemas to
   calls
 owner: navta3
 createdAt: 2026-09-05T15:59:11.541Z
-status: in-progress
+status: validating
 links:
   branch: feature/sprint-43-bt55ep-composition-schema-visibility-
 notes: Sprint initialized via MCP start-sprint tool
