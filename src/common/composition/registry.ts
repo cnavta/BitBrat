@@ -79,6 +79,9 @@ interface CompositionRecord {
   /** Content hash (for deduplication) */
   contentHash: string;
 
+  /** Raw composition definition (for database storage) */
+  definition?: CompositionDefinition;
+
   /** Compiled composition */
   compiled: CompiledComposition;
 
@@ -167,13 +170,14 @@ export class CompositionRegistry {
     compiled.id = id;
     compiled.metadata.version = version;
 
-    // Create record
+    // Create record (Sprint 42: Store both definition and compiled for compatibility)
     const record: CompositionRecord = {
       id,
       name: definition.metadata.name,
       version,
       contentHash: compiled.contentHash,
-      compiled,
+      definition, // Raw definition for database storage (Sprint 42)
+      compiled,   // Compiled version for in-memory operations
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -284,11 +288,89 @@ export class CompositionRegistry {
   /**
    * List all compositions
    *
-   * @returns Array of all composition records
+   * Loads compositions from database and compiles them into executable format.
+   * Handles both compositions registered via MCP tools and those inserted directly via SQL.
+   *
+   * Database records contain raw `definition` field (JSONB composition YAML).
+   * This method compiles each definition using CompositionCompiler to produce
+   * executable CompiledComposition objects.
+   *
+   * Invalid compositions are logged and skipped - loading continues for valid compositions.
+   *
+   * Sprint 42: Enhanced to compile definitions on load and handle database schema mapping
+   *
+   * @returns Array of all composition records with compiled definitions
    */
   async list(): Promise<CompositionRecord[]> {
     const results = await this.store.query(this.collection, {});
-    return results as CompositionRecord[];
+
+    const records: CompositionRecord[] = [];
+
+    for (const row of results) {
+      try {
+        // Database schema: {id, name, version, content_hash, definition, created_at, updated_at}
+        // Sprint 42: PostgresCompositionStore now returns full row with all columns
+        const dbRow = row as any;
+
+        // Validate that we have the required fields
+        if (!dbRow.name || !dbRow.definition) {
+          console.error(
+            `[CompositionRegistry] Skipping invalid composition record - missing name or definition:`,
+            {
+              hasName: !!dbRow.name,
+              hasDefinition: !!dbRow.definition,
+              rowKeys: Object.keys(dbRow),
+              id: dbRow.id || 'unknown'
+            }
+          );
+          continue;
+        }
+
+        // Parse definition (raw composition YAML as JSONB)
+        const definition = dbRow.definition as CompositionDefinition;
+
+        // Additional validation: ensure definition has required structure
+        if (!definition || typeof definition !== 'object') {
+          console.error(
+            `[CompositionRegistry] Skipping composition ${dbRow.name}:${dbRow.version} - definition is not an object:`,
+            { definitionType: typeof definition }
+          );
+          continue;
+        }
+
+        // Compile definition to get executable composition
+        const compiled = this.compiler.compile(definition);
+
+        // Construct properly-typed CompositionRecord
+        // Handle both snake_case (database) and camelCase (TypeScript) field names
+        records.push({
+          id: dbRow.id,
+          name: dbRow.name,
+          version: dbRow.version,
+          contentHash: dbRow.content_hash || dbRow.contentHash,
+          compiled,
+          createdAt: dbRow.created_at ? new Date(dbRow.created_at) : dbRow.createdAt,
+          updatedAt: dbRow.updated_at ? new Date(dbRow.updated_at) : dbRow.updatedAt,
+        });
+      } catch (err) {
+        // Log compilation error but continue loading other compositions
+        // This allows the system to remain functional even if some compositions are invalid
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const errorStack = err instanceof Error ? err.stack : undefined;
+        const dbRow = row as any;
+
+        console.error(
+          `[CompositionRegistry] Failed to compile composition ${dbRow.name}:${dbRow.version}:`,
+          errorMessage,
+          errorStack
+        );
+
+        // Continue processing other compositions
+        continue;
+      }
+    }
+
+    return records;
   }
 
   /**
