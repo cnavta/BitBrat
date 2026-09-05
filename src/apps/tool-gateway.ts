@@ -38,6 +38,7 @@ import {
 } from '../common/context';
 import type { NamedContext } from '../common/prompt-assembly/types';
 import { z } from 'zod';
+import { JsonSchemaStandardAdapter } from '../common/schemas/json-schema-standard-adapter';
 import { randomUUID } from 'crypto';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'tool-gateway';
@@ -1188,12 +1189,67 @@ Returns composition metadata (id, name, version, contentHash).`,
   }
 
   /**
+   * Wraps a JSON Schema in a Standard Schema adapter for MCP registration.
+   * Sprint 43: Enables LLMs to see composition input schemas.
+   *
+   * @param jsonSchema - JSON Schema from composition spec
+   * @param toolId - Composition tool ID (for logging and vendor string)
+   * @returns Standard Schema adapter or z.any() fallback
+   */
+  private wrapJsonSchemaWithAdapter(
+    jsonSchema: any,
+    toolId: string
+  ): any {
+    // No schema provided - use z.any()
+    if (!jsonSchema) {
+      this.getLogger().debug('composition.schema.missing', { toolId });
+      return z.any();
+    }
+
+    const startTime = Date.now();
+
+    try {
+      // Create Standard Schema adapter
+      const adapter = new JsonSchemaStandardAdapter(
+        jsonSchema,
+        `bitbrat-composition-${toolId}`
+      );
+
+      const durationMs = Date.now() - startTime;
+
+      this.getLogger().debug('composition.schema.wrapped', {
+        toolId,
+        vendor: adapter["~standard"].vendor,
+        hasValidation: typeof adapter["~standard"].validate === 'function',
+        hasJsonSchema: typeof adapter["~standard"].jsonSchema === 'object',
+        durationMs,
+      });
+
+      return adapter;
+    } catch (err: any) {
+      const durationMs = Date.now() - startTime;
+
+      this.getLogger().warn('composition.schema.wrap_failed', {
+        toolId,
+        error: err.message,
+        fallback: 'z.any()',
+        durationMs,
+      });
+
+      // Fail-open: Use z.any() so composition remains usable
+      return z.any();
+    }
+  }
+
+  /**
    * Register a composition as an MCP tool
    * Sprint 41 (COMP-014): Each composition becomes a callable tool
+   * Sprint 43: Enhanced with Standard Schema adapter for schema visibility
    */
   private async registerCompositionTool(composition: any): Promise<void> {
     const toolId = composition.metadata.name;
     const description = composition.metadata.description || `Composition: ${toolId}`;
+    const jsonSchema = composition.spec.inputSchema;
 
     try {
       // Register in ToolRegistry (used for internal tool resolution)
@@ -1201,23 +1257,22 @@ Returns composition metadata (id, name, version, contentHash).`,
         id: toolId,
         displayName: toolId,
         description,
-        inputSchema: composition.spec.inputSchema,
+        inputSchema: jsonSchema,  // JSON Schema for CompositionExecutor validation
         source: 'composition',
         execute: async (args: unknown, extra?: any) => {
           return await this.executeComposition(composition, args, extra);
         },
       });
 
+      // Wrap JSON Schema in Standard Schema adapter for MCP registration
+      // Sprint 43: LLMs can now see composition input schemas
+      const standardSchema = this.wrapJsonSchemaWithAdapter(jsonSchema, toolId);
+
       // Register via Bit MCP interface (exposes to MCP clients)
-      // LIMITATION (Sprint 42): MCP SDK 2.0 requires Zod schemas for inputSchema.
-      // Compositions use JSON Schema, which requires conversion to Zod for proper LLM visibility.
-      // Using z.any() for now - composition executor validates inputs internally using JSON Schema.
-      // TODO (Future Sprint): Implement JSON Schema → Zod conversion for composition tools
-      // so LLMs can see the expected parameters.
       this.registerTool(
         toolId,
         description,
-        z.any(),  // Allows any input - validation happens in CompositionExecutor
+        standardSchema,  // Standard Schema adapter (or z.any() fallback)
         async (args: unknown, extra?: any) => {
           return await this.executeComposition(composition, args, extra);
         }
@@ -1226,6 +1281,7 @@ Returns composition metadata (id, name, version, contentHash).`,
       this.getLogger().debug('tool_gateway.composition.registered', {
         toolId,
         version: composition.metadata.version,
+        hasStandardSchema: standardSchema !== z.any(),
       });
     } catch (err) {
       this.getLogger().error('tool_gateway.composition.registration_failed', {

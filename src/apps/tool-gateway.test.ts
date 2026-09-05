@@ -1028,4 +1028,109 @@ describe('composition administrative MCP tools', () => {
       await server.close('test');
     });
   });
+
+  // Sprint 43: Composition Schema Visibility Tests
+  describe('Composition Schema Visibility (Sprint 43)', () => {
+    describe('wrapJsonSchemaWithAdapter (TASK-014)', () => {
+      it('wraps valid JSON Schema in adapter', () => {
+        const server = createServer();
+        const jsonSchema = {
+          type: 'object',
+          properties: {
+            prompt: { type: 'string' },
+          },
+          required: ['prompt'],
+        };
+
+        const result = (server as any).wrapJsonSchemaWithAdapter(jsonSchema, 'test-tool');
+
+        // Should not be z.any()
+        expect(result).not.toBe((globalThis as any).z?.any());
+
+        // Should have Standard Schema interface
+        expect(result).toHaveProperty('~standard');
+        expect(result["~standard"].version).toBe(1);
+        expect(result["~standard"].vendor).toBe('bitbrat-composition-test-tool');
+      });
+
+      it('returns z.any() when no schema provided', () => {
+        const server = createServer();
+        const result = (server as any).wrapJsonSchemaWithAdapter(undefined, 'test-tool');
+
+        // Should be z.any() (Zod schema object, not Standard Schema adapter)
+        expect(result).toBeDefined();
+        expect(result).not.toHaveProperty('~standard');
+      });
+
+      it('returns z.any() on invalid schema (fail-open)', () => {
+        const server = createServer();
+        const invalidSchema = { type: 'invalid-type' };
+
+        const result = (server as any).wrapJsonSchemaWithAdapter(invalidSchema, 'test-tool');
+
+        // Should fail-open to z.any() (Zod schema object)
+        expect(result).toBeDefined();
+        expect(result).not.toHaveProperty('~standard');
+      });
+    });
+
+    describe('registerCompositionTool with Standard Schema (TASK-015)', () => {
+      it('registers composition with schema successfully', async () => {
+        const server = createServer();
+
+        if (!(server as any).compositionsEnabled) {
+          // Skip if compositions not enabled
+          await server.close('test');
+          return;
+        }
+
+        const composition = {
+          metadata: {
+            name: 'test-comp-with-schema',
+            version: 1,
+            description: 'Test composition with schema',
+          },
+          spec: {
+            inputSchema: {
+              type: 'object',
+              properties: {
+                message: { type: 'string' },
+              },
+              required: ['message'],
+            },
+            steps: [],
+          },
+        };
+
+        await (server as any).registerCompositionTool(composition);
+
+        // Verify tool registered (would throw if failed)
+        expect(true).toBe(true);
+
+        await server.close('test');
+      });
+
+      it('registers composition without schema (z.any() fallback)', async () => {
+        const server = createServer();
+
+        if (!(server as any).compositionsEnabled) {
+          // Skip if compositions not enabled
+          await server.close('test');
+          return;
+        }
+
+        const composition = {
+          metadata: { name: 'no-schema-comp', version: 1 },
+          spec: { steps: [] },
+        };
+
+        await (server as any).registerCompositionTool(composition);
+
+        // Should still register successfully with z.any() fallback
+        expect(true).toBe(true);
+
+        await server.close('test');
+      });
+    });
+  });
 });

@@ -202,6 +202,153 @@ spec:                                    # REQUIRED: Composition specification
 | `return` | Yes | any | Output expression (can use $ref to reference data). |
 | `outputSchema` | No | object | JSON Schema defining composition outputs (for validation). |
 
+### Input Schema Format
+
+**Sprint 43**: Compositions use **JSON Schema 2020-12** to define input parameters. This schema is visible to LLMs when they discover your composition as an MCP tool, enabling proper parameter discovery and type-aware tool calls.
+
+#### Simple Schema Example
+
+```yaml
+spec:
+  inputSchema:
+    type: object
+    properties:
+      prompt:
+        type: string
+        description: Text prompt for the operation
+      temperature:
+        type: number
+        minimum: 0
+        maximum: 1
+        default: 0.7
+    required:
+      - prompt
+```
+
+**What LLMs see**: When an LLM discovers this composition, it knows:
+- `prompt` is **required** and must be a string with description
+- `temperature` is **optional** (defaults to 0.7) and must be between 0 and 1
+- Type constraints are enforced (number vs string)
+
+#### Best Practices for Schema Design
+
+1. **Keep schemas simple**: Flat objects work best for LLM comprehension
+   ```yaml
+   # Good: Flat, simple structure
+   inputSchema:
+     type: object
+     properties:
+       query: { type: string }
+       limit: { type: number }
+
+   # Less ideal: Deep nesting
+   inputSchema:
+     type: object
+     properties:
+       config:
+         type: object
+         properties:
+           search:
+             type: object
+             properties:
+               query: { type: string }
+   ```
+
+2. **Use descriptions**: Help LLMs understand parameter purpose
+   ```yaml
+   properties:
+     style:
+       type: string
+       description: "Art style for image generation (realistic, cartoon, or abstract)"
+       enum: [realistic, cartoon, abstract]
+   ```
+
+3. **Provide defaults**: Make optional parameters truly optional
+   ```yaml
+   properties:
+     timeout:
+       type: number
+       default: 30
+       description: "Request timeout in seconds"
+   ```
+
+4. **Use enums**: Constrain choices for better LLM accuracy
+   ```yaml
+   properties:
+     priority:
+       type: string
+       enum: [low, medium, high, urgent]
+       default: medium
+   ```
+
+5. **Validate types**: Always specify `type` for all properties
+   ```yaml
+   # Good: Explicit types
+   properties:
+     count: { type: number }
+     enabled: { type: boolean }
+     tags: { type: array, items: { type: string } }
+
+   # Bad: Missing types (LLM won't know what to provide)
+   properties:
+     count: { description: "How many items" }
+   ```
+
+#### Advanced Schema Features
+
+JSON Schema 2020-12 supports powerful validation features:
+
+**Format validators** (requires `ajv-formats`):
+```yaml
+properties:
+  email:
+    type: string
+    format: email
+  website:
+    type: string
+    format: uri
+  created_at:
+    type: string
+    format: date-time
+```
+
+**Pattern matching**:
+```yaml
+properties:
+  code:
+    type: string
+    pattern: "^[A-Z]{3}-[0-9]{4}$"
+    description: "Format: ABC-1234"
+```
+
+**Conditional schemas**:
+```yaml
+inputSchema:
+  type: object
+  properties:
+    mode: { type: string, enum: [simple, advanced] }
+    query: { type: string }
+    filters: { type: object }
+  required: [mode, query]
+  if:
+    properties:
+      mode: { const: advanced }
+  then:
+    required: [filters]
+```
+
+#### Schema Visibility to LLMs
+
+**How it works** (Sprint 43 implementation):
+1. Composition stored in database with JSON Schema in `spec.inputSchema`
+2. Tool-gateway wraps JSON Schema in Standard Schema adapter at registration
+3. MCP SDK exposes schema to LLM clients via `tools/list` endpoint
+4. LLMs see full parameter details (types, descriptions, constraints)
+5. CompositionExecutor validates inputs against JSON Schema before execution
+
+**Before Sprint 43**: LLMs saw `z.any()` (no parameter information)
+**After Sprint 43**: LLMs see full JSON Schema with all parameter details
+
 ## Writing Compositions
 
 ### Step Types
