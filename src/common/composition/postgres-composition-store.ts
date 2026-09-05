@@ -178,8 +178,9 @@ export class PostgresCompositionStore implements DocumentStore {
 
     if (Object.keys(query).length === 0) {
       // No filters - return all compositions
+      // Sprint 42: Return full row data (id, name, version, content_hash, definition, created_at, updated_at)
       sql = `
-        SELECT definition
+        SELECT id, name, version, content_hash, definition, created_at, updated_at
         FROM compositions
         ORDER BY name ASC, version DESC
       `;
@@ -187,17 +188,34 @@ export class PostgresCompositionStore implements DocumentStore {
     } else if (query.name && typeof query.name === 'string') {
       // Filter by name (most common case)
       sql = `
-        SELECT definition
+        SELECT id, name, version, content_hash, definition, created_at, updated_at
         FROM compositions
         WHERE name = $1
         ORDER BY version DESC
       `;
       params = [query.name];
+    } else if (query.contentHash && typeof query.contentHash === 'string') {
+      // Filter by content hash (deduplication check)
+      sql = `
+        SELECT id, name, version, content_hash, definition, created_at, updated_at
+        FROM compositions
+        WHERE content_hash = $1
+        ORDER BY version DESC
+      `;
+      params = [query.contentHash];
+    } else if (query.name && query.version) {
+      // Filter by name and version (specific version lookup)
+      sql = `
+        SELECT id, name, version, content_hash, definition, created_at, updated_at
+        FROM compositions
+        WHERE name = $1 AND version = $2
+      `;
+      params = [query.name, query.version];
     } else {
       // Use JSONB containment operator for complex queries
       const queryJson = JSON.stringify(query);
       sql = `
-        SELECT definition
+        SELECT id, name, version, content_hash, definition, created_at, updated_at
         FROM compositions
         WHERE definition @> $1::jsonb
         ORDER BY name ASC, version DESC
@@ -207,7 +225,8 @@ export class PostgresCompositionStore implements DocumentStore {
 
     const result = await this.pool.query(sql, params);
 
-    return result.rows.map((row) => row.definition);
+    // Sprint 42: Return full row with all database columns, not just definition
+    return result.rows;
   }
 
   /**

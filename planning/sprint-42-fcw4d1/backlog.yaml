@@ -1,0 +1,780 @@
+# Sprint 42 Backlog: Composition Tool Registration Fix + Hot-Reload
+# Sprint ID: sprint-42-fcw4d1
+# Goal: Fix composition tool registration so database-stored compositions appear as MCP tools + enable hot-reloading
+# Owner: Lead Implementor
+# Created: 2026-09-04
+# Status: In Progress
+
+metadata:
+  sprintId: sprint-42-fcw4d1
+  title: Composition Tool Registration Fix + Hot-Reload
+  owner: christophernavta
+  createdAt: 2026-09-04T14:00:00Z
+  estimatedHours: 8.5
+  priority: P0  # Critical bug fix + valuable enhancement
+
+# Task Definitions
+tasks:
+  # ============================================================================
+  # PHASE 1: CORE IMPLEMENTATION (2-3 hours)
+  # ============================================================================
+
+  - id: COMP-001
+    title: "Modify CompositionRegistry.list() to compile definitions"
+    description: |
+      Update the list() method in CompositionRegistry to compile raw definition
+      fields from database records into CompiledComposition objects.
+
+      Current behavior: Returns raw database records (unsafe cast)
+      New behavior: Compiles each definition and returns properly-typed records
+
+      Implementation:
+      - Add compilation logic using this.compiler.compile()
+      - Handle snake_case to camelCase field mapping (database vs TypeScript)
+      - Return CompositionRecord[] with compiled field populated
+    phase: 1
+    priority: P0  # Critical path blocker
+    status: pending
+    assignee: Lead Implementor
+    estimate: 30m
+    dependencies: []
+    files:
+      - src/common/composition/registry.ts
+    testCoverage:
+      - registry.test.ts
+    acceptanceCriteria:
+      - list() method compiles all definitions from database
+      - Handles both snake_case and camelCase column names
+      - Returns properly-typed CompositionRecord objects
+      - Code compiles without TypeScript errors
+    technicalNotes: |
+      Line 289-292 in registry.ts:
+
+      OLD:
+      async list(): Promise<CompositionRecord[]> {
+        const results = await this.store.query(this.collection, {});
+        return results as CompositionRecord[];  // Unsafe!
+      }
+
+      NEW:
+      async list(): Promise<CompositionRecord[]> {
+        const results = await this.store.query(this.collection, {});
+        return results.map((row: any) => {
+          const definition = row.definition as CompositionDefinition;
+          const compiled = this.compiler.compile(definition);
+          return {
+            id: row.id,
+            name: row.name,
+            version: row.version,
+            contentHash: row.content_hash || row.contentHash,
+            compiled,
+            createdAt: row.created_at ? new Date(row.created_at) : row.createdAt,
+            updatedAt: row.updated_at ? new Date(row.updated_at) : row.updatedAt,
+          };
+        });
+      }
+
+  - id: COMP-002
+    title: "Add error handling to CompositionRegistry.list()"
+    description: |
+      Wrap compilation logic in try/catch to gracefully handle invalid compositions.
+
+      Invalid compositions should be logged but not block loading of valid compositions.
+      Use proper logger (not console.error).
+    phase: 1
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 15m
+    dependencies:
+      - COMP-001
+    files:
+      - src/common/composition/registry.ts
+    testCoverage:
+      - registry.test.ts (test skips invalid compositions)
+    acceptanceCriteria:
+      - Compilation errors caught and logged
+      - Invalid compositions skipped, valid ones loaded
+      - Uses this.logger if available, falls back gracefully
+      - No unhandled promise rejections
+
+  - id: COMP-003
+    title: "Create CompositionWatcher class"
+    description: |
+      Implement CompositionWatcher class following RegistryWatcher pattern.
+
+      Responsibilities:
+      - Poll compositions table using DocumentStore.watch()
+      - Detect additions, updates (content hash changed), deletions
+      - Invoke callbacks for each change type
+      - Track previous state to detect changes
+      - Graceful error handling with detailed logging
+
+      Configuration:
+      - Default poll interval: 30 seconds
+      - Configurable via constructor options
+    phase: 1
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 1h
+    dependencies:
+      - COMP-001  # Needs working list() method
+    files:
+      - src/common/composition/composition-watcher.ts (NEW)
+    testCoverage:
+      - composition-watcher.test.ts (NEW)
+    acceptanceCriteria:
+      - CompositionWatcher class created
+      - Implements start() and stop() lifecycle methods
+      - Polls using DocumentStore.watch()
+      - Detects all change types (add, update, delete)
+      - Compares content hashes to detect updates
+      - Detailed logging at all stages
+      - Follows RegistryWatcher pattern
+    technicalNotes: |
+      Similar to src/common/mcp/registry-watcher.ts
+
+      Key differences:
+      - Watches 'compositions' collection (not 'service_registry')
+      - Three callbacks: onCompositionAdded, onCompositionUpdated, onCompositionRemoved
+      - Change detection uses content hash (not JSON stringify)
+      - Default interval 30s (not 5s)
+
+  - id: COMP-004
+    title: "Integrate CompositionWatcher into tool-gateway"
+    description: |
+      Add CompositionWatcher to tool-gateway service lifecycle.
+
+      Integration points:
+      - Initialize watcher in start() after loadCompositions()
+      - Implement onCompositionAdded handler (calls registerCompositionTool)
+      - Implement onCompositionUpdated handler (re-registers)
+      - Implement onCompositionRemoved handler (unregisters)
+      - Add watcher cleanup in shutdown()
+      - Add environment variable for poll interval
+      - Broadcast tool list changes after each registration change
+    phase: 1
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 30m
+    dependencies:
+      - COMP-003  # Needs CompositionWatcher class
+    files:
+      - src/apps/tool-gateway.ts
+    testCoverage:
+      - tool-gateway.test.ts (may need updates)
+    acceptanceCriteria:
+      - Watcher initialized in start() method
+      - All three callbacks implemented
+      - Watcher stopped in shutdown()
+      - Poll interval configurable via COMPOSITION_POLL_INTERVAL_MS
+      - broadcastListChangedNotifications() called after changes
+      - Logs show watcher lifecycle events
+    technicalNotes: |
+      Add after line ~1185 (after loadCompositions):
+
+      if (this.compositionsEnabled && this.compositionRegistry) {
+        this.compositionWatcher = new CompositionWatcher(this, {
+          registry: this.compositionRegistry,
+          onCompositionAdded: async (composition) => { ... },
+          onCompositionUpdated: async (composition) => { ... },
+          onCompositionRemoved: async (name, version) => { ... },
+          pollInterval: parseInt(process.env.COMPOSITION_POLL_INTERVAL_MS || '30000', 10)
+        });
+        this.compositionWatcher.start();
+      }
+
+  - id: COMP-005
+    title: "Build and verify compilation"
+    description: |
+      Compile TypeScript and verify no errors.
+
+      Fix any type errors, import issues, or compilation warnings.
+    phase: 1
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 15m
+    dependencies:
+      - COMP-001
+      - COMP-002
+      - COMP-003
+      - COMP-004
+    acceptanceCriteria:
+      - npm run build succeeds
+      - No TypeScript errors
+      - No linting errors
+      - All imports resolve correctly
+
+  # ============================================================================
+  # PHASE 2: TESTING (3-4 hours)
+  # ============================================================================
+
+  - id: TEST-001
+    title: "Write unit tests for CompositionRegistry.list()"
+    description: |
+      Create comprehensive unit tests for the updated list() method.
+
+      Test cases:
+      1. Compiles definitions from database records
+      2. Handles snake_case database columns
+      3. Returns empty array for empty database
+      4. Skips invalid compositions with error logging
+      5. Preserves all CompositionRecord fields
+    phase: 2
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 30m
+    dependencies:
+      - COMP-001
+      - COMP-002
+    files:
+      - src/common/composition/registry.test.ts
+    acceptanceCriteria:
+      - All 5 test cases implemented
+      - Tests use proper mocks for DocumentStore
+      - Tests verify compiled field is populated
+      - Tests verify error handling
+      - All tests pass
+
+  - id: TEST-002
+    title: "Write unit tests for CompositionWatcher"
+    description: |
+      Create comprehensive unit tests for CompositionWatcher.
+
+      Test cases:
+      1. Detects new compositions
+      2. Detects removed compositions
+      3. Detects updated compositions (content hash changed)
+      4. Ignores unchanged compositions
+      5. Handles errors gracefully
+      6. Stops polling when stop() called
+    phase: 2
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 1h
+    dependencies:
+      - COMP-003
+    files:
+      - src/common/composition/composition-watcher.test.ts (NEW)
+    acceptanceCriteria:
+      - All 6 test cases implemented
+      - Tests use Jest fake timers for polling
+      - Tests verify callbacks invoked correctly
+      - Tests verify change detection logic
+      - All tests pass
+
+  - id: TEST-003
+    title: "Create validation and E2E test scripts"
+    description: |
+      Create bash scripts for integration and end-to-end testing.
+
+      Scripts to create:
+      1. validate-grockle-loading.sh - Verifies grockle loads and registers
+      2. test-grockle-invocation.sh - Tests grockle can be invoked
+      3. test-hot-reload.sh - Tests full hot-reload lifecycle (add/update/delete)
+    phase: 2
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 30m
+    dependencies: []
+    files:
+      - planning/sprint-42-fcw4d1/validate-grockle-loading.sh (NEW)
+      - planning/sprint-42-fcw4d1/test-grockle-invocation.sh (NEW)
+      - planning/sprint-42-fcw4d1/test-hot-reload.sh (NEW)
+    acceptanceCriteria:
+      - All 3 scripts created
+      - Scripts are executable (chmod +x)
+      - Scripts have clear output and error handling
+      - Scripts test against staging environment
+
+  - id: TEST-004
+    title: "Run local unit tests"
+    description: |
+      Execute all unit tests locally and verify they pass.
+
+      Commands:
+      - npm test -- registry.test.ts
+      - npm test -- composition-watcher.test.ts
+
+      Fix any failures before proceeding.
+    phase: 2
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 30m
+    dependencies:
+      - TEST-001
+      - TEST-002
+      - COMP-005  # Must build successfully
+    acceptanceCriteria:
+      - All registry tests pass
+      - All watcher tests pass
+      - No test failures or errors
+      - Test coverage meets minimum threshold
+
+  - id: TEST-005
+    title: "Validate in agent-dev context"
+    description: |
+      Deploy to agent-dev and validate full functionality.
+
+      Steps:
+      1. Provision agent-dev-sprint-42 context
+      2. Deploy tool-gateway to agent-dev
+      3. Insert test composition via SQL
+      4. Wait for watcher poll (30s)
+      5. Verify composition appears as tool
+      6. Test composition invocation
+      7. Test update (change content)
+      8. Test deletion
+      9. Clean up agent-dev context
+    phase: 2
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 1h
+    dependencies:
+      - TEST-004
+    acceptanceCriteria:
+      - Agent-dev context provisions successfully
+      - Tool-gateway deploys without errors
+      - Test composition auto-registers
+      - Composition can be invoked
+      - Updates and deletions detected
+      - Agent-dev cleanup complete
+
+  # ============================================================================
+  # PHASE 3: DEPLOYMENT & VERIFICATION (1 hour)
+  # ============================================================================
+
+  - id: DEPLOY-001
+    title: "Deploy to staging environment"
+    description: |
+      Deploy updated tool-gateway to staging.
+
+      Steps:
+      1. Build: npm run build
+      2. Deploy: npm run brat -- bit deploy tool-gateway --context staging
+      3. Monitor deployment logs
+      4. Verify service health
+    phase: 3
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 15m
+    dependencies:
+      - TEST-005  # Must pass agent-dev validation
+    acceptanceCriteria:
+      - Build succeeds
+      - Deployment completes without errors
+      - Service starts successfully
+      - No errors in startup logs
+
+  - id: DEPLOY-002
+    title: "Validate grockle composition loading"
+    description: |
+      Run validation script to verify grockle loads and works.
+
+      Execute: bash planning/sprint-42-fcw4d1/validate-grockle-loading.sh
+
+      Validates:
+      - grockle exists in database
+      - grockle loads on startup
+      - grockle appears in MCP tool list
+      - grockle can be invoked
+    phase: 3
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 15m
+    dependencies:
+      - DEPLOY-001
+      - TEST-003  # Validation script exists
+    acceptanceCriteria:
+      - Validation script completes successfully
+      - grockle loaded without errors
+      - grockle appears in tool list
+      - No compilation errors in logs
+
+  - id: DEPLOY-003
+    title: "Validate hot-reload functionality"
+    description: |
+      Run hot-reload test to verify full lifecycle.
+
+      Execute: bash planning/sprint-42-fcw4d1/test-hot-reload.sh
+
+      Tests:
+      - Addition detection (insert new composition)
+      - Update detection (modify content)
+      - Deletion detection (remove composition)
+
+      Each phase waits 35 seconds for poll cycle.
+      Total test duration: ~2 minutes
+    phase: 3
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 20m
+    dependencies:
+      - DEPLOY-001
+      - TEST-003  # Test script exists
+    acceptanceCriteria:
+      - Hot-reload test completes successfully
+      - Addition detected and registered
+      - Update detected and re-registered
+      - Deletion detected and unregistered
+      - Logs show watcher activity
+
+  - id: DEPLOY-004
+    title: "Smoke test existing functionality"
+    description: |
+      Verify no regressions in existing functionality.
+
+      Test:
+      - Other compositions still work (if any exist)
+      - MCP server auto-discovery still works
+      - llm-bot receives tool list notifications
+      - No unexpected errors in logs
+    phase: 3
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 10m
+    dependencies:
+      - DEPLOY-002
+      - DEPLOY-003
+    acceptanceCriteria:
+      - All existing functionality works
+      - No regressions detected
+      - No new errors in logs
+      - System stable
+
+  # ============================================================================
+  # PHASE 4: DOCUMENTATION (30 minutes)
+  # ============================================================================
+
+  - id: DOC-001
+    title: "Update composition documentation"
+    description: |
+      Update or create documentation/guides/compositions.md.
+
+      Add sections:
+      - Database Storage (schema, fields)
+      - Direct SQL Insertion (with examples)
+      - Automatic Compilation on Load
+      - Hot-Reload Behavior (poll interval, change detection)
+      - Configuration Options
+      - Troubleshooting
+    phase: 4
+    priority: P1  # Should complete
+    status: pending
+    assignee: Lead Implementor
+    estimate: 15m
+    dependencies:
+      - DEPLOY-004  # Verify functionality before documenting
+    files:
+      - documentation/guides/compositions.md
+    acceptanceCriteria:
+      - Documentation clearly explains database storage
+      - SQL insertion examples provided
+      - Hot-reload behavior documented
+      - Configuration options listed
+      - Troubleshooting tips included
+
+  - id: DOC-002
+    title: "Add JSDoc comments to code"
+    description: |
+      Add comprehensive JSDoc comments to new and modified code.
+
+      Files:
+      - src/common/composition/registry.ts (list() method)
+      - src/common/composition/composition-watcher.ts (class and methods)
+      - src/apps/tool-gateway.ts (watcher integration)
+    phase: 4
+    priority: P1
+    status: pending
+    assignee: Lead Implementor
+    estimate: 10m
+    dependencies: []
+    files:
+      - src/common/composition/registry.ts
+      - src/common/composition/composition-watcher.ts
+      - src/apps/tool-gateway.ts
+    acceptanceCriteria:
+      - All public methods have JSDoc
+      - Complex logic explained in comments
+      - Parameters and return types documented
+      - Examples provided where helpful
+
+  - id: DOC-003
+    title: "Update architecture notes"
+    description: |
+      Add notes about composition hot-reload to architecture documentation.
+
+      Topics:
+      - Polling interval configuration
+      - Watcher lifecycle
+      - Change detection mechanism
+      - Performance considerations
+    phase: 4
+    priority: P2  # Nice to have
+    status: pending
+    assignee: Lead Implementor
+    estimate: 5m
+    dependencies: []
+    acceptanceCriteria:
+      - Architecture notes mention hot-reload
+      - Configuration documented
+      - Performance notes included
+
+  # ============================================================================
+  # SPRINT COMPLETION (1 hour)
+  # ============================================================================
+
+  - id: COMPLETE-001
+    title: "Create verification report"
+    description: |
+      Document all fixes implemented and validation results.
+
+      Sections:
+      - Summary of fixes
+      - Test results (unit, integration, E2E)
+      - Deployment status
+      - Known issues
+      - Metrics (performance, etc.)
+    phase: 5
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 15m
+    dependencies:
+      - DEPLOY-004  # All deployment validation complete
+    files:
+      - planning/sprint-42-fcw4d1/verification-report.md (NEW)
+    acceptanceCriteria:
+      - Verification report created
+      - All fixes documented
+      - Test results included
+      - Deployment verified
+
+  - id: COMPLETE-002
+    title: "Create retrospective"
+    description: |
+      Sprint retrospective covering:
+      - What went well
+      - What could be improved
+      - Lessons learned
+      - Action items for future sprints
+    phase: 5
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 15m
+    dependencies:
+      - COMPLETE-001
+    files:
+      - planning/sprint-42-fcw4d1/retrospective.md (NEW)
+    acceptanceCriteria:
+      - Retrospective created
+      - Honest assessment of sprint
+      - Actionable improvements identified
+
+  - id: COMPLETE-003
+    title: "Create key learnings document"
+    description: |
+      Document key technical and process learnings.
+
+      Categories:
+      - Technical learnings
+      - Process improvements
+      - Reusable patterns
+      - Pitfalls to avoid
+    phase: 5
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 10m
+    dependencies:
+      - COMPLETE-002
+    files:
+      - planning/sprint-42-fcw4d1/key-learnings.md (NEW)
+    acceptanceCriteria:
+      - Key learnings documented
+      - Both technical and process learnings
+      - Applicable to future work
+
+  - id: COMPLETE-004
+    title: "Commit all changes and push"
+    description: |
+      Stage and commit all changes to feature branch.
+
+      Commit message should include:
+      - Summary of fixes
+      - List of files changed
+      - Sprint reference
+      - Co-authored-by Claude
+    phase: 5
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 10m
+    dependencies:
+      - COMPLETE-001
+      - COMPLETE-002
+      - COMPLETE-003
+      - DOC-001
+      - DOC-002
+    acceptanceCriteria:
+      - All changes staged
+      - Comprehensive commit message
+      - Pushed to feature branch
+      - No merge conflicts
+
+  - id: COMPLETE-005
+    title: "Create pull request"
+    description: |
+      Create PR for sprint work.
+
+      PR description should include:
+      - Summary of changes
+      - Link to sprint artifacts
+      - Test results
+      - Deployment status
+      - Request for review
+    phase: 5
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 10m
+    dependencies:
+      - COMPLETE-004  # Code must be pushed
+    acceptanceCriteria:
+      - PR created
+      - Detailed description
+      - Links to sprint docs
+      - Targeted at main branch
+
+  - id: COMPLETE-006
+    title: "Complete sprint via MCP"
+    description: |
+      Update sprint status to complete using MCP tool.
+
+      Command:
+      npm run brat -- mcp sprint.complete '{
+        "sprintId": "sprint-42-fcw4d1",
+        "completionMode": "normal",
+        "pr": "<PR_URL>"
+      }'
+    phase: 5
+    priority: P0
+    status: pending
+    assignee: Lead Implementor
+    estimate: 5m
+    dependencies:
+      - COMPLETE-005  # PR must exist
+    acceptanceCriteria:
+      - Sprint status updated to complete
+      - PR link added to manifest
+      - Completion timestamp recorded
+
+# ============================================================================
+# SUMMARY STATISTICS
+# ============================================================================
+
+summary:
+  totalTasks: 27
+  totalEstimatedHours: 8.5
+
+  byPhase:
+    phase1: 6 tasks, 2.5 hours
+    phase2: 5 tasks, 3.5 hours
+    phase3: 4 tasks, 1 hour
+    phase4: 3 tasks, 0.5 hours
+    phase5: 6 tasks, 1 hour
+
+  byPriority:
+    P0: 21 tasks (critical path)
+    P1: 2 tasks (should complete)
+    P2: 1 task (nice to have)
+
+  byStatus:
+    pending: 27 tasks
+    in_progress: 0 tasks
+    completed: 0 tasks
+    blocked: 0 tasks
+
+# ============================================================================
+# CRITICAL PATH
+# ============================================================================
+
+criticalPath:
+  - COMP-001  # Must fix list() first
+  - COMP-002  # Must add error handling
+  - COMP-003  # Must create watcher
+  - COMP-004  # Must integrate watcher
+  - COMP-005  # Must build successfully
+  - TEST-001  # Must test registry
+  - TEST-002  # Must test watcher
+  - TEST-004  # Must pass local tests
+  - TEST-005  # Must validate in agent-dev
+  - DEPLOY-001  # Must deploy to staging
+  - DEPLOY-002  # Must validate grockle
+  - DEPLOY-003  # Must validate hot-reload
+  - DEPLOY-004  # Must smoke test
+  - COMPLETE-001  # Must create verification report
+  - COMPLETE-004  # Must commit
+  - COMPLETE-005  # Must create PR
+  - COMPLETE-006  # Must complete sprint
+
+# ============================================================================
+# RISKS & MITIGATION
+# ============================================================================
+
+risks:
+  - id: RISK-001
+    description: "DocumentStore.watch() may not work as expected"
+    impact: High
+    probability: Low
+    mitigation: "Test with RegistryWatcher pattern first, fallback to setInterval if needed"
+
+  - id: RISK-002
+    description: "Compilation errors on invalid compositions"
+    impact: Medium
+    probability: Medium
+    mitigation: "Error handling catches and logs, continues loading other compositions"
+
+  - id: RISK-003
+    description: "Performance impact from polling"
+    impact: Low
+    probability: Low
+    mitigation: "30-second interval, efficient queries, can increase interval if needed"
+
+  - id: RISK-004
+    description: "Unregister may not work (MCP limitation)"
+    impact: Medium
+    probability: Medium
+    mitigation: "Track registered tools, filter on list, document manual cleanup"
+
+# ============================================================================
+# NOTES
+# ============================================================================
+
+notes: |
+  This backlog represents the complete implementation plan for fixing the
+  composition tool registration bug and adding hot-reload capability.
+
+  All tasks are sequenced to ensure dependencies are met. The critical path
+  ensures we deliver core functionality first, then enhancements.
+
+  Estimated completion: 8.5 hours over 1-2 days
+
+  Key decisions:
+  - Following RegistryWatcher pattern for consistency
+  - 30-second poll interval (configurable)
+  - Fail-open error handling throughout
+  - Comprehensive testing at all levels

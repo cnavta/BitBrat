@@ -1712,73 +1712,129 @@ export class Bit {
    * registering all tools/resources/prompts from the Maps. No session state is maintained.
    */
   protected getMcpServer(): McpServer {
-    const arch = (this.constructor as any).loadArchitectureYaml?.() || undefined;
-    const svcNode = arch?.services?.[this.serviceName] || {};
-    const description = svcNode.description || 'BitBrat MCP Server';
-    const version = arch?.project?.version || '1.0.0';
+    try {
+      const arch = (this.constructor as any).loadArchitectureYaml?.() || undefined;
+      const svcNode = arch?.services?.[this.serviceName] || {};
+      const description = svcNode.description || 'BitBrat MCP Server';
+      const version = arch?.project?.version || '1.0.0';
 
-    // Create a new stateless server instance
-    const server = new McpServer(
-      {
-        name: this.serviceName,
-        version: version,
-      },
-      {
-        capabilities: {
-          tools: this.registeredTools.size > 0 ? {} : undefined,
-          resources: this.registeredResources.size > 0 ? {} : undefined,
-          prompts: this.registeredPrompts.size > 0 ? {} : undefined,
+      this.getLogger().debug('mcp_server.initializing', {
+        service: this.serviceName,
+        tools: this.registeredTools.size,
+        resources: this.registeredResources.size,
+        prompts: this.registeredPrompts.size
+      });
+
+      // Create a new stateless server instance
+      const server = new McpServer(
+        {
+          name: this.serviceName,
+          version: version,
         },
+        {
+          capabilities: {
+            tools: this.registeredTools.size > 0 ? {} : undefined,
+            resources: this.registeredResources.size > 0 ? {} : undefined,
+            prompts: this.registeredPrompts.size > 0 ? {} : undefined,
+          },
+        }
+      );
+
+      // Register all tools from the Map using MCP SDK 2.0 API
+      this.getLogger().debug('mcp_server.registering_tools_start', { count: this.registeredTools.size });
+      for (const [name, tool] of this.registeredTools.entries()) {
+        try {
+          this.getLogger().trace?.('mcp_server.registering_tool', { name });
+          server.registerTool(name, {
+            description: tool.description,
+            inputSchema: tool.schema,
+          }, async (args, ctx) => {
+            // Extract context from MCP v2.0 ctx
+            const meta = (args as any)._meta;
+            const combinedExtra = {
+              ...ctx,
+              userId: meta?.userId || (ctx as any)?.http?.req?.headers?.['x-user-id'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-user-id'],
+              userRoles: meta?.userRoles || (ctx as any)?.http?.req?.headers?.['x-roles'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-roles']
+            };
+            return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(args, combinedExtra));
+          });
+        } catch (toolErr: any) {
+          this.getLogger().error('mcp_server.tool_registration_failed', {
+            tool: name,
+            error: toolErr.message,
+            stack: toolErr.stack
+          });
+          throw new Error(`Failed to register tool "${name}": ${toolErr.message}`);
+        }
       }
-    );
 
-    // Register all tools from the Map using MCP SDK 2.0 API
-    for (const [name, tool] of this.registeredTools.entries()) {
-      server.registerTool(name, {
-        description: tool.description,
-        inputSchema: tool.schema,
-      }, async (args, ctx) => {
-        // Extract context from MCP v2.0 ctx
-        const meta = (args as any)._meta;
-        const combinedExtra = {
-          ...ctx,
-          userId: meta?.userId || (ctx as any)?.http?.req?.headers?.['x-user-id'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-user-id'],
-          userRoles: meta?.userRoles || (ctx as any)?.http?.req?.headers?.['x-roles'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-roles']
-        };
-        return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(args, combinedExtra));
+      // Register all resources from the Map using MCP SDK 2.0 API
+      this.getLogger().debug('mcp_server.registering_resources_start', { count: this.registeredResources.size });
+      for (const [uri, resource] of this.registeredResources.entries()) {
+        try {
+          this.getLogger().trace?.('mcp_server.registering_resource', { name: resource.name, uri });
+          server.registerResource(resource.name, uri, {
+            description: resource.description,
+          }, async (uriParam: URL, ctx: ServerContext) => {
+            const combinedExtra = {
+              ...ctx,
+              userId: (ctx as any)?.http?.req?.headers?.['x-user-id'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-user-id'],
+              userRoles: (ctx as any)?.http?.req?.headers?.['x-roles'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-roles']
+            };
+            return await this.traceMcpOperation(`resource:${resource.name}`, () => resource.handler(uri, combinedExtra));
+          });
+        } catch (resourceErr: any) {
+          this.getLogger().error('mcp_server.resource_registration_failed', {
+            resource: resource.name,
+            uri: uri,
+            error: resourceErr.message,
+            stack: resourceErr.stack
+          });
+          throw new Error(`Failed to register resource "${resource.name}": ${resourceErr.message}`);
+        }
+      }
+
+      // Register all prompts from the Map using MCP SDK 2.0 API
+      this.getLogger().debug('mcp_server.registering_prompts_start', { count: this.registeredPrompts.size });
+      for (const [name, prompt] of this.registeredPrompts.entries()) {
+        try {
+          this.getLogger().trace?.('mcp_server.registering_prompt', { name });
+          server.registerPrompt(name, {
+            description: prompt.description,
+            argsSchema: prompt.args.length > 0 ? prompt.args as any : undefined,
+          }, async (promptArgs, ctx) => {
+            const combinedExtra = {
+              ...ctx,
+              userId: (ctx as any)?.http?.req?.headers?.['x-user-id'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-user-id'],
+              userRoles: (ctx as any)?.http?.req?.headers?.['x-roles'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-roles']
+            };
+            return await this.traceMcpOperation(`prompt:${name}`, () => prompt.handler(name, promptArgs, combinedExtra));
+          });
+        } catch (promptErr: any) {
+          this.getLogger().error('mcp_server.prompt_registration_failed', {
+            prompt: name,
+            error: promptErr.message,
+            stack: promptErr.stack
+          });
+          throw new Error(`Failed to register prompt "${name}": ${promptErr.message}`);
+        }
+      }
+
+      this.getLogger().debug('mcp_server.initialized_successfully', {
+        tools: this.registeredTools.size,
+        resources: this.registeredResources.size,
+        prompts: this.registeredPrompts.size
       });
-    }
 
-    // Register all resources from the Map using MCP SDK 2.0 API
-    for (const [uri, resource] of this.registeredResources.entries()) {
-      server.registerResource(resource.name, uri, {
-        description: resource.description,
-      }, async (uriParam: URL, ctx: ServerContext) => {
-        const combinedExtra = {
-          ...ctx,
-          userId: (ctx as any)?.http?.req?.headers?.['x-user-id'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-user-id'],
-          userRoles: (ctx as any)?.http?.req?.headers?.['x-roles'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-roles']
-        };
-        return await this.traceMcpOperation(`resource:${resource.name}`, () => resource.handler(uri, combinedExtra));
+      return server;
+    } catch (err: any) {
+      this.getLogger().error('mcp_server.initialization_failed', {
+        service: this.serviceName,
+        error: err.message,
+        stack: err.stack
       });
+      throw err;
     }
-
-    // Register all prompts from the Map using MCP SDK 2.0 API
-    for (const [name, prompt] of this.registeredPrompts.entries()) {
-      server.registerPrompt(name, {
-        description: prompt.description,
-        argsSchema: prompt.args.length > 0 ? prompt.args as any : undefined,
-      }, async (promptArgs, ctx) => {
-        const combinedExtra = {
-          ...ctx,
-          userId: (ctx as any)?.http?.req?.headers?.['x-user-id'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-user-id'],
-          userRoles: (ctx as any)?.http?.req?.headers?.['x-roles'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-roles']
-        };
-        return await this.traceMcpOperation(`prompt:${name}`, () => prompt.handler(name, promptArgs, combinedExtra));
-      });
-    }
-
-    return server;
   }
 
   // MCP SDK 2.0: Discovery is automatic - setupDiscoveryHandlersOnServer removed
@@ -2057,8 +2113,13 @@ export class Bit {
     // MCP SDK 2.0: Single /mcp endpoint using createMcpHandler + toNodeHandler
     // createMcpHandler wraps the server factory with a .fetch method compatible with toNodeHandler
     const mcpHandler = toNodeHandler(createMcpHandler(() => this.getMcpServer()));
+
+    // Streamable HTTP transport requires both GET and POST on same endpoint:
+    // - POST: Client-to-server requests (including initialize)
+    // - GET: Server-to-client SSE connection for notifications
+    // Use app.all() to handle both methods with the same handler
     // Pass req.body (parsed by express.json()) as the third argument to toNodeHandler
-    this.app.post("/mcp", authMiddleware, (req, res) => {
+    this.app.all("/mcp", authMiddleware, (req, res) => {
       mcpHandler(req, res, req.body);
     });
 

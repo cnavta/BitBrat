@@ -16,6 +16,7 @@ import { RegistryWatcher } from '../common/mcp/registry-watcher';
 import { RbacEvaluator } from '../common/mcp/rbac';
 import { CompositionRegistry } from '../common/composition/registry';
 import { CompositionExecutor } from '../common/composition/executor';
+import { CompositionWatcher } from '../common/composition/composition-watcher';
 import { PostgresCompositionStore } from '../common/composition/postgres-composition-store';
 import { McpServerConfig, SessionContext } from '../common/mcp/types';
 import {
@@ -163,6 +164,8 @@ export class ToolGatewayServer extends Bit {
   private compositionRegistry?: CompositionRegistry;
   private compositionExecutor?: CompositionExecutor;
   private compositionsEnabled: boolean;
+  // Composition hot-reload watcher (Sprint 42)
+  private compositionWatcher?: any; // CompositionWatcher (imported below)
 
   constructor() {
     super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
@@ -1206,10 +1209,15 @@ Returns composition metadata (id, name, version, contentHash).`,
       });
 
       // Register via Bit MCP interface (exposes to MCP clients)
+      // LIMITATION (Sprint 42): MCP SDK 2.0 requires Zod schemas for inputSchema.
+      // Compositions use JSON Schema, which requires conversion to Zod for proper LLM visibility.
+      // Using z.any() for now - composition executor validates inputs internally using JSON Schema.
+      // TODO (Future Sprint): Implement JSON Schema → Zod conversion for composition tools
+      // so LLMs can see the expected parameters.
       this.registerTool(
         toolId,
         description,
-        composition.spec.inputSchema,
+        z.any(),  // Allows any input - validation happens in CompositionExecutor
         async (args: unknown, extra?: any) => {
           return await this.executeComposition(composition, args, extra);
         }
@@ -1325,6 +1333,106 @@ Returns composition metadata (id, name, version, contentHash).`,
   async start(port: number) {
     // Load compositions from DocumentStore (Sprint 41)
     await this.loadCompositions();
+
+    // Initialize Composition Watcher for hot-reloading (Sprint 42)
+    if (this.compositionsEnabled && this.compositionRegistry) {
+      const pollInterval = parseInt(
+        process.env.COMPOSITION_POLL_INTERVAL_MS || '30000',
+        10
+      );
+
+      this.compositionWatcher = new CompositionWatcher(this, {
+        registry: this.compositionRegistry,
+        onCompositionAdded: async (composition) => {
+          this.getLogger().info('composition_watcher.registering_new', {
+            name: composition.metadata.name,
+            version: composition.metadata.version,
+          });
+
+          try {
+            // Register the new composition as an MCP tool
+            await this.registerCompositionTool(composition);
+
+            // Broadcast tool list changed notification to all connected MCP clients
+            try {
+              await this.broadcastListChangedNotifications();
+            } catch (notifyError: any) {
+              this.getLogger().warn('composition_watcher.broadcast_failed', {
+                name: composition.metadata.name,
+                error: notifyError.message,
+              });
+            }
+          } catch (error: any) {
+            this.getLogger().error('composition_watcher.registration_failed', {
+              name: composition.metadata.name,
+              error: error.message,
+              stack: error.stack,
+            });
+          }
+        },
+        onCompositionUpdated: async (composition) => {
+          this.getLogger().info('composition_watcher.re_registering', {
+            name: composition.metadata.name,
+            version: composition.metadata.version,
+          });
+
+          try {
+            // Re-register the composition (overwrites existing)
+            await this.registerCompositionTool(composition);
+
+            // Broadcast tool list changed notification
+            try {
+              await this.broadcastListChangedNotifications();
+            } catch (notifyError: any) {
+              this.getLogger().warn('composition_watcher.broadcast_failed', {
+                name: composition.metadata.name,
+                error: notifyError.message,
+              });
+            }
+          } catch (error: any) {
+            this.getLogger().error('composition_watcher.re_registration_failed', {
+              name: composition.metadata.name,
+              error: error.message,
+              stack: error.stack,
+            });
+          }
+        },
+        onCompositionRemoved: async (name, version) => {
+          this.getLogger().info('composition_watcher.unregistering', {
+            name,
+            version,
+          });
+
+          try {
+            // Unregister from ToolRegistry
+            this.registry.unregisterTool(name);
+
+            // Note: Bit MCP server doesn't have unregisterTool yet
+            // The tool will still appear in MCP listings until service restart
+            // or until we implement dynamic tool unregistration
+
+            // Broadcast tool list changed notification
+            try {
+              await this.broadcastListChangedNotifications();
+            } catch (notifyError: any) {
+              this.getLogger().warn('composition_watcher.broadcast_failed', {
+                name,
+                error: notifyError.message,
+              });
+            }
+          } catch (error: any) {
+            this.getLogger().error('composition_watcher.unregistration_failed', {
+              name,
+              error: error.message,
+              stack: error.stack,
+            });
+          }
+        },
+        pollInterval,
+      });
+
+      this.compositionWatcher.start();
+    }
 
     // Initialize MCP Registry Watcher to populate upstream tools
     this.registryWatcher = new RegistryWatcher(this as any, {
@@ -1621,6 +1729,7 @@ Returns composition metadata (id, name, version, contentHash).`,
 
   async close(reason?: string) {
     if (this.registryWatcher) this.registryWatcher.stop();
+    if (this.compositionWatcher) this.compositionWatcher.stop();
     await this.mcpManager.shutdown();
     // Clear all tracked session servers and contexts
     this.sessionServers.clear();
@@ -1808,7 +1917,11 @@ Returns composition metadata (id, name, version, contentHash).`,
     this.onHTTPRequest('/v1/tools', (req: Request, res: Response) => {
       const context = this.extractSessionContext(req);
       const tools = Object.values(this.registry.getTools())
-        .filter((t) => this.rbac.isAllowedTool(t, t.originServer ? this.serverConfigs.get(t.originServer) : undefined, context))
+        .filter((t) => {
+          // Sprint 42: Compositions available to all roles/agents (full RBAC scoped for later)
+          if (t.source === 'composition') return true;
+          return this.rbac.isAllowedTool(t, t.originServer ? this.serverConfigs.get(t.originServer) : undefined, context);
+        })
         .map((t) => ({
           id: t.id,
           name: t.displayName || t.id,
@@ -2149,7 +2262,11 @@ Returns composition metadata (id, name, version, contentHash).`,
       const rawTools = Object.values(this.registry.getTools());
       const visibleTools = trustedDiscovery
         ? rawTools
-        : rawTools.filter((t) => this.rbac.isAllowedTool(t, t.originServer ? this.serverConfigs.get(t.originServer) : undefined, context));
+        : rawTools.filter((t) => {
+            // Sprint 42: Compositions available to all roles/agents (full RBAC scoped for later)
+            if (t.source === 'composition') return true;
+            return this.rbac.isAllowedTool(t, t.originServer ? this.serverConfigs.get(t.originServer) : undefined, context);
+          });
       const tools = visibleTools.map((t) => {
           const s: any = (t as any).inputSchema;
           let inputSchema: any = { type: 'object' };

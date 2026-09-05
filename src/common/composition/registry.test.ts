@@ -443,4 +443,145 @@ describe('CompositionRegistry', () => {
       });
     });
   });
+
+  // ==========================================================================
+  // Database Loading and Compilation (Sprint 42 - 5 tests)
+  // ==========================================================================
+
+  describe('Database loading and compilation', () => {
+    test('compiles definitions from database records', async () => {
+      const definition = createDefinition('test_composition', [
+        { id: 'step1', call: 'test.echo' },
+      ]);
+
+      // Simulate direct database insertion (bypassing register)
+      await store.put('compositions', 'test-id-1', {
+        id: 'test-id-1',
+        name: 'test_composition',
+        version: 1,
+        content_hash: 'abc123',
+        definition, // Raw definition, not compiled
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+      const records = await registry.list();
+
+      expect(records).toHaveLength(1);
+      expect(records[0].id).toBe('test-id-1');
+      expect(records[0].name).toBe('test_composition');
+      expect(records[0].version).toBe(1);
+      expect(records[0].compiled).toBeDefined(); // Should be compiled
+      expect(records[0].compiled.metadata.name).toBe('test_composition');
+    });
+
+    test('handles snake_case database columns', async () => {
+      const definition = createDefinition('test_composition', [
+        { id: 'step1', call: 'test.echo' },
+      ]);
+
+      // Database returns snake_case field names
+      await store.put('compositions', 'test-id-1', {
+        id: 'test-id-1',
+        name: 'test_composition',
+        version: 1,
+        content_hash: 'abc123', // snake_case
+        definition,
+        created_at: '2024-01-01T00:00:00.000Z', // snake_case
+        updated_at: '2024-01-01T00:00:00.000Z', // snake_case
+      });
+
+      const records = await registry.list();
+
+      expect(records).toHaveLength(1);
+      expect(records[0].contentHash).toBe('abc123'); // Mapped to camelCase
+      expect(records[0].createdAt).toBeInstanceOf(Date);
+      expect(records[0].updatedAt).toBeInstanceOf(Date);
+    });
+
+    test('returns empty array for empty database', async () => {
+      const records = await registry.list();
+      expect(records).toEqual([]);
+    });
+
+    test('skips invalid compositions with error logging', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const validDef = createDefinition('valid_composition', [
+        { id: 'step1', call: 'test.echo' },
+      ]);
+
+      // Insert valid composition
+      await store.put('compositions', 'test-id-1', {
+        id: 'test-id-1',
+        name: 'valid_composition',
+        version: 1,
+        content_hash: 'abc123',
+        definition: validDef,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+      // Insert invalid composition (missing required fields)
+      await store.put('compositions', 'test-id-2', {
+        id: 'test-id-2',
+        name: 'invalid_composition',
+        version: 1,
+        content_hash: 'def456',
+        definition: { invalid: 'structure' } as any,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+      const records = await registry.list();
+
+      // Should return only valid composition
+      expect(records).toHaveLength(1);
+      expect(records[0].name).toBe('valid_composition');
+
+      // Should log error for invalid composition
+      expect(consoleSpy).toHaveBeenCalled();
+      const errorCall = consoleSpy.mock.calls.find((call) =>
+        call[0].includes('Failed to compile composition')
+      );
+      expect(errorCall).toBeDefined();
+      expect(errorCall![0]).toContain('invalid_composition');
+
+      consoleSpy.mockRestore();
+    });
+
+    test('preserves all CompositionRecord fields', async () => {
+      const definition = createDefinition('test_composition', [
+        { id: 'step1', call: 'test.echo' },
+      ]);
+
+      const createdAt = '2024-01-01T10:00:00.000Z';
+      const updatedAt = '2024-01-01T12:00:00.000Z';
+
+      await store.put('compositions', 'test-id-1', {
+        id: 'test-id-1',
+        name: 'test_composition',
+        version: 42,
+        content_hash: 'abc123xyz',
+        definition,
+        created_at: createdAt,
+        updated_at: updatedAt,
+      });
+
+      const records = await registry.list();
+
+      expect(records).toHaveLength(1);
+
+      const record = records[0];
+      expect(record.id).toBe('test-id-1');
+      expect(record.name).toBe('test_composition');
+      expect(record.version).toBe(42);
+      expect(record.contentHash).toBe('abc123xyz');
+      expect(record.compiled).toBeDefined();
+      expect(record.createdAt).toBeInstanceOf(Date);
+      expect(record.updatedAt).toBeInstanceOf(Date);
+      expect(record.createdAt.toISOString()).toBe(createdAt);
+      expect(record.updatedAt.toISOString()).toBe(updatedAt);
+    });
+  });
 });
