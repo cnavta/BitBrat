@@ -1057,9 +1057,10 @@ describe('composition administrative MCP tools', () => {
         const server = createServer();
         const result = (server as any).wrapJsonSchemaWithAdapter(undefined, 'test-tool');
 
-        // Should be z.any() (Zod schema object, not Standard Schema adapter)
+        // Should be z.any() (Zod fallback with vendor 'zod', not our custom adapter)
         expect(result).toBeDefined();
-        expect(result).not.toHaveProperty('~standard');
+        expect(result['~standard']).toBeDefined();
+        expect(result['~standard'].vendor).toBe('zod'); // Zod fallback, not bitbrat-composition-*
       });
 
       it('returns z.any() on invalid schema (fail-open)', () => {
@@ -1068,9 +1069,10 @@ describe('composition administrative MCP tools', () => {
 
         const result = (server as any).wrapJsonSchemaWithAdapter(invalidSchema, 'test-tool');
 
-        // Should fail-open to z.any() (Zod schema object)
+        // Should fail-open to z.any() (Zod fallback with vendor 'zod')
         expect(result).toBeDefined();
-        expect(result).not.toHaveProperty('~standard');
+        expect(result['~standard']).toBeDefined();
+        expect(result['~standard'].vendor).toBe('zod'); // Zod fallback, not bitbrat-composition-*
       });
     });
 
