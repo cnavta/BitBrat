@@ -20,8 +20,10 @@ import {
   IfValueStep,
   ValueExpression,
   Reference,
+  TemplateExpression,
   Condition,
   isReference,
+  isTemplateExpression,
   isCallStep,
   isIfValueStep,
   CompositionErrorCode,
@@ -311,6 +313,7 @@ export class CompositionExecutor {
    *
    * Handles:
    * - References ($input, $context, $steps)
+   * - Template expressions ({{variable}} interpolation)
    * - Literal values (strings, numbers, booleans)
    * - Objects (recursive resolution)
    * - Arrays (recursive resolution)
@@ -325,6 +328,10 @@ export class CompositionExecutor {
   ): Promise<unknown> {
     if (isReference(value)) {
       return this.resolveReference(value, input, context, stepState);
+    } else if (isTemplateExpression(value)) {
+      // Template expression - MUST come before generic object check
+      // because templates are objects with 'template' property
+      return await this.resolveTemplate(value, input, context, stepState);
     } else if (Array.isArray(value)) {
       // Resolve array elements
       const resolved: unknown[] = [];
@@ -413,6 +420,97 @@ export class CompositionExecutor {
     }
 
     return current;
+  }
+
+  /**
+   * Resolve a template expression
+   *
+   * Interpolates {{variable}} placeholders with resolved variable values.
+   * Variables are resolved recursively using resolveValue() and coerced to strings.
+   *
+   * String coercion rules:
+   * - null/undefined → empty string ''
+   * - string → unchanged
+   * - number/boolean → String(value)
+   * - object/array → ERROR (must reference specific field)
+   *
+   * @param template - Template expression to resolve
+   * @param input - Composition input
+   * @param context - Composition context
+   * @param stepState - Current step state
+   * @returns Interpolated string
+   * @throws ExecutionError if variable is undefined or object/array coercion attempted
+   */
+  private async resolveTemplate(
+    template: TemplateExpression,
+    input: unknown,
+    context: unknown,
+    stepState: StepState
+  ): Promise<string> {
+    const templateString = template.template;
+
+    // Extract variable definitions (all properties except 'template')
+    const variableDefinitions: Record<string, ValueExpression> = {};
+    for (const [key, value] of Object.entries(template)) {
+      if (key !== 'template') {
+        variableDefinitions[key] = value;
+      }
+    }
+
+    // Resolve all variables
+    const resolvedVariables: Record<string, string> = {};
+    for (const [varName, varExpression] of Object.entries(variableDefinitions)) {
+      const resolvedValue = await this.resolveValue(
+        varExpression,
+        input,
+        context,
+        stepState
+      );
+
+      // Coerce to string
+      if (resolvedValue === null || resolvedValue === undefined) {
+        resolvedVariables[varName] = '';
+      } else if (typeof resolvedValue === 'string') {
+        resolvedVariables[varName] = resolvedValue;
+      } else if (typeof resolvedValue === 'number' || typeof resolvedValue === 'boolean') {
+        resolvedVariables[varName] = String(resolvedValue);
+      } else {
+        // Object/array -> error with helpful message
+        const type = Array.isArray(resolvedValue) ? 'array' : 'object';
+        throw new ExecutionError(
+          CompositionErrorCode.VALIDATION_ERROR,
+          `Template variable "${varName}" resolved to ${type}. ` +
+          `Templates require scalar values. ` +
+          `Use a reference to a specific field (e.g., $ref: { namespace: steps, pointer: /${varName}/field })`,
+          `template.${varName}`
+        );
+      }
+    }
+
+    // Step 1: Replace escaped braces with placeholder to protect them
+    const ESCAPE_PLACEHOLDER = '\x00ESCAPED_BRACE\x00';
+    let result = templateString.replace(/\\\{\{/g, ESCAPE_PLACEHOLDER);
+
+    // Step 2: Interpolate variables into template string
+    // Regex: /\{\{(\w+)\}\}/g matches {{variable_name}}
+    result = result.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
+      if (varName in resolvedVariables) {
+        return resolvedVariables[varName];
+      } else {
+        // Undefined variable - throw clear error
+        throw new ExecutionError(
+          CompositionErrorCode.UNDEFINED_REFERENCE,
+          `Undefined template variable: {{${varName}}}. ` +
+          `Define it as a property of the template object.`,
+          `template`
+        );
+      }
+    });
+
+    // Step 3: Restore escaped braces: placeholder -> {{
+    result = result.replace(new RegExp(ESCAPE_PLACEHOLDER, 'g'), '{{');
+
+    return result;
   }
 
   /**
@@ -537,8 +635,25 @@ export class CompositionExecutor {
 
   /**
    * Validate tool input against tool's inputSchema
+   * Sprint 43: Support both JSON Schema (for compositions) and Zod schemas (for platform tools)
    */
   private validateToolInput(input: unknown, schema: unknown, toolId: string): void {
+    // Check if this is a Zod schema (has safeParse method)
+    if (schema && typeof schema === 'object' && 'safeParse' in schema && typeof (schema as any).safeParse === 'function') {
+      // Use Zod validation
+      const result = (schema as any).safeParse(input);
+      if (!result.success) {
+        const errorMessages = result.error.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        throw new ExecutionError(
+          CompositionErrorCode.VALIDATION_ERROR,
+          `Tool input validation failed for ${toolId}: ${errorMessages}`,
+          `tool[${toolId}].input`
+        );
+      }
+      return;
+    }
+
+    // Use Ajv for JSON Schema validation
     const validate = this.ajv.compile(schema as object);
     const valid = validate(input);
 
@@ -556,8 +671,25 @@ export class CompositionExecutor {
 
   /**
    * Validate tool output against tool's outputSchema
+   * Sprint 43: Support both JSON Schema (for compositions) and Zod schemas (for platform tools)
    */
   private validateToolOutput(output: unknown, schema: unknown, toolId: string): void {
+    // Check if this is a Zod schema (has safeParse method)
+    if (schema && typeof schema === 'object' && 'safeParse' in schema && typeof (schema as any).safeParse === 'function') {
+      // Use Zod validation
+      const result = (schema as any).safeParse(output);
+      if (!result.success) {
+        const errorMessages = result.error.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        throw new ExecutionError(
+          CompositionErrorCode.VALIDATION_ERROR,
+          `Tool output validation failed for ${toolId}: ${errorMessages}`,
+          `tool[${toolId}].output`
+        );
+      }
+      return;
+    }
+
+    // Use Ajv for JSON Schema validation
     const validate = this.ajv.compile(schema as object);
     const valid = validate(output);
 

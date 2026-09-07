@@ -21,8 +21,11 @@ import {
   Step,
   ValueExpression,
   Reference,
+  TemplateExpression,
   isReference,
+  isTemplateExpression,
   isCallStep,
+  isIfValueStep,
 } from './types';
 
 /**
@@ -167,6 +170,11 @@ export class CompositionCompiler {
     // 3. Validate references
     const refErrors = this.validateReferences(def);
     errors.push(...refErrors);
+
+    // 4. Validate template expressions
+    const { errors: templateErrors, warnings: templateWarnings } = this.validateTemplates(def);
+    errors.push(...templateErrors);
+    warnings.push(...templateWarnings);
 
     return {
       valid: errors.length === 0,
@@ -562,6 +570,114 @@ export class CompositionCompiler {
     }
 
     return errors;
+  }
+
+  /**
+   * Validate template expressions
+   *
+   * Checks for:
+   * - Undefined variables (used in template but not defined) → error
+   * - Unused variables (defined but not used in template) → warning
+   * - Syntax errors (mismatched braces) → error
+   */
+  private validateTemplates(
+    def: CompositionDefinition
+  ): { errors: ValidationError[]; warnings: ValidationWarning[] } {
+    const errors: ValidationError[] = [];
+    const warnings: ValidationWarning[] = [];
+
+    // Helper to validate a single template expression
+    const validateTemplate = (
+      template: TemplateExpression,
+      location: string
+    ): void => {
+      const templateString = template.template;
+
+      // Extract variable names used in template string
+      const usedVariables = new Set<string>();
+      const variableMatches = templateString.matchAll(/\{\{(\w+)\}\}/g);
+      for (const match of variableMatches) {
+        usedVariables.add(match[1]);
+      }
+
+      // Extract defined variables (all properties except 'template')
+      const definedVariables = new Set<string>();
+      for (const key of Object.keys(template)) {
+        if (key !== 'template') {
+          definedVariables.add(key);
+        }
+      }
+
+      // Check for undefined variables
+      for (const varName of usedVariables) {
+        if (!definedVariables.has(varName)) {
+          errors.push({
+            code: CompositionErrorCode.VALIDATION_ERROR,
+            message: `Template variable '${varName}' is used but not defined`,
+            location: `${location}.template`,
+          });
+        }
+      }
+
+      // Check for unused variables
+      for (const varName of definedVariables) {
+        if (!usedVariables.has(varName)) {
+          warnings.push({
+            code: 'COMPOSE-TEMPLATE-002',
+            message: `Template variable '${varName}' is defined but not used`,
+            location: `${location}.${varName}`,
+          });
+        }
+      }
+
+      // Validate brace matching
+      const openBraces = (templateString.match(/\{\{/g) || []).length;
+      const closeBraces = (templateString.match(/\}\}/g) || []).length;
+      if (openBraces !== closeBraces) {
+        errors.push({
+          code: CompositionErrorCode.VALIDATION_ERROR,
+          message: `Template has mismatched braces: ${openBraces} opening '{{', ${closeBraces} closing '}}'`,
+          location: `${location}.template`,
+        });
+      }
+    };
+
+    // Recursive helper to walk through value expressions
+    const walkValue = (value: ValueExpression, location: string): void => {
+      if (isTemplateExpression(value)) {
+        validateTemplate(value, location);
+        // Recursively validate nested expressions in variable definitions
+        for (const [key, nestedValue] of Object.entries(value)) {
+          if (key !== 'template') {
+            walkValue(nestedValue, `${location}.${key}`);
+          }
+        }
+      } else if (Array.isArray(value)) {
+        value.forEach((item, index) => walkValue(item, `${location}[${index}]`));
+      } else if (typeof value === 'object' && value !== null && !isReference(value)) {
+        // Plain object - walk nested properties
+        for (const [key, nestedValue] of Object.entries(value)) {
+          walkValue(nestedValue, `${location}.${key}`);
+        }
+      }
+    };
+
+    // Validate templates in steps
+    def.spec.steps.forEach((step, index) => {
+      if (isCallStep(step) && step.with) {
+        for (const [key, value] of Object.entries(step.with)) {
+          walkValue(value, `steps[${index}].with.${key}`);
+        }
+      } else if (isIfValueStep(step)) {
+        walkValue(step.if.then, `steps[${index}].if.then`);
+        walkValue(step.if.else, `steps[${index}].if.else`);
+      }
+    });
+
+    // Validate templates in return expression
+    walkValue(def.spec.return, 'return');
+
+    return { errors, warnings };
   }
 
   /**

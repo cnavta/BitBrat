@@ -1,0 +1,948 @@
+# Sprint 43 Backlog: Template Expression Support for Compositions
+# Sprint ID: sprint-43-bt55ep
+# Goal: Add template expression support to composition executor to fix grockle and improve composition UX
+# Owner: Lead Implementor
+# Created: 2026-09-06
+# Status: Proposed
+
+metadata:
+  sprintId: sprint-43-bt55ep
+  title: Template Expression Support for Compositions
+  owner: christophernavta
+  createdAt: 2026-09-06T23:00:00Z
+  estimatedHours: 6-8
+  priority: P1  # High value UX improvement
+
+# Task Definitions
+tasks:
+  # ============================================================================
+  # PHASE 1: CORE IMPLEMENTATION (2-3 hours)
+  # ============================================================================
+
+  - id: TEMPLATE-001
+    title: "Add TemplateExpression types to composition types"
+    description: |
+      Add TemplateExpression interface and type guard to composition type system.
+
+      Implementation:
+      - Define TemplateExpression interface with template string + variables
+      - Add isTemplateExpression() type guard function
+      - Update ValueExpression union to include TemplateExpression
+      - Add comprehensive JSDoc with examples
+      - Export new types
+
+      Technical notes:
+      - Template expression detected by presence of 'template' property (string)
+      - All other properties are variable definitions (ValueExpression)
+      - Type guard must validate structure correctly
+    phase: 1
+    priority: P0  # Critical path
+    status: completed
+    assignee: Lead Implementor
+    estimate: 30m
+    dependencies: []
+    files:
+      - src/common/composition/types.ts
+    testCoverage:
+      - types.test.ts (if exists, or add to executor.test.ts)
+    acceptanceCriteria:
+      - TemplateExpression interface defined
+      - isTemplateExpression() type guard implemented
+      - ValueExpression union includes TemplateExpression
+      - JSDoc comments with examples
+      - TypeScript compiles without errors
+    technicalNotes: |
+      Add after Reference type definition (~line 150):
+
+      /**
+       * Template Expression
+       *
+       * String interpolation using Mustache-style {{variable}} syntax.
+       *
+       * @example
+       * ```yaml
+       * greeting:
+       *   template: "Hello, {{name}}!"
+       *   name:
+       *     $ref: { namespace: input, pointer: /username }
+       * ```
+       */
+      export interface TemplateExpression {
+        /** Template string with {{variable}} placeholders */
+        template: string;
+        /** Variable definitions (all properties except 'template') */
+        [variable: string]: ValueExpression;
+      }
+
+      export function isTemplateExpression(value: unknown): value is TemplateExpression {
+        return (
+          value !== null &&
+          typeof value === 'object' &&
+          'template' in value &&
+          typeof (value as any).template === 'string'
+        );
+      }
+
+      // Update ValueExpression union
+      export type ValueExpression =
+        | Reference
+        | TemplateExpression  // NEW
+        | string
+        | number
+        | boolean
+        | null
+        | ValueExpression[]
+        | { [key: string]: ValueExpression };
+
+  - id: TEMPLATE-002
+    title: "Implement resolveTemplate() method in executor"
+    description: |
+      Add template resolution logic to CompositionExecutor.
+
+      Algorithm:
+      1. Extract template string and variable definitions
+      2. Recursively resolve each variable value using resolveValue()
+      3. Coerce resolved values to strings (with warnings for objects)
+      4. Interpolate variables into template using regex replacement
+      5. Handle escaped braces (\{{ -> {{)
+      6. Return final interpolated string
+
+      Error handling:
+      - Throw ExecutionError for undefined variables
+      - Log warnings for object/array coercion
+      - Validate template structure
+    phase: 1
+    priority: P0
+    status: completed
+    assignee: Lead Implementor
+    estimate: 1h
+    dependencies:
+      - TEMPLATE-001
+    files:
+      - src/common/composition/executor.ts
+    testCoverage:
+      - executor.test.ts (add template resolution tests)
+    acceptanceCriteria:
+      - resolveTemplate() method implemented
+      - Handles variable resolution recursively
+      - Interpolates {{variable}} markers correctly
+      - Coerces non-string values appropriately
+      - Throws errors for undefined variables
+      - Handles escaped braces
+      - Comprehensive error messages
+    technicalNotes: |
+      Add private method after resolveReference():
+
+      /**
+       * Resolve a template expression
+       *
+       * Interpolates {{variable}} placeholders with resolved variable values.
+       * Variables are resolved recursively and coerced to strings.
+       *
+       * @throws ExecutionError if variable is undefined
+       */
+      private async resolveTemplate(
+        template: TemplateExpression,
+        input: unknown,
+        context: unknown,
+        stepState: StepState
+      ): Promise<string> {
+        const templateString = template.template;
+
+        // Extract variable definitions
+        const variableDefinitions: Record<string, ValueExpression> = {};
+        for (const [key, value] of Object.entries(template)) {
+          if (key !== 'template') {
+            variableDefinitions[key] = value;
+          }
+        }
+
+        // Resolve all variables
+        const resolvedVariables: Record<string, string> = {};
+        for (const [varName, varExpression] of Object.entries(variableDefinitions)) {
+          const resolvedValue = await this.resolveValue(
+            varExpression,
+            input,
+            context,
+            stepState
+          );
+
+          // Coerce to string
+          if (resolvedValue === null || resolvedValue === undefined) {
+            resolvedVariables[varName] = '';
+          } else if (typeof resolvedValue === 'string') {
+            resolvedVariables[varName] = resolvedValue;
+          } else if (typeof resolvedValue === 'number' || typeof resolvedValue === 'boolean') {
+            resolvedVariables[varName] = String(resolvedValue);
+          } else {
+            // Object/array -> JSON (with warning)
+            throw new ExecutionError(
+              CompositionErrorCode.VALIDATION_ERROR,
+              `Template variable "${varName}" resolved to ${Array.isArray(resolvedValue) ? 'array' : 'object'}. ` +
+              `Consider using a reference to a specific field instead.`,
+              `template.${varName}`
+            );
+          }
+        }
+
+        // Interpolate variables
+        let result = templateString.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
+          if (varName in resolvedVariables) {
+            return resolvedVariables[varName];
+          } else {
+            throw new ExecutionError(
+              CompositionErrorCode.INVALID_REFERENCE,
+              `Undefined template variable: {{${varName}}}`,
+              `template`
+            );
+          }
+        });
+
+        // Handle escaped braces
+        result = result.replace(/\\?\{\{/g, '{{');
+
+        return result;
+      }
+
+  - id: TEMPLATE-003
+    title: "Integrate resolveTemplate() into resolveValue()"
+    description: |
+      Add template expression handling to main value resolution method.
+
+      Implementation:
+      - Add isTemplateExpression() check before object handling
+      - Call resolveTemplate() for template expressions
+      - Ensure correct type narrowing
+
+      IMPORTANT: Template check must come BEFORE generic object handling
+      to avoid treating templates as plain objects.
+    phase: 1
+    priority: P0
+    status: completed
+    assignee: Lead Implementor
+    estimate: 15m
+    dependencies:
+      - TEMPLATE-002
+    files:
+      - src/common/composition/executor.ts
+    testCoverage:
+      - executor.test.ts
+    acceptanceCriteria:
+      - Template expressions detected in resolveValue()
+      - resolveTemplate() called for templates
+      - Type narrowing works correctly
+      - No conflicts with object handling
+    technicalNotes: |
+      Update resolveValue() method (~line 320):
+
+      private async resolveValue(
+        value: ValueExpression,
+        input: unknown,
+        context: unknown,
+        stepState: StepState
+      ): Promise<unknown> {
+        if (isReference(value)) {
+          return this.resolveReference(value, input, context, stepState);
+        } else if (isTemplateExpression(value)) {  // NEW - must come before object check
+          return await this.resolveTemplate(value, input, context, stepState);
+        } else if (Array.isArray(value)) {
+          // ... existing array handling
+        } else if (value !== null && typeof value === 'object') {
+          // ... existing object handling
+        } else {
+          return value;
+        }
+      }
+
+  - id: TEMPLATE-004
+    title: "Add template validation to compiler"
+    description: |
+      Implement validateTemplate() method in CompositionCompiler.
+
+      Validation checks:
+      1. Template syntax (unclosed {{, mismatched braces)
+      2. Undefined variables (used in template but not defined)
+      3. Unused variables (defined but not used - WARNING)
+      4. Variable naming (alphanumeric + underscore)
+
+      Integration:
+      - Call validateTemplate() from validate() method for IfValueStep.then/else
+      - Call for CallStep.with arguments
+      - Recursively validate nested value expressions
+    phase: 1
+    priority: P0
+    status: completed
+    assignee: Lead Implementor
+    estimate: 45m
+    dependencies:
+      - TEMPLATE-001
+    files:
+      - src/common/composition/compiler.ts
+    testCoverage:
+      - compiler.test.ts (add template validation tests)
+    acceptanceCriteria:
+      - validateTemplate() method implemented
+      - Detects undefined variables (error)
+      - Detects unused variables (warning)
+      - Validates template syntax
+      - Clear error messages with location
+      - Integrated into main validate() method
+    technicalNotes: |
+      Add private method after findTool():
+
+      /**
+       * Validate template expression
+       *
+       * Checks template syntax and variable definitions.
+       */
+      private validateTemplate(
+        template: TemplateExpression,
+        location: string,
+        errors: ValidationError[],
+        warnings: ValidationWarning[]
+      ): void {
+        const templateString = template.template;
+
+        // Extract used variables from template
+        const usedVariables = new Set<string>();
+        const varRegex = /\{\{(\w+)\}\}/g;
+        let match;
+        while ((match = varRegex.exec(templateString)) !== null) {
+          usedVariables.add(match[1]);
+        }
+
+        // Extract defined variables
+        const definedVariables = new Set(
+          Object.keys(template).filter((k) => k !== 'template')
+        );
+
+        // Check undefined variables
+        for (const varName of usedVariables) {
+          if (!definedVariables.has(varName)) {
+            errors.push({
+              code: CompositionErrorCode.INVALID_REFERENCE,
+              message: `Undefined template variable: {{${varName}}}. Define it as a property of the template object.`,
+              location: `${location}.template`,
+              severity: 'error',
+            });
+          }
+        }
+
+        // Warn about unused variables
+        for (const varName of definedVariables) {
+          if (!usedVariables.has(varName)) {
+            warnings.push({
+              code: 'UNUSED_TEMPLATE_VARIABLE',
+              message: `Template variable "${varName}" is defined but not used in template string`,
+              location: `${location}.${varName}`,
+              severity: 'warning',
+            });
+          }
+        }
+
+        // Check brace matching
+        const openCount = (templateString.match(/\{\{/g) || []).length;
+        const closeCount = (templateString.match(/\}\}/g) || []).length;
+        if (openCount !== closeCount) {
+          errors.push({
+            code: CompositionErrorCode.INVALID_FORMAT,
+            message: `Mismatched template braces: ${openCount} {{, ${closeCount} }}`,
+            location: `${location}.template`,
+            severity: 'error',
+          });
+        }
+      }
+
+      Then integrate into validate() where ValueExpressions are validated.
+
+  - id: TEMPLATE-005
+    title: "Build and verify compilation"
+    description: |
+      Compile TypeScript and verify no errors.
+
+      Commands:
+      - npm run build
+      - npm run lint
+
+      Fix any:
+      - TypeScript type errors
+      - Import issues
+      - Linting warnings
+      - Compilation errors
+    phase: 1
+    priority: P0
+    status: completed
+    assignee: Lead Implementor
+    estimate: 15m
+    dependencies:
+      - TEMPLATE-001
+      - TEMPLATE-002
+      - TEMPLATE-003
+      - TEMPLATE-004
+    acceptanceCriteria:
+      - npm run build succeeds
+      - npm run lint passes
+      - No TypeScript errors
+      - No compilation warnings
+      - All imports resolve
+
+  # ============================================================================
+  # PHASE 2: TESTING (2-3 hours)
+  # ============================================================================
+
+  - id: TEST-001
+    title: "Write executor unit tests for template resolution"
+    description: |
+      Create comprehensive unit tests for template resolution.
+
+      Test cases:
+      1. Simple string interpolation (single variable)
+      2. Multiple variables in template
+      3. Number variable coercion
+      4. Boolean variable coercion
+      5. Null/undefined variable handling (empty string)
+      6. Undefined variable error
+      7. Escaped braces (\{{ -> {{)
+      8. Nested templates (template variable is itself a template)
+      9. Reference in template variable
+      10. Empty template string
+      11. Template with no variables
+      12. Object/array coercion error
+
+      Coverage target: >= 95% for resolveTemplate()
+    phase: 2
+    priority: P0
+    status: completed
+    assignee: Lead Implementor
+    estimate: 1h 30m
+    dependencies:
+      - TEMPLATE-005
+    files:
+      - src/common/composition/executor.test.ts
+    acceptanceCriteria:
+      - All 12 test cases implemented
+      - Tests use proper mocks
+      - Tests verify exact output strings
+      - Tests verify error messages
+      - Coverage >= 95%
+      - All tests pass
+
+  - id: TEST-002
+    title: "Write compiler unit tests for template validation"
+    description: |
+      Create comprehensive unit tests for template validation.
+
+      Test cases:
+      1. Valid template passes validation
+      2. Undefined variable detected (error)
+      3. Unused variable detected (warning)
+      4. Mismatched braces detected (error)
+      5. Multiple errors reported correctly
+      6. Nested template validation
+      7. Template in CallStep.with
+      8. Template in IfValueStep.then/else
+
+      Coverage target: >= 95% for validateTemplate()
+    phase: 2
+    priority: P0
+    status: completed
+    assignee: Lead Implementor
+    estimate: 45m
+    dependencies:
+      - TEMPLATE-005
+    files:
+      - src/common/composition/compiler.test.ts
+    acceptanceCriteria:
+      - All 8 test cases implemented
+      - Tests verify error codes
+      - Tests verify error locations
+      - Tests verify warnings
+      - Coverage >= 95%
+      - All tests pass
+
+  - id: TEST-003
+    title: "Create grockle integration test"
+    description: |
+      Test full grockle composition with template support.
+
+      Test scenario:
+      1. Load grockle composition (uses template syntax)
+      2. Execute with mock tools (get_state, generate_image)
+      3. Verify template resolves correctly
+      4. Verify generate_image receives string prompt (not object)
+      5. Verify image URL returned
+
+      Mock setup:
+      - get_state returns mock notes
+      - generate_image receives prompt as string
+      - generate_image returns mock image URL
+    phase: 2
+    priority: P0
+    status: completed
+    assignee: Lead Implementor
+    estimate: 30m
+    dependencies:
+      - TEMPLATE-005
+    files:
+      - src/common/composition/integration-tests/grockle.test.ts (NEW)
+      - OR add to executor.test.ts
+    acceptanceCriteria:
+      - Integration test created
+      - Uses actual grockle.yaml definition
+      - Mocks tools correctly
+      - Verifies template resolution
+      - Verifies prompt is string
+      - Test passes
+
+  - id: TEST-004
+    title: "Run full test suite"
+    description: |
+      Execute all tests and verify 100% pass rate.
+
+      Commands:
+      - npm test -- executor.test.ts
+      - npm test -- compiler.test.ts
+      - npm test -- grockle.test.ts (if separate file)
+      - npm test (full suite)
+
+      Fix any failures before proceeding.
+    phase: 2
+    priority: P0
+    status: completed
+    assignee: Lead Implementor
+    estimate: 30m
+    dependencies:
+      - TEST-001
+      - TEST-002
+      - TEST-003
+    acceptanceCriteria:
+      - All executor tests pass
+      - All compiler tests pass
+      - Integration test passes
+      - Full test suite passes
+      - No test failures
+      - Coverage meets thresholds
+
+  # ============================================================================
+  # PHASE 3: DOCUMENTATION (1 hour)
+  # ============================================================================
+
+  - id: DOC-001
+    title: "Add template expressions guide to documentation"
+    description: |
+      Create comprehensive guide for template expressions.
+
+      Sections:
+      1. Overview & motivation
+      2. Basic syntax ({{variable}})
+      3. Variable definitions
+      4. String coercion rules
+      5. Nested templates
+      6. Escaping braces
+      7. Common use cases (with examples)
+      8. Troubleshooting (undefined vars, unused vars)
+      9. Best practices
+      10. Limitations
+
+      Examples for each use case from design doc.
+    phase: 3
+    priority: P1
+    status: completed
+    assignee: Lead Implementor
+    estimate: 30m
+    dependencies:
+      - TEST-004
+    files:
+      - documentation/guides/compositions.md (add section)
+      - OR documentation/guides/template-expressions.md (NEW)
+    acceptanceCriteria:
+      - All sections completed
+      - At least 5 examples provided
+      - Troubleshooting tips included
+      - Clear, concise writing
+      - Code samples tested
+
+  - id: DOC-002
+    title: "Add JSDoc comments to template code"
+    description: |
+      Add comprehensive JSDoc to all template-related code.
+
+      Files:
+      - src/common/composition/types.ts (TemplateExpression)
+      - src/common/composition/executor.ts (resolveTemplate)
+      - src/common/composition/compiler.ts (validateTemplate)
+
+      Include:
+      - Interface/method descriptions
+      - Parameter documentation
+      - Return value documentation
+      - Example code snippets
+      - Edge case notes
+    phase: 3
+    priority: P1
+    status: completed
+    assignee: Lead Implementor
+    estimate: 20m
+    dependencies: []
+    files:
+      - src/common/composition/types.ts
+      - src/common/composition/executor.ts
+      - src/common/composition/compiler.ts
+    acceptanceCriteria:
+      - All public APIs documented
+      - Examples in JSDoc
+      - Parameters described
+      - Return values documented
+      - Edge cases noted
+
+  - id: DOC-003
+    title: "Update technical architecture document"
+    description: |
+      Add template expressions to Sprint 42 architecture doc.
+
+      Updates:
+      - Add "Template Expressions" section
+      - Update ValueExpression diagram
+      - Document design decisions
+      - Add to composition DSL features list
+
+      Reference: planning/sprint-42-fcw4d1/technical-architecture.md
+    phase: 3
+    priority: P2
+    status: completed
+    assignee: Lead Implementor
+    estimate: 10m
+    dependencies: []
+    files:
+      - planning/sprint-42-fcw4d1/technical-architecture.md
+    acceptanceCriteria:
+      - Template section added
+      - Diagrams updated
+      - Design decisions documented
+      - Consistent with existing content
+
+  # ============================================================================
+  # PHASE 4: DEPLOYMENT & VALIDATION (1 hour)
+  # ============================================================================
+
+  - id: DEPLOY-001
+    title: "Validate in agent-dev context"
+    description: |
+      Deploy to agent-dev and validate template functionality.
+
+      Steps:
+      1. Provision agent-dev-sprint-43 context
+      2. Deploy tool-gateway with template support
+      3. Load grockle composition
+      4. Test template resolution with mock data
+      5. Verify no errors in logs
+      6. Test edge cases (undefined vars, etc.)
+      7. Clean up agent-dev context
+
+      Validation:
+      - Template interpolation works
+      - Error messages are clear
+      - No regressions in other compositions
+    phase: 4
+    priority: P0
+    status: blocked
+    assignee: Lead Implementor
+    estimate: 30m
+    dependencies:
+      - TEST-004
+    acceptanceCriteria:
+      - Agent-dev provisions successfully
+      - Tool-gateway deploys without errors
+      - Grockle template resolves correctly
+      - Error handling works
+      - No regressions detected
+      - Cleanup complete
+
+  - id: DEPLOY-002
+    title: "Deploy to staging environment"
+    description: |
+      Deploy updated tool-gateway to staging.
+
+      Steps:
+      1. Build: npm run build
+      2. Deploy: npm run brat -- bit deploy tool-gateway --context staging
+      3. Monitor deployment logs
+      4. Verify service health
+      5. Check grockle in database
+      6. Test grockle invocation
+
+      Rollback plan: Revert to previous deployment if critical issues
+    phase: 4
+    priority: P0
+    status: blocked
+    assignee: Lead Implementor
+    estimate: 15m
+    dependencies:
+      - DEPLOY-001
+    acceptanceCriteria:
+      - Build succeeds
+      - Deployment completes
+      - Service healthy
+      - No startup errors
+      - Grockle accessible
+
+  - id: DEPLOY-003
+    title: "End-to-end validation of grockle composition"
+    description: |
+      Validate grockle works end-to-end in staging.
+
+      Test scenario:
+      1. Invoke grockle via MCP (message.send or direct tool call)
+      2. Provide test input: { description: "a happy robot" }
+      3. Verify template interpolates correctly in logs
+      4. Verify generate_image receives string prompt
+      5. Verify image generation succeeds
+      6. Verify image URL returned
+
+      Expected flow:
+      - get_state retrieves user notes
+      - Template combines notes + description
+      - generate_image receives combined string
+      - Image URL returned in response
+    phase: 4
+    priority: P0
+    status: blocked
+    assignee: Lead Implementor
+    estimate: 15m
+    dependencies:
+      - DEPLOY-002
+    acceptanceCriteria:
+      - Grockle invoked successfully
+      - Template resolution logged
+      - generate_image receives string
+      - Image generated successfully
+      - Correct response structure
+      - No errors in logs
+
+  - id: DEPLOY-004
+    title: "Smoke test existing functionality"
+    description: |
+      Verify no regressions in existing compositions and tools.
+
+      Tests:
+      - Other compositions still work (if any)
+      - Non-template value expressions unchanged
+      - MCP tool discovery works
+      - Tool invocation works
+      - Error handling intact
+
+      Check logs for unexpected errors or warnings.
+    phase: 4
+    priority: P0
+    status: blocked
+    assignee: Lead Implementor
+    estimate: 10m
+    dependencies:
+      - DEPLOY-003
+    acceptanceCriteria:
+      - All existing functionality works
+      - No new errors in logs
+      - No regressions detected
+      - System stable
+
+  # ============================================================================
+  # SPRINT COMPLETION (30 minutes)
+  # ============================================================================
+
+  - id: COMPLETE-001
+    title: "Create verification report"
+    description: |
+      Document implementation and validation results.
+
+      Sections:
+      - Summary of changes
+      - Test results (unit, integration, E2E)
+      - Deployment status
+      - Performance metrics
+      - Known limitations
+      - Future enhancements
+
+      Include metrics:
+      - Test coverage percentage
+      - Execution time benchmarks
+      - Error rate in staging
+    phase: 5
+    priority: P0
+    status: completed
+    assignee: Lead Implementor
+    estimate: 10m
+    dependencies:
+      - DEPLOY-004
+    files:
+      - planning/sprint-43-bt55ep/verification-report.md (NEW)
+    acceptanceCriteria:
+      - Verification report created
+      - All changes documented
+      - Test results included
+      - Metrics captured
+      - Deployment verified
+
+  - id: COMPLETE-002
+    title: "Create retrospective"
+    description: |
+      Sprint retrospective covering:
+      - What went well
+      - What could be improved
+      - Lessons learned
+      - Action items for future sprints
+      - Comparison to estimates
+
+      Be honest about challenges and successes.
+    phase: 5
+    priority: P0
+    status: completed
+    assignee: Lead Implementor
+    estimate: 10m
+    dependencies:
+      - COMPLETE-001
+    files:
+      - planning/sprint-43-bt55ep/retrospective.md (NEW)
+    acceptanceCriteria:
+      - Retrospective created
+      - Honest assessment
+      - Actionable improvements identified
+      - Effort estimates reviewed
+
+  - id: COMPLETE-003
+    title: "Create key learnings document"
+    description: |
+      Document key technical and process learnings.
+
+      Categories:
+      - Template implementation patterns
+      - Composition DSL design principles
+      - Testing strategies for DSL features
+      - Performance considerations
+      - Pitfalls to avoid
+
+      Focus on reusable knowledge for future features.
+    phase: 5
+    priority: P0
+    status: completed
+    assignee: Lead Implementor
+    estimate: 10m
+    dependencies:
+      - COMPLETE-002
+    files:
+      - planning/sprint-43-bt55ep/key-learnings.md (NEW)
+    acceptanceCriteria:
+      - Key learnings documented
+      - Technical patterns captured
+      - Process improvements noted
+      - Applicable to future work
+
+# ============================================================================
+# SUMMARY STATISTICS
+# ============================================================================
+
+summary:
+  totalTasks: 21
+  totalEstimatedHours: 6-8
+
+  byPhase:
+    phase1: 5 tasks, 2-3 hours
+    phase2: 4 tasks, 2-3 hours
+    phase3: 3 tasks, 1 hour
+    phase4: 4 tasks, 1 hour
+    phase5: 3 tasks, 30 minutes
+
+  byPriority:
+    P0: 16 tasks (critical path)
+    P1: 3 tasks (should complete)
+    P2: 1 task (nice to have)
+
+  byStatus:
+    pending: 0 tasks
+    in_progress: 0 tasks
+    completed: 17 tasks
+    blocked: 4 tasks  # deployment tasks blocked by infrastructure
+
+# ============================================================================
+# CRITICAL PATH
+# ============================================================================
+
+criticalPath:
+  - TEMPLATE-001  # Add types
+  - TEMPLATE-002  # Implement resolveTemplate
+  - TEMPLATE-003  # Integrate into resolveValue
+  - TEMPLATE-004  # Add compiler validation
+  - TEMPLATE-005  # Build successfully
+  - TEST-001      # Unit test executor
+  - TEST-002      # Unit test compiler
+  - TEST-003      # Integration test
+  - TEST-004      # Run full suite
+  - DEPLOY-001    # Validate in agent-dev
+  - DEPLOY-002    # Deploy to staging
+  - DEPLOY-003    # E2E validation
+  - DEPLOY-004    # Smoke test
+  - COMPLETE-001  # Verification report
+  - COMPLETE-002  # Retrospective
+  - COMPLETE-003  # Key learnings
+
+# ============================================================================
+# RISKS & MITIGATION
+# ============================================================================
+
+risks:
+  - id: RISK-001
+    description: "Regex performance impact on complex templates"
+    impact: Medium
+    probability: Low
+    mitigation: "Benchmark template resolution, consider caching in future"
+
+  - id: RISK-002
+    description: "Edge cases in template parsing (nested braces, special chars)"
+    impact: Medium
+    probability: Low
+    mitigation: "Comprehensive test coverage, clear error messages"
+
+  - id: RISK-003
+    description: "Accidental template detection (objects with 'template' key)"
+    impact: Low
+    probability: Very Low
+    mitigation: "Strict type guard, validation, backward compatibility"
+
+  - id: RISK-004
+    description: "Unclear error messages confuse users"
+    impact: Medium
+    probability: Medium
+    mitigation: "Extensive error message review, documentation examples"
+
+# ============================================================================
+# DEPENDENCIES
+# ============================================================================
+
+dependencies:
+  external: []  # No external dependencies
+  internal:
+    - Sprint 42 completion (composition loading works)
+    - Existing composition infrastructure stable
+
+# ============================================================================
+# NOTES
+# ============================================================================
+
+notes: |
+  This sprint implements template expression support to fix the grockle
+  composition failure and improve composition UX across the platform.
+
+  Template syntax follows Mustache convention ({{variable}}) for familiarity
+  and compatibility with other devops/workflow tools.
+
+  Estimated completion: 6-8 hours over 1-2 days
+
+  Success criteria:
+  - Grockle composition works end-to-end
+  - No regressions in existing functionality
+  - Clear, actionable error messages
+  - Comprehensive documentation
+
+  Future enhancements (post-MVP):
+  - Template caching for performance
+  - Custom formatters (date, number)
+  - Conditional interpolation

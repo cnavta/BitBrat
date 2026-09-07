@@ -853,6 +853,131 @@ any:
   - ...
 ```
 
+### Template Expression Syntax
+
+**Sprint 43**: String interpolation using Mustache-style `{{variable}}` syntax.
+
+Template expressions enable dynamic string construction by combining static text with resolved values. Variables can be literals, references, or any value expression.
+
+```yaml
+# Basic template
+template: "Hello, {{name}}!"
+name: <value-expression>
+
+# Multiple variables
+template: "{{greeting}} {{name}}, you have {{count}} messages."
+greeting: "Hi"
+name:
+  $ref:
+    namespace: input
+    pointer: /username
+count:
+  $ref:
+    namespace: steps
+    pointer: /get_count/total
+
+# Nested references
+template: "User {{user}} from {{org}}"
+user:
+  $ref:
+    namespace: input
+    pointer: /user/displayName
+org:
+  $ref:
+    namespace: steps
+    pointer: /lookup_org/name
+```
+
+**Coercion Rules**:
+- `string` → used as-is
+- `number` → converted to string (`123` → `"123"`)
+- `boolean` → converted to string (`true` → `"true"`)
+- `null`/`undefined` → empty string (`""`)
+- `object`/`array` → validation error (use a specific field reference instead)
+
+**Variable Naming**:
+- Must be valid identifiers: `{{name}}`, `{{user_id}}`, `{{count2}}`
+- Cannot contain special characters or spaces
+- Case-sensitive
+
+**Escaping**:
+- Use `\{{` to output literal `{{` without interpolation
+- Example: `"Use \{{variable}} syntax"` → `"Use {{variable}} syntax"`
+
+**Common Use Cases**:
+
+1. **Combining tool outputs**:
+```yaml
+- id: generate_image
+  call: generate_image
+  with:
+    prompt:
+      template: "{{style}} {{subject}}"
+      style:
+        $ref:
+          namespace: steps
+          pointer: /get_preferences/preferred_style
+      subject:
+        $ref:
+          namespace: input
+          pointer: /description
+```
+
+2. **User-facing messages**:
+```yaml
+return:
+  template: "Created {{count}} items for {{user}}"
+  count:
+    $ref:
+      namespace: steps
+      pointer: /create_items/created_count
+  user:
+    $ref:
+      namespace: input
+      pointer: /username
+```
+
+3. **Conditional strings**:
+```yaml
+- id: message
+  ifValue:
+    condition:
+      exists:
+        $ref:
+          namespace: input
+          pointer: /premium
+    then:
+      template: "Welcome back, {{name}}! (Premium)"
+      name:
+        $ref:
+          namespace: input
+          pointer: /username
+    else:
+      template: "Welcome, {{name}}!"
+      name:
+        $ref:
+          namespace: input
+          pointer: /username
+```
+
+**Validation**:
+- Compiler detects undefined variables (used in template but not defined)
+- Compiler warns about unused variables (defined but not used)
+- Runtime errors for object/array coercion
+- Clear error messages with exact location
+
+**Troubleshooting**:
+
+*"Template variable 'X' is used but not defined"*
+- Add the missing variable definition as a property of the template object
+
+*"Template variable 'X' is defined but not used"*
+- Remove the unused variable or add it to the template string
+
+*"Templates require scalar values"*
+- The variable resolved to an object or array
+- Use a more specific reference like `/user/name` instead of `/user`
+
 ## Examples
 
 ### Example 1: Simple Greeting
