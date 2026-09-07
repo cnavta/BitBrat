@@ -175,12 +175,14 @@ export interface IfValueStep {
  *
  * Can be:
  * - Reference: Dynamic value from $input/$context/$steps
+ * - TemplateExpression: String interpolation with {{variable}} syntax
  * - Literal: Static primitive value
  * - Object: Nested key-value structure
  * - Array: Ordered list of values
  */
 export type ValueExpression =
   | Reference
+  | TemplateExpression
   | LiteralValue
   | { [key: string]: ValueExpression }
   | ValueExpression[];
@@ -213,6 +215,62 @@ export interface Reference {
     /** JSON Pointer path (e.g., '/user/id') */
     pointer: string;
   };
+}
+
+/**
+ * Template Expression
+ *
+ * String interpolation using Mustache-style {{variable}} syntax.
+ * Variables are resolved at runtime and interpolated into the template string.
+ *
+ * Variables can be any ValueExpression (references, literals, nested templates, etc.)
+ * and are automatically coerced to strings:
+ * - null/undefined → empty string
+ * - number/boolean → String(value)
+ * - string → unchanged
+ * - object/array → error (must reference specific field)
+ *
+ * @example
+ * ```yaml
+ * # Simple interpolation
+ * greeting:
+ *   template: "Hello, {{name}}!"
+ *   name:
+ *     $ref: { namespace: input, pointer: /username }
+ *
+ * # Multiple variables
+ * message:
+ *   template: "{{greeting}} {{name}}, you have {{count}} messages."
+ *   greeting:
+ *     $ref: { namespace: steps, pointer: /greet/text }
+ *   name:
+ *     $ref: { namespace: input, pointer: /name }
+ *   count:
+ *     $ref: { namespace: steps, pointer: /messages/total }
+ *
+ * # Escaped braces
+ * literal:
+ *   template: "Use \\{{ and }} for literal braces"
+ * ```
+ */
+export interface TemplateExpression {
+  /**
+   * Template string with {{variable}} placeholders
+   *
+   * Variables are interpolated using resolved variable values.
+   * Escape sequence: \{{ produces literal {{
+   */
+  template: string;
+
+  /**
+   * Variable definitions
+   *
+   * All properties except 'template' are treated as variables.
+   * Variable values can be any ValueExpression (references, literals, objects, arrays, nested templates).
+   *
+   * Variables used in template string must be defined here, otherwise compilation fails.
+   */
+  [variable: string]: ValueExpression;
 }
 
 /**
@@ -577,6 +635,21 @@ export function isReference(value: unknown): value is Reference {
     typeof (value as Reference).$ref === 'object' &&
     'namespace' in (value as Reference).$ref &&
     'pointer' in (value as Reference).$ref
+  );
+}
+
+/**
+ * Type guard for TemplateExpression
+ *
+ * Detects template expressions by presence of 'template' property (string).
+ * Must be checked BEFORE generic object handling in value resolution.
+ */
+export function isTemplateExpression(value: unknown): value is TemplateExpression {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'template' in value &&
+    typeof (value as TemplateExpression).template === 'string'
   );
 }
 

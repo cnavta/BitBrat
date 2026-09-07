@@ -202,153 +202,6 @@ spec:                                    # REQUIRED: Composition specification
 | `return` | Yes | any | Output expression (can use $ref to reference data). |
 | `outputSchema` | No | object | JSON Schema defining composition outputs (for validation). |
 
-### Input Schema Format
-
-**Sprint 43**: Compositions use **JSON Schema 2020-12** to define input parameters. This schema is visible to LLMs when they discover your composition as an MCP tool, enabling proper parameter discovery and type-aware tool calls.
-
-#### Simple Schema Example
-
-```yaml
-spec:
-  inputSchema:
-    type: object
-    properties:
-      prompt:
-        type: string
-        description: Text prompt for the operation
-      temperature:
-        type: number
-        minimum: 0
-        maximum: 1
-        default: 0.7
-    required:
-      - prompt
-```
-
-**What LLMs see**: When an LLM discovers this composition, it knows:
-- `prompt` is **required** and must be a string with description
-- `temperature` is **optional** (defaults to 0.7) and must be between 0 and 1
-- Type constraints are enforced (number vs string)
-
-#### Best Practices for Schema Design
-
-1. **Keep schemas simple**: Flat objects work best for LLM comprehension
-   ```yaml
-   # Good: Flat, simple structure
-   inputSchema:
-     type: object
-     properties:
-       query: { type: string }
-       limit: { type: number }
-
-   # Less ideal: Deep nesting
-   inputSchema:
-     type: object
-     properties:
-       config:
-         type: object
-         properties:
-           search:
-             type: object
-             properties:
-               query: { type: string }
-   ```
-
-2. **Use descriptions**: Help LLMs understand parameter purpose
-   ```yaml
-   properties:
-     style:
-       type: string
-       description: "Art style for image generation (realistic, cartoon, or abstract)"
-       enum: [realistic, cartoon, abstract]
-   ```
-
-3. **Provide defaults**: Make optional parameters truly optional
-   ```yaml
-   properties:
-     timeout:
-       type: number
-       default: 30
-       description: "Request timeout in seconds"
-   ```
-
-4. **Use enums**: Constrain choices for better LLM accuracy
-   ```yaml
-   properties:
-     priority:
-       type: string
-       enum: [low, medium, high, urgent]
-       default: medium
-   ```
-
-5. **Validate types**: Always specify `type` for all properties
-   ```yaml
-   # Good: Explicit types
-   properties:
-     count: { type: number }
-     enabled: { type: boolean }
-     tags: { type: array, items: { type: string } }
-
-   # Bad: Missing types (LLM won't know what to provide)
-   properties:
-     count: { description: "How many items" }
-   ```
-
-#### Advanced Schema Features
-
-JSON Schema 2020-12 supports powerful validation features:
-
-**Format validators** (requires `ajv-formats`):
-```yaml
-properties:
-  email:
-    type: string
-    format: email
-  website:
-    type: string
-    format: uri
-  created_at:
-    type: string
-    format: date-time
-```
-
-**Pattern matching**:
-```yaml
-properties:
-  code:
-    type: string
-    pattern: "^[A-Z]{3}-[0-9]{4}$"
-    description: "Format: ABC-1234"
-```
-
-**Conditional schemas**:
-```yaml
-inputSchema:
-  type: object
-  properties:
-    mode: { type: string, enum: [simple, advanced] }
-    query: { type: string }
-    filters: { type: object }
-  required: [mode, query]
-  if:
-    properties:
-      mode: { const: advanced }
-  then:
-    required: [filters]
-```
-
-#### Schema Visibility to LLMs
-
-**How it works** (Sprint 43 implementation):
-1. Composition stored in database with JSON Schema in `spec.inputSchema`
-2. Tool-gateway wraps JSON Schema in Standard Schema adapter at registration
-3. MCP SDK exposes schema to LLM clients via `tools/list` endpoint
-4. LLMs see full parameter details (types, descriptions, constraints)
-5. CompositionExecutor validates inputs against JSON Schema before execution
-
-**Before Sprint 43**: LLMs saw `z.any()` (no parameter information)
-**After Sprint 43**: LLMs see full JSON Schema with all parameter details
-
 ## Writing Compositions
 
 ### Step Types
@@ -999,6 +852,131 @@ any:
   - <condition2>
   - ...
 ```
+
+### Template Expression Syntax
+
+**Sprint 43**: String interpolation using Mustache-style `{{variable}}` syntax.
+
+Template expressions enable dynamic string construction by combining static text with resolved values. Variables can be literals, references, or any value expression.
+
+```yaml
+# Basic template
+template: "Hello, {{name}}!"
+name: <value-expression>
+
+# Multiple variables
+template: "{{greeting}} {{name}}, you have {{count}} messages."
+greeting: "Hi"
+name:
+  $ref:
+    namespace: input
+    pointer: /username
+count:
+  $ref:
+    namespace: steps
+    pointer: /get_count/total
+
+# Nested references
+template: "User {{user}} from {{org}}"
+user:
+  $ref:
+    namespace: input
+    pointer: /user/displayName
+org:
+  $ref:
+    namespace: steps
+    pointer: /lookup_org/name
+```
+
+**Coercion Rules**:
+- `string` → used as-is
+- `number` → converted to string (`123` → `"123"`)
+- `boolean` → converted to string (`true` → `"true"`)
+- `null`/`undefined` → empty string (`""`)
+- `object`/`array` → validation error (use a specific field reference instead)
+
+**Variable Naming**:
+- Must be valid identifiers: `{{name}}`, `{{user_id}}`, `{{count2}}`
+- Cannot contain special characters or spaces
+- Case-sensitive
+
+**Escaping**:
+- Use `\{{` to output literal `{{` without interpolation
+- Example: `"Use \{{variable}} syntax"` → `"Use {{variable}} syntax"`
+
+**Common Use Cases**:
+
+1. **Combining tool outputs**:
+```yaml
+- id: generate_image
+  call: generate_image
+  with:
+    prompt:
+      template: "{{style}} {{subject}}"
+      style:
+        $ref:
+          namespace: steps
+          pointer: /get_preferences/preferred_style
+      subject:
+        $ref:
+          namespace: input
+          pointer: /description
+```
+
+2. **User-facing messages**:
+```yaml
+return:
+  template: "Created {{count}} items for {{user}}"
+  count:
+    $ref:
+      namespace: steps
+      pointer: /create_items/created_count
+  user:
+    $ref:
+      namespace: input
+      pointer: /username
+```
+
+3. **Conditional strings**:
+```yaml
+- id: message
+  ifValue:
+    condition:
+      exists:
+        $ref:
+          namespace: input
+          pointer: /premium
+    then:
+      template: "Welcome back, {{name}}! (Premium)"
+      name:
+        $ref:
+          namespace: input
+          pointer: /username
+    else:
+      template: "Welcome, {{name}}!"
+      name:
+        $ref:
+          namespace: input
+          pointer: /username
+```
+
+**Validation**:
+- Compiler detects undefined variables (used in template but not defined)
+- Compiler warns about unused variables (defined but not used)
+- Runtime errors for object/array coercion
+- Clear error messages with exact location
+
+**Troubleshooting**:
+
+*"Template variable 'X' is used but not defined"*
+- Add the missing variable definition as a property of the template object
+
+*"Template variable 'X' is defined but not used"*
+- Remove the unused variable or add it to the template string
+
+*"Templates require scalar values"*
+- The variable resolved to an object or array
+- Use a more specific reference like `/user/name` instead of `/user`
 
 ## Examples
 
