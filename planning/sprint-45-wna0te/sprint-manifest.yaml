@@ -1,0 +1,11 @@
+id: sprint-45-wna0te
+title: Fix fleet.logs Level Parameter Bug (Redux)
+goal: Merge the unmerged Sprint 44 fix for fleet.logs level parameter
+  validation, document the process failure that caused this regression, and
+  update sprint protocol to prevent future regressions from incomplete merges
+owner: navta3
+createdAt: 2026-09-07T21:20:18.643Z
+status: planning
+links:
+  branch: feature/sprint-45-wna0te-fix-fleet-logs-level-parameter
+notes: Sprint initialized via MCP start-sprint tool
