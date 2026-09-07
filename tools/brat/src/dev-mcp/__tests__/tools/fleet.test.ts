@@ -521,6 +521,167 @@ describe('Fleet Tools', () => {
       expect(parsedResult.error).toBe('Fleet logs query failed');
       expect(parsedResult.message).toContain('');  // Zod error message
     });
+
+    // Tests for JSON string array preprocessing (Sprint 44)
+    describe('level parameter preprocessing', () => {
+      it('should accept level as JSON string array', async () => {
+        const mockLogs = [
+          { timestamp: '2026-07-10T12:00:00Z', level: 'error' as const, service: 'llm-bot', message: 'Test error' }
+        ];
+
+        const mockGetLogs = jest.fn().mockResolvedValue({
+          logs: mockLogs,
+          count: 1,
+          deploymentType: 'docker'
+        });
+
+        (LogRetriever as jest.Mock).mockImplementation(() => ({
+          getLogs: mockGetLogs
+        }));
+
+        // Pass level as JSON string (how MCP XML passes it)
+        const result = await fleetLogsTool.handler({
+          bit: 'llm-bot',
+          level: '["error", "warn"]',  // JSON string array
+          limit: 10
+        }, mockConnection);
+
+        // Should succeed (not error)
+        expect(result.isError).toBeFalsy();
+
+        // Verify it was converted to array before passing to LogRetriever
+        expect(mockGetLogs).toHaveBeenCalledWith(expect.objectContaining({
+          level: ['error', 'warn']  // Should be converted to native array
+        }));
+      });
+
+      it('should accept level as native array (existing behavior)', async () => {
+        const mockLogs = [
+          { timestamp: '2026-07-10T12:00:00Z', level: 'error' as const, service: 'llm-bot', message: 'Test error' }
+        ];
+
+        const mockGetLogs = jest.fn().mockResolvedValue({
+          logs: mockLogs,
+          count: 1,
+          deploymentType: 'docker'
+        });
+
+        (LogRetriever as jest.Mock).mockImplementation(() => ({
+          getLogs: mockGetLogs
+        }));
+
+        // Pass level as native array (programmatic usage)
+        const result = await fleetLogsTool.handler({
+          bit: 'llm-bot',
+          level: ['error', 'warn'],  // Native array
+          limit: 10
+        }, mockConnection);
+
+        // Should succeed
+        expect(result.isError).toBeFalsy();
+
+        // Verify it was passed as-is
+        expect(mockGetLogs).toHaveBeenCalledWith(expect.objectContaining({
+          level: ['error', 'warn']
+        }));
+      });
+
+      it('should reject invalid JSON in level parameter', async () => {
+        // Invalid JSON (missing quotes)
+        const result = await fleetLogsTool.handler({
+          bit: 'llm-bot',
+          level: '[error, warn]',  // Invalid JSON
+          limit: 10
+        }, mockConnection);
+
+        // Should fail with Zod validation error
+        expect(result.isError).toBe(true);
+        const c0 = result.content[0];
+        if (c0.type !== 'text') throw new Error('Expected text');
+        const parsedResult = JSON.parse(c0.text);
+        expect(parsedResult.error).toBe('Fleet logs query failed');
+        expect(parsedResult.message).toContain('expected array');
+      });
+
+      it('should reject non-array JSON in level parameter', async () => {
+        // Valid JSON but not an array
+        const result = await fleetLogsTool.handler({
+          bit: 'llm-bot',
+          level: '{"level": "error"}',  // Object, not array
+          limit: 10
+        }, mockConnection);
+
+        // Should fail with Zod validation error
+        expect(result.isError).toBe(true);
+        const c0 = result.content[0];
+        if (c0.type !== 'text') throw new Error('Expected text');
+        const parsedResult = JSON.parse(c0.text);
+        expect(parsedResult.error).toBe('Fleet logs query failed');
+        expect(parsedResult.message).toContain('expected array');
+      });
+
+      it('should work with empty level array', async () => {
+        const mockLogs = [
+          { timestamp: '2026-07-10T12:00:00Z', level: 'info' as const, service: 'llm-bot', message: 'Test log' }
+        ];
+
+        const mockGetLogs = jest.fn().mockResolvedValue({
+          logs: mockLogs,
+          count: 1,
+          deploymentType: 'docker'
+        });
+
+        (LogRetriever as jest.Mock).mockImplementation(() => ({
+          getLogs: mockGetLogs
+        }));
+
+        // Empty array should work (no filtering)
+        const result = await fleetLogsTool.handler({
+          bit: 'llm-bot',
+          level: '[]',  // Empty JSON array
+          limit: 10
+        }, mockConnection);
+
+        // Should succeed
+        expect(result.isError).toBeFalsy();
+
+        // Verify empty array was passed
+        expect(mockGetLogs).toHaveBeenCalledWith(expect.objectContaining({
+          level: []
+        }));
+      });
+
+      it('should work with single level in JSON string array', async () => {
+        const mockLogs = [
+          { timestamp: '2026-07-10T12:00:00Z', level: 'error' as const, service: 'llm-bot', message: 'Test error' }
+        ];
+
+        const mockGetLogs = jest.fn().mockResolvedValue({
+          logs: mockLogs,
+          count: 1,
+          deploymentType: 'docker'
+        });
+
+        (LogRetriever as jest.Mock).mockImplementation(() => ({
+          getLogs: mockGetLogs
+        }));
+
+        // Single level in array
+        const result = await fleetLogsTool.handler({
+          bit: 'llm-bot',
+          level: '["error"]',  // Single element JSON array
+          limit: 10
+        }, mockConnection);
+
+        // Should succeed
+        expect(result.isError).toBeFalsy();
+
+        // Verify single-element array
+        expect(mockGetLogs).toHaveBeenCalledWith(expect.objectContaining({
+          level: ['error']
+        }));
+      });
+    });
   });
 
   describe('fleet.trace', () => {
