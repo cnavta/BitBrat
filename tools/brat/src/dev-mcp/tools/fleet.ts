@@ -302,6 +302,20 @@ async function fleetLogsHandler(
   connection: TargetConnection
 ): Promise<any> {
   try {
+    // Preprocess level parameter: MCP XML passes arrays as JSON strings
+    // Convert '["error", "warn"]' → ["error", "warn"]
+    if (typeof args.level === 'string') {
+      try {
+        const parsed = JSON.parse(args.level);
+        if (Array.isArray(parsed)) {
+          args.level = parsed;
+        }
+        // If parsed but not an array, leave as string for Zod validation error
+      } catch (e) {
+        // Invalid JSON - leave as string, let Zod validation provide clear error
+      }
+    }
+
     // Parse and validate args
     const parsed = fleetLogsSchema.parse(args);
     // Create LogRetriever
