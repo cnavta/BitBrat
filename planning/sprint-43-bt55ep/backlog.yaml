@@ -1,948 +1,946 @@
-# Sprint 43 Backlog: Template Expression Support for Compositions
+# Sprint 43 Backlog: Composition Schema Visibility Fix
 # Sprint ID: sprint-43-bt55ep
-# Goal: Add template expression support to composition executor to fix grockle and improve composition UX
-# Owner: Lead Implementor
-# Created: 2026-09-06
-# Status: Proposed
+# Owner: navta3
+# Created: 2026-09-05
+# Status: Ready for execution
 
 metadata:
-  sprintId: sprint-43-bt55ep
-  title: Template Expression Support for Compositions
-  owner: christophernavta
-  createdAt: 2026-09-06T23:00:00Z
-  estimatedHours: 6-8
-  priority: P1  # High value UX improvement
-
-# Task Definitions
-tasks:
-  # ============================================================================
-  # PHASE 1: CORE IMPLEMENTATION (2-3 hours)
-  # ============================================================================
-
-  - id: TEMPLATE-001
-    title: "Add TemplateExpression types to composition types"
-    description: |
-      Add TemplateExpression interface and type guard to composition type system.
-
-      Implementation:
-      - Define TemplateExpression interface with template string + variables
-      - Add isTemplateExpression() type guard function
-      - Update ValueExpression union to include TemplateExpression
-      - Add comprehensive JSDoc with examples
-      - Export new types
-
-      Technical notes:
-      - Template expression detected by presence of 'template' property (string)
-      - All other properties are variable definitions (ValueExpression)
-      - Type guard must validate structure correctly
-    phase: 1
-    priority: P0  # Critical path
-    status: completed
-    assignee: Lead Implementor
-    estimate: 30m
-    dependencies: []
-    files:
-      - src/common/composition/types.ts
-    testCoverage:
-      - types.test.ts (if exists, or add to executor.test.ts)
-    acceptanceCriteria:
-      - TemplateExpression interface defined
-      - isTemplateExpression() type guard implemented
-      - ValueExpression union includes TemplateExpression
-      - JSDoc comments with examples
-      - TypeScript compiles without errors
-    technicalNotes: |
-      Add after Reference type definition (~line 150):
-
-      /**
-       * Template Expression
-       *
-       * String interpolation using Mustache-style {{variable}} syntax.
-       *
-       * @example
-       * ```yaml
-       * greeting:
-       *   template: "Hello, {{name}}!"
-       *   name:
-       *     $ref: { namespace: input, pointer: /username }
-       * ```
-       */
-      export interface TemplateExpression {
-        /** Template string with {{variable}} placeholders */
-        template: string;
-        /** Variable definitions (all properties except 'template') */
-        [variable: string]: ValueExpression;
-      }
-
-      export function isTemplateExpression(value: unknown): value is TemplateExpression {
-        return (
-          value !== null &&
-          typeof value === 'object' &&
-          'template' in value &&
-          typeof (value as any).template === 'string'
-        );
-      }
-
-      // Update ValueExpression union
-      export type ValueExpression =
-        | Reference
-        | TemplateExpression  // NEW
-        | string
-        | number
-        | boolean
-        | null
-        | ValueExpression[]
-        | { [key: string]: ValueExpression };
-
-  - id: TEMPLATE-002
-    title: "Implement resolveTemplate() method in executor"
-    description: |
-      Add template resolution logic to CompositionExecutor.
-
-      Algorithm:
-      1. Extract template string and variable definitions
-      2. Recursively resolve each variable value using resolveValue()
-      3. Coerce resolved values to strings (with warnings for objects)
-      4. Interpolate variables into template using regex replacement
-      5. Handle escaped braces (\{{ -> {{)
-      6. Return final interpolated string
-
-      Error handling:
-      - Throw ExecutionError for undefined variables
-      - Log warnings for object/array coercion
-      - Validate template structure
-    phase: 1
-    priority: P0
-    status: completed
-    assignee: Lead Implementor
-    estimate: 1h
-    dependencies:
-      - TEMPLATE-001
-    files:
-      - src/common/composition/executor.ts
-    testCoverage:
-      - executor.test.ts (add template resolution tests)
-    acceptanceCriteria:
-      - resolveTemplate() method implemented
-      - Handles variable resolution recursively
-      - Interpolates {{variable}} markers correctly
-      - Coerces non-string values appropriately
-      - Throws errors for undefined variables
-      - Handles escaped braces
-      - Comprehensive error messages
-    technicalNotes: |
-      Add private method after resolveReference():
-
-      /**
-       * Resolve a template expression
-       *
-       * Interpolates {{variable}} placeholders with resolved variable values.
-       * Variables are resolved recursively and coerced to strings.
-       *
-       * @throws ExecutionError if variable is undefined
-       */
-      private async resolveTemplate(
-        template: TemplateExpression,
-        input: unknown,
-        context: unknown,
-        stepState: StepState
-      ): Promise<string> {
-        const templateString = template.template;
-
-        // Extract variable definitions
-        const variableDefinitions: Record<string, ValueExpression> = {};
-        for (const [key, value] of Object.entries(template)) {
-          if (key !== 'template') {
-            variableDefinitions[key] = value;
-          }
-        }
-
-        // Resolve all variables
-        const resolvedVariables: Record<string, string> = {};
-        for (const [varName, varExpression] of Object.entries(variableDefinitions)) {
-          const resolvedValue = await this.resolveValue(
-            varExpression,
-            input,
-            context,
-            stepState
-          );
-
-          // Coerce to string
-          if (resolvedValue === null || resolvedValue === undefined) {
-            resolvedVariables[varName] = '';
-          } else if (typeof resolvedValue === 'string') {
-            resolvedVariables[varName] = resolvedValue;
-          } else if (typeof resolvedValue === 'number' || typeof resolvedValue === 'boolean') {
-            resolvedVariables[varName] = String(resolvedValue);
-          } else {
-            // Object/array -> JSON (with warning)
-            throw new ExecutionError(
-              CompositionErrorCode.VALIDATION_ERROR,
-              `Template variable "${varName}" resolved to ${Array.isArray(resolvedValue) ? 'array' : 'object'}. ` +
-              `Consider using a reference to a specific field instead.`,
-              `template.${varName}`
-            );
-          }
-        }
-
-        // Interpolate variables
-        let result = templateString.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
-          if (varName in resolvedVariables) {
-            return resolvedVariables[varName];
-          } else {
-            throw new ExecutionError(
-              CompositionErrorCode.INVALID_REFERENCE,
-              `Undefined template variable: {{${varName}}}`,
-              `template`
-            );
-          }
-        });
-
-        // Handle escaped braces
-        result = result.replace(/\\?\{\{/g, '{{');
-
-        return result;
-      }
-
-  - id: TEMPLATE-003
-    title: "Integrate resolveTemplate() into resolveValue()"
-    description: |
-      Add template expression handling to main value resolution method.
-
-      Implementation:
-      - Add isTemplateExpression() check before object handling
-      - Call resolveTemplate() for template expressions
-      - Ensure correct type narrowing
-
-      IMPORTANT: Template check must come BEFORE generic object handling
-      to avoid treating templates as plain objects.
-    phase: 1
-    priority: P0
-    status: completed
-    assignee: Lead Implementor
-    estimate: 15m
-    dependencies:
-      - TEMPLATE-002
-    files:
-      - src/common/composition/executor.ts
-    testCoverage:
-      - executor.test.ts
-    acceptanceCriteria:
-      - Template expressions detected in resolveValue()
-      - resolveTemplate() called for templates
-      - Type narrowing works correctly
-      - No conflicts with object handling
-    technicalNotes: |
-      Update resolveValue() method (~line 320):
-
-      private async resolveValue(
-        value: ValueExpression,
-        input: unknown,
-        context: unknown,
-        stepState: StepState
-      ): Promise<unknown> {
-        if (isReference(value)) {
-          return this.resolveReference(value, input, context, stepState);
-        } else if (isTemplateExpression(value)) {  // NEW - must come before object check
-          return await this.resolveTemplate(value, input, context, stepState);
-        } else if (Array.isArray(value)) {
-          // ... existing array handling
-        } else if (value !== null && typeof value === 'object') {
-          // ... existing object handling
-        } else {
-          return value;
-        }
-      }
-
-  - id: TEMPLATE-004
-    title: "Add template validation to compiler"
-    description: |
-      Implement validateTemplate() method in CompositionCompiler.
-
-      Validation checks:
-      1. Template syntax (unclosed {{, mismatched braces)
-      2. Undefined variables (used in template but not defined)
-      3. Unused variables (defined but not used - WARNING)
-      4. Variable naming (alphanumeric + underscore)
-
-      Integration:
-      - Call validateTemplate() from validate() method for IfValueStep.then/else
-      - Call for CallStep.with arguments
-      - Recursively validate nested value expressions
-    phase: 1
-    priority: P0
-    status: completed
-    assignee: Lead Implementor
-    estimate: 45m
-    dependencies:
-      - TEMPLATE-001
-    files:
-      - src/common/composition/compiler.ts
-    testCoverage:
-      - compiler.test.ts (add template validation tests)
-    acceptanceCriteria:
-      - validateTemplate() method implemented
-      - Detects undefined variables (error)
-      - Detects unused variables (warning)
-      - Validates template syntax
-      - Clear error messages with location
-      - Integrated into main validate() method
-    technicalNotes: |
-      Add private method after findTool():
-
-      /**
-       * Validate template expression
-       *
-       * Checks template syntax and variable definitions.
-       */
-      private validateTemplate(
-        template: TemplateExpression,
-        location: string,
-        errors: ValidationError[],
-        warnings: ValidationWarning[]
-      ): void {
-        const templateString = template.template;
-
-        // Extract used variables from template
-        const usedVariables = new Set<string>();
-        const varRegex = /\{\{(\w+)\}\}/g;
-        let match;
-        while ((match = varRegex.exec(templateString)) !== null) {
-          usedVariables.add(match[1]);
-        }
-
-        // Extract defined variables
-        const definedVariables = new Set(
-          Object.keys(template).filter((k) => k !== 'template')
-        );
-
-        // Check undefined variables
-        for (const varName of usedVariables) {
-          if (!definedVariables.has(varName)) {
-            errors.push({
-              code: CompositionErrorCode.INVALID_REFERENCE,
-              message: `Undefined template variable: {{${varName}}}. Define it as a property of the template object.`,
-              location: `${location}.template`,
-              severity: 'error',
-            });
-          }
-        }
-
-        // Warn about unused variables
-        for (const varName of definedVariables) {
-          if (!usedVariables.has(varName)) {
-            warnings.push({
-              code: 'UNUSED_TEMPLATE_VARIABLE',
-              message: `Template variable "${varName}" is defined but not used in template string`,
-              location: `${location}.${varName}`,
-              severity: 'warning',
-            });
-          }
-        }
-
-        // Check brace matching
-        const openCount = (templateString.match(/\{\{/g) || []).length;
-        const closeCount = (templateString.match(/\}\}/g) || []).length;
-        if (openCount !== closeCount) {
-          errors.push({
-            code: CompositionErrorCode.INVALID_FORMAT,
-            message: `Mismatched template braces: ${openCount} {{, ${closeCount} }}`,
-            location: `${location}.template`,
-            severity: 'error',
-          });
-        }
-      }
-
-      Then integrate into validate() where ValueExpressions are validated.
-
-  - id: TEMPLATE-005
-    title: "Build and verify compilation"
-    description: |
-      Compile TypeScript and verify no errors.
-
-      Commands:
-      - npm run build
-      - npm run lint
-
-      Fix any:
-      - TypeScript type errors
-      - Import issues
-      - Linting warnings
-      - Compilation errors
-    phase: 1
-    priority: P0
-    status: completed
-    assignee: Lead Implementor
-    estimate: 15m
-    dependencies:
-      - TEMPLATE-001
-      - TEMPLATE-002
-      - TEMPLATE-003
-      - TEMPLATE-004
-    acceptanceCriteria:
-      - npm run build succeeds
-      - npm run lint passes
-      - No TypeScript errors
-      - No compilation warnings
-      - All imports resolve
-
-  # ============================================================================
-  # PHASE 2: TESTING (2-3 hours)
-  # ============================================================================
-
-  - id: TEST-001
-    title: "Write executor unit tests for template resolution"
-    description: |
-      Create comprehensive unit tests for template resolution.
-
-      Test cases:
-      1. Simple string interpolation (single variable)
-      2. Multiple variables in template
-      3. Number variable coercion
-      4. Boolean variable coercion
-      5. Null/undefined variable handling (empty string)
-      6. Undefined variable error
-      7. Escaped braces (\{{ -> {{)
-      8. Nested templates (template variable is itself a template)
-      9. Reference in template variable
-      10. Empty template string
-      11. Template with no variables
-      12. Object/array coercion error
-
-      Coverage target: >= 95% for resolveTemplate()
-    phase: 2
-    priority: P0
-    status: completed
-    assignee: Lead Implementor
-    estimate: 1h 30m
-    dependencies:
-      - TEMPLATE-005
-    files:
-      - src/common/composition/executor.test.ts
-    acceptanceCriteria:
-      - All 12 test cases implemented
-      - Tests use proper mocks
-      - Tests verify exact output strings
-      - Tests verify error messages
-      - Coverage >= 95%
-      - All tests pass
-
-  - id: TEST-002
-    title: "Write compiler unit tests for template validation"
-    description: |
-      Create comprehensive unit tests for template validation.
-
-      Test cases:
-      1. Valid template passes validation
-      2. Undefined variable detected (error)
-      3. Unused variable detected (warning)
-      4. Mismatched braces detected (error)
-      5. Multiple errors reported correctly
-      6. Nested template validation
-      7. Template in CallStep.with
-      8. Template in IfValueStep.then/else
-
-      Coverage target: >= 95% for validateTemplate()
-    phase: 2
-    priority: P0
-    status: completed
-    assignee: Lead Implementor
-    estimate: 45m
-    dependencies:
-      - TEMPLATE-005
-    files:
-      - src/common/composition/compiler.test.ts
-    acceptanceCriteria:
-      - All 8 test cases implemented
-      - Tests verify error codes
-      - Tests verify error locations
-      - Tests verify warnings
-      - Coverage >= 95%
-      - All tests pass
-
-  - id: TEST-003
-    title: "Create grockle integration test"
-    description: |
-      Test full grockle composition with template support.
-
-      Test scenario:
-      1. Load grockle composition (uses template syntax)
-      2. Execute with mock tools (get_state, generate_image)
-      3. Verify template resolves correctly
-      4. Verify generate_image receives string prompt (not object)
-      5. Verify image URL returned
-
-      Mock setup:
-      - get_state returns mock notes
-      - generate_image receives prompt as string
-      - generate_image returns mock image URL
-    phase: 2
-    priority: P0
-    status: completed
-    assignee: Lead Implementor
-    estimate: 30m
-    dependencies:
-      - TEMPLATE-005
-    files:
-      - src/common/composition/integration-tests/grockle.test.ts (NEW)
-      - OR add to executor.test.ts
-    acceptanceCriteria:
-      - Integration test created
-      - Uses actual grockle.yaml definition
-      - Mocks tools correctly
-      - Verifies template resolution
-      - Verifies prompt is string
-      - Test passes
-
-  - id: TEST-004
-    title: "Run full test suite"
-    description: |
-      Execute all tests and verify 100% pass rate.
-
-      Commands:
-      - npm test -- executor.test.ts
-      - npm test -- compiler.test.ts
-      - npm test -- grockle.test.ts (if separate file)
-      - npm test (full suite)
-
-      Fix any failures before proceeding.
-    phase: 2
-    priority: P0
-    status: completed
-    assignee: Lead Implementor
-    estimate: 30m
-    dependencies:
-      - TEST-001
-      - TEST-002
-      - TEST-003
-    acceptanceCriteria:
-      - All executor tests pass
-      - All compiler tests pass
-      - Integration test passes
-      - Full test suite passes
-      - No test failures
-      - Coverage meets thresholds
-
-  # ============================================================================
-  # PHASE 3: DOCUMENTATION (1 hour)
-  # ============================================================================
-
-  - id: DOC-001
-    title: "Add template expressions guide to documentation"
-    description: |
-      Create comprehensive guide for template expressions.
-
-      Sections:
-      1. Overview & motivation
-      2. Basic syntax ({{variable}})
-      3. Variable definitions
-      4. String coercion rules
-      5. Nested templates
-      6. Escaping braces
-      7. Common use cases (with examples)
-      8. Troubleshooting (undefined vars, unused vars)
-      9. Best practices
-      10. Limitations
-
-      Examples for each use case from design doc.
-    phase: 3
-    priority: P1
-    status: completed
-    assignee: Lead Implementor
-    estimate: 30m
-    dependencies:
-      - TEST-004
-    files:
-      - documentation/guides/compositions.md (add section)
-      - OR documentation/guides/template-expressions.md (NEW)
-    acceptanceCriteria:
-      - All sections completed
-      - At least 5 examples provided
-      - Troubleshooting tips included
-      - Clear, concise writing
-      - Code samples tested
-
-  - id: DOC-002
-    title: "Add JSDoc comments to template code"
-    description: |
-      Add comprehensive JSDoc to all template-related code.
-
-      Files:
-      - src/common/composition/types.ts (TemplateExpression)
-      - src/common/composition/executor.ts (resolveTemplate)
-      - src/common/composition/compiler.ts (validateTemplate)
-
-      Include:
-      - Interface/method descriptions
-      - Parameter documentation
-      - Return value documentation
-      - Example code snippets
-      - Edge case notes
-    phase: 3
-    priority: P1
-    status: completed
-    assignee: Lead Implementor
-    estimate: 20m
-    dependencies: []
-    files:
-      - src/common/composition/types.ts
-      - src/common/composition/executor.ts
-      - src/common/composition/compiler.ts
-    acceptanceCriteria:
-      - All public APIs documented
-      - Examples in JSDoc
-      - Parameters described
-      - Return values documented
-      - Edge cases noted
-
-  - id: DOC-003
-    title: "Update technical architecture document"
-    description: |
-      Add template expressions to Sprint 42 architecture doc.
-
-      Updates:
-      - Add "Template Expressions" section
-      - Update ValueExpression diagram
-      - Document design decisions
-      - Add to composition DSL features list
-
-      Reference: planning/sprint-42-fcw4d1/technical-architecture.md
-    phase: 3
-    priority: P2
-    status: completed
-    assignee: Lead Implementor
-    estimate: 10m
-    dependencies: []
-    files:
-      - planning/sprint-42-fcw4d1/technical-architecture.md
-    acceptanceCriteria:
-      - Template section added
-      - Diagrams updated
-      - Design decisions documented
-      - Consistent with existing content
-
-  # ============================================================================
-  # PHASE 4: DEPLOYMENT & VALIDATION (1 hour)
-  # ============================================================================
-
-  - id: DEPLOY-001
-    title: "Validate in agent-dev context"
-    description: |
-      Deploy to agent-dev and validate template functionality.
-
-      Steps:
-      1. Provision agent-dev-sprint-43 context
-      2. Deploy tool-gateway with template support
-      3. Load grockle composition
-      4. Test template resolution with mock data
-      5. Verify no errors in logs
-      6. Test edge cases (undefined vars, etc.)
-      7. Clean up agent-dev context
-
-      Validation:
-      - Template interpolation works
-      - Error messages are clear
-      - No regressions in other compositions
-    phase: 4
-    priority: P0
-    status: blocked
-    assignee: Lead Implementor
-    estimate: 30m
-    dependencies:
-      - TEST-004
-    acceptanceCriteria:
-      - Agent-dev provisions successfully
-      - Tool-gateway deploys without errors
-      - Grockle template resolves correctly
-      - Error handling works
-      - No regressions detected
-      - Cleanup complete
-
-  - id: DEPLOY-002
-    title: "Deploy to staging environment"
-    description: |
-      Deploy updated tool-gateway to staging.
-
-      Steps:
-      1. Build: npm run build
-      2. Deploy: npm run brat -- bit deploy tool-gateway --context staging
-      3. Monitor deployment logs
-      4. Verify service health
-      5. Check grockle in database
-      6. Test grockle invocation
-
-      Rollback plan: Revert to previous deployment if critical issues
-    phase: 4
-    priority: P0
-    status: blocked
-    assignee: Lead Implementor
-    estimate: 15m
-    dependencies:
-      - DEPLOY-001
-    acceptanceCriteria:
-      - Build succeeds
-      - Deployment completes
-      - Service healthy
-      - No startup errors
-      - Grockle accessible
-
-  - id: DEPLOY-003
-    title: "End-to-end validation of grockle composition"
-    description: |
-      Validate grockle works end-to-end in staging.
-
-      Test scenario:
-      1. Invoke grockle via MCP (message.send or direct tool call)
-      2. Provide test input: { description: "a happy robot" }
-      3. Verify template interpolates correctly in logs
-      4. Verify generate_image receives string prompt
-      5. Verify image generation succeeds
-      6. Verify image URL returned
-
-      Expected flow:
-      - get_state retrieves user notes
-      - Template combines notes + description
-      - generate_image receives combined string
-      - Image URL returned in response
-    phase: 4
-    priority: P0
-    status: blocked
-    assignee: Lead Implementor
-    estimate: 15m
-    dependencies:
-      - DEPLOY-002
-    acceptanceCriteria:
-      - Grockle invoked successfully
-      - Template resolution logged
-      - generate_image receives string
-      - Image generated successfully
-      - Correct response structure
-      - No errors in logs
-
-  - id: DEPLOY-004
-    title: "Smoke test existing functionality"
-    description: |
-      Verify no regressions in existing compositions and tools.
-
-      Tests:
-      - Other compositions still work (if any)
-      - Non-template value expressions unchanged
-      - MCP tool discovery works
-      - Tool invocation works
-      - Error handling intact
-
-      Check logs for unexpected errors or warnings.
-    phase: 4
-    priority: P0
-    status: blocked
-    assignee: Lead Implementor
-    estimate: 10m
-    dependencies:
-      - DEPLOY-003
-    acceptanceCriteria:
-      - All existing functionality works
-      - No new errors in logs
-      - No regressions detected
-      - System stable
-
-  # ============================================================================
-  # SPRINT COMPLETION (30 minutes)
-  # ============================================================================
-
-  - id: COMPLETE-001
-    title: "Create verification report"
-    description: |
-      Document implementation and validation results.
-
-      Sections:
-      - Summary of changes
-      - Test results (unit, integration, E2E)
-      - Deployment status
-      - Performance metrics
-      - Known limitations
-      - Future enhancements
-
-      Include metrics:
-      - Test coverage percentage
-      - Execution time benchmarks
-      - Error rate in staging
-    phase: 5
-    priority: P0
-    status: completed
-    assignee: Lead Implementor
-    estimate: 10m
-    dependencies:
-      - DEPLOY-004
-    files:
-      - planning/sprint-43-bt55ep/verification-report.md (NEW)
-    acceptanceCriteria:
-      - Verification report created
-      - All changes documented
-      - Test results included
-      - Metrics captured
-      - Deployment verified
-
-  - id: COMPLETE-002
-    title: "Create retrospective"
-    description: |
-      Sprint retrospective covering:
-      - What went well
-      - What could be improved
-      - Lessons learned
-      - Action items for future sprints
-      - Comparison to estimates
-
-      Be honest about challenges and successes.
-    phase: 5
-    priority: P0
-    status: completed
-    assignee: Lead Implementor
-    estimate: 10m
-    dependencies:
-      - COMPLETE-001
-    files:
-      - planning/sprint-43-bt55ep/retrospective.md (NEW)
-    acceptanceCriteria:
-      - Retrospective created
-      - Honest assessment
-      - Actionable improvements identified
-      - Effort estimates reviewed
-
-  - id: COMPLETE-003
-    title: "Create key learnings document"
-    description: |
-      Document key technical and process learnings.
-
-      Categories:
-      - Template implementation patterns
-      - Composition DSL design principles
-      - Testing strategies for DSL features
-      - Performance considerations
-      - Pitfalls to avoid
-
-      Focus on reusable knowledge for future features.
-    phase: 5
-    priority: P0
-    status: completed
-    assignee: Lead Implementor
-    estimate: 10m
-    dependencies:
-      - COMPLETE-002
-    files:
-      - planning/sprint-43-bt55ep/key-learnings.md (NEW)
-    acceptanceCriteria:
-      - Key learnings documented
-      - Technical patterns captured
-      - Process improvements noted
-      - Applicable to future work
-
-# ============================================================================
-# SUMMARY STATISTICS
-# ============================================================================
+  sprint_id: sprint-43-bt55ep
+  sprint_title: Composition Schema Visibility Fix
+  total_estimated_hours: 13.5
+  total_tasks: 18
+  phases: 4
 
 summary:
-  totalTasks: 21
-  totalEstimatedHours: 6-8
+  goal: Implement JsonSchemaStandardAdapter to expose composition input schemas to LLMs
+  approach: Wrap JSON Schema in Standard Schema adapter (internal infrastructure)
+  impact: LLMs can see composition parameters, enabling proper tool discovery
+  risk_level: low
+  backward_compatible: true
 
-  byPhase:
-    phase1: 5 tasks, 2-3 hours
-    phase2: 4 tasks, 2-3 hours
-    phase3: 3 tasks, 1 hour
-    phase4: 4 tasks, 1 hour
-    phase5: 3 tasks, 30 minutes
+# Task execution order: Sequential by priority
+# Status values: pending | in-progress | completed | blocked
+# Priority: P0 (critical path) | P1 (high) | P2 (medium) | P3 (low)
 
-  byPriority:
-    P0: 16 tasks (critical path)
-    P1: 3 tasks (should complete)
-    P2: 1 task (nice to have)
+tasks:
+  # ============================================================================
+  # PHASE 1: FOUNDATION (3-5 hours)
+  # ============================================================================
 
-  byStatus:
-    pending: 0 tasks
-    in_progress: 0 tasks
-    completed: 17 tasks
-    blocked: 4 tasks  # deployment tasks blocked by infrastructure
+  - id: TASK-001
+    phase: 1
+    priority: P0
+    title: Add Ajv dependencies to package.json
+    description: |
+      Install Ajv (JSON Schema validator) and ajv-formats (format validators)
+      as production dependencies. These are industry-standard libraries with
+      12M+ weekly downloads.
+    status: pending
+    estimated_hours: 0.25
+    assigned_to: null
+    dependencies: []
+    files_modified:
+      - package.json
+      - package-lock.json
+    acceptance_criteria:
+      - dependencies:
+          - ajv: ^8.12.0
+          - ajv-formats: ^2.1.1
+      - npm_install_succeeds: true
+      - no_peer_dependency_conflicts: true
+      - npm_audit_acceptable: true
+    commands:
+      - npm install ajv@^8.12.0 ajv-formats@^2.1.1
+    validation:
+      - grep -q '"ajv".*"8.12' package.json
+      - npm ls ajv
+      - npm ls ajv-formats
+    notes: |
+      Ajv is the industry standard JSON Schema validator. We need v8.12+ for
+      full JSON Schema 2020-12 support. ajv-formats adds format validators
+      (email, date, uri, etc.) that composition authors may use.
+
+  - id: TASK-002
+    phase: 1
+    priority: P0
+    title: Create TypeScript interfaces for Standard Schema
+    description: |
+      Define TypeScript interfaces for Standard Schema v1 specification.
+      These interfaces match the official Standard Schema spec and will be
+      implemented by JsonSchemaStandardAdapter.
+    status: pending
+    estimated_hours: 0.5
+    assigned_to: null
+    dependencies:
+      - TASK-001
+    files_created:
+      - src/common/schemas/json-schema-standard-adapter.ts
+    acceptance_criteria:
+      - interface StandardSchemaV1 with version, vendor, validate
+      - interface StandardJSONSchemaV1 with jsonSchema.input/output
+      - interface StandardSchemaWithJSON combining both
+      - interfaces_match_spec: https://standardschema.dev/
+      - typescript_compiles: true
+      - jsdoc_complete: true
+    code_snippet: |
+      export interface StandardSchemaV1 {
+        readonly version: 1;
+        readonly vendor: string;
+        readonly validate: (value: unknown) =>
+          | { value: unknown; issues?: undefined }
+          | { issues: Array<{ message: string; path?: string[] }> };
+      }
+    validation:
+      - npm run build
+    notes: |
+      These interfaces are the contract between our adapter and MCP SDK 2.0.
+      They must match the Standard Schema specification exactly.
+
+  - id: TASK-003
+    phase: 1
+    priority: P0
+    title: Implement JsonSchemaStandardAdapter class
+    description: |
+      Create the core adapter class that wraps JSON Schema in the Standard Schema
+      interface. Uses Ajv for validation, returns original JSON Schema via
+      jsonSchema.input() (no conversion).
+    status: pending
+    estimated_hours: 2.0
+    assigned_to: null
+    dependencies:
+      - TASK-002
+    files_modified:
+      - src/common/schemas/json-schema-standard-adapter.ts
+    acceptance_criteria:
+      - class_implements_StandardSchemaWithJSON: true
+      - constructor_validates_schema_parameter: true
+      - ajv_compilation_at_construction: true
+      - validate_method_returns_correct_format: true
+      - jsonSchema_input_returns_original: true
+      - jsonSchema_output_returns_original: true
+      - error_handling_for_invalid_schemas: true
+      - jsdoc_complete_with_examples: true
+      - typescript_strict_mode_passes: true
+    implementation_checklist:
+      - Constructor accepts schema and optional vendor string
+      - Constructor validates schema is an object
+      - Initialize Ajv with strict:false, allErrors:true, verbose:true
+      - Add ajv-formats to Ajv instance
+      - Compile validator once at construction
+      - Implement ~standard.version = 1
+      - Implement ~standard.vendor getter
+      - Implement ~standard.validate() with Ajv
+      - Convert Ajv errors to Standard Schema issues format
+      - Implement ~standard.jsonSchema.input()
+      - Implement ~standard.jsonSchema.output()
+      - Handle $schema field addition when target specified
+      - Don't modify original schema object
+    validation:
+      - npm run build
+      - npx tsc --noEmit --strict src/common/schemas/json-schema-standard-adapter.ts
+    notes: |
+      This is the core of the sprint. The adapter must:
+      1. Implement Standard Schema interface correctly
+      2. Use Ajv for validation (same validator as CompositionExecutor)
+      3. Return original JSON Schema (no conversion, no data loss)
+      4. Handle errors gracefully
+
+  - id: TASK-004
+    phase: 1
+    priority: P0
+    title: Create barrel export for schemas module
+    description: |
+      Create index.ts to export adapter classes and interfaces as a clean
+      public API for the schemas module.
+    status: pending
+    estimated_hours: 0.25
+    assigned_to: null
+    dependencies:
+      - TASK-003
+    files_created:
+      - src/common/schemas/index.ts
+    acceptance_criteria:
+      - exports_JsonSchemaStandardAdapter_class: true
+      - exports_all_interfaces: true
+      - typescript_compiles: true
+      - jsdoc_module_description: true
+    code_snippet: |
+      export {
+        JsonSchemaStandardAdapter,
+        StandardSchemaV1,
+        StandardJSONSchemaV1,
+        StandardSchemaWithJSON,
+      } from './json-schema-standard-adapter';
+    validation:
+      - npm run build
+      - grep -q "export.*JsonSchemaStandardAdapter" src/common/schemas/index.ts
+    notes: |
+      Clean barrel export pattern. Other modules should import from
+      'src/common/schemas', not directly from the adapter file.
+
+  - id: TASK-005
+    phase: 1
+    priority: P0
+    title: Write unit tests for adapter constructor
+    description: |
+      Test adapter construction with valid schemas, invalid schemas, null,
+      undefined, and primitives. Verify error handling and Ajv compilation.
+    status: pending
+    estimated_hours: 0.5
+    assigned_to: null
+    dependencies:
+      - TASK-003
+    files_created:
+      - src/common/schemas/json-schema-standard-adapter.test.ts
+    acceptance_criteria:
+      - test_valid_schema_construction: true
+      - test_null_schema_throws: true
+      - test_undefined_schema_throws: true
+      - test_primitive_schema_throws: true
+      - test_invalid_json_schema_throws: true
+      - test_custom_vendor_string: true
+      - test_default_vendor_string: true
+      - all_tests_pass: true
+      - coverage_constructor_100_percent: true
+    test_count: 7
+    validation:
+      - npm test -- json-schema-standard-adapter.test.ts
+    notes: |
+      Constructor tests ensure the adapter fails fast with clear errors
+      for invalid input, preventing runtime issues later.
+
+  - id: TASK-006
+    phase: 1
+    priority: P0
+    title: Write unit tests for Standard Schema interface
+    description: |
+      Test that adapter correctly implements Standard Schema v1 interface.
+      Verify version, vendor, validate function, and jsonSchema methods exist.
+    status: pending
+    estimated_hours: 0.5
+    assigned_to: null
+    dependencies:
+      - TASK-005
+    files_modified:
+      - src/common/schemas/json-schema-standard-adapter.test.ts
+    acceptance_criteria:
+      - test_version_equals_1: true
+      - test_vendor_property_exists: true
+      - test_validate_is_function: true
+      - test_jsonSchema_object_exists: true
+      - test_jsonSchema_input_is_function: true
+      - test_jsonSchema_output_is_function: true
+      - all_tests_pass: true
+      - coverage_interface_100_percent: true
+    test_count: 7
+    validation:
+      - npm test -- json-schema-standard-adapter.test.ts
+    notes: |
+      These tests verify compliance with Standard Schema specification.
+      MCP SDK relies on this interface structure.
+
+  - id: TASK-007
+    phase: 1
+    priority: P0
+    title: Write unit tests for validation logic
+    description: |
+      Test adapter validation with various JSON Schema features: primitives,
+      objects, arrays, enums, required fields, number constraints, patterns,
+      formats, nested structures.
+    status: pending
+    estimated_hours: 1.5
+    assigned_to: null
+    dependencies:
+      - TASK-006
+    files_modified:
+      - src/common/schemas/json-schema-standard-adapter.test.ts
+    acceptance_criteria:
+      - test_validates_valid_input: true
+      - test_rejects_invalid_input: true
+      - test_required_fields: true
+      - test_enums: true
+      - test_nested_objects: true
+      - test_arrays: true
+      - test_number_constraints: true
+      - test_string_patterns: true
+      - test_format_validators: true
+      - test_error_paths_correct: true
+      - all_tests_pass: true
+      - coverage_validate_100_percent: true
+    test_count: 15
+    validation:
+      - npm test -- json-schema-standard-adapter.test.ts
+      - npm test -- --coverage --collectCoverageFrom='src/common/schemas/json-schema-standard-adapter.ts'
+    notes: |
+      Comprehensive validation tests ensure Ajv integration works correctly
+      for all JSON Schema features composition authors might use.
+
+  - id: TASK-008
+    phase: 1
+    priority: P0
+    title: Write unit tests for JSON Schema passthrough
+    description: |
+      Test that jsonSchema.input() and jsonSchema.output() return the original
+      JSON Schema unchanged. Test $schema field addition when target specified.
+    status: pending
+    estimated_hours: 0.5
+    assigned_to: null
+    dependencies:
+      - TASK-007
+    files_modified:
+      - src/common/schemas/json-schema-standard-adapter.test.ts
+    acceptance_criteria:
+      - test_input_returns_original_schema: true
+      - test_output_returns_original_schema: true
+      - test_input_equals_output: true
+      - test_preserves_existing_schema_field: true
+      - test_adds_schema_field_draft07: true
+      - test_adds_schema_field_2020_12: true
+      - test_does_not_modify_original_object: true
+      - all_tests_pass: true
+      - coverage_jsonSchema_100_percent: true
+    test_count: 7
+    validation:
+      - npm test -- json-schema-standard-adapter.test.ts
+    notes: |
+      Critical tests: The adapter must NOT modify the original schema.
+      This ensures no data loss and maintains composition integrity.
+
+  - id: TASK-009
+    phase: 1
+    priority: P0
+    title: Write unit test for real composition schema (grockle)
+    description: |
+      Test adapter with grockle composition schema (complex real-world example
+      with required fields, enums, defaults). Verify all features work together.
+    status: pending
+    estimated_hours: 0.5
+    assigned_to: null
+    dependencies:
+      - TASK-008
+    files_modified:
+      - src/common/schemas/json-schema-standard-adapter.test.ts
+    acceptance_criteria:
+      - test_grockle_schema_valid_input: true
+      - test_grockle_schema_missing_required: true
+      - test_grockle_schema_invalid_enum: true
+      - test_grockle_schema_passthrough: true
+      - all_tests_pass: true
+    test_count: 4
+    validation:
+      - npm test -- json-schema-standard-adapter.test.ts
+      - npm test -- --coverage --coverageThreshold='{"global":{"branches":95,"functions":95,"lines":95,"statements":95}}'
+    notes: |
+      Integration-style unit test using the actual grockle schema from
+      sprint-42-fcw4d1 analysis. This is the schema that exposed the issue.
+
+  - id: TASK-010
+    phase: 1
+    priority: P1
+    title: Verify Phase 1 completion
+    description: |
+      Run all Phase 1 validation checks: build, tests, lint, coverage.
+      Ensure adapter is production-ready before integration.
+    status: pending
+    estimated_hours: 0.25
+    assigned_to: null
+    dependencies:
+      - TASK-009
+    acceptance_criteria:
+      - typescript_build_succeeds: true
+      - all_unit_tests_pass: true
+      - test_coverage_above_95_percent: true
+      - no_linting_errors: true
+      - adapter_ready_for_integration: true
+    commands:
+      - npm run build
+      - npm test -- json-schema-standard-adapter.test.ts
+      - npm run lint
+      - npm test -- --coverage src/common/schemas/json-schema-standard-adapter.ts
+    validation:
+      - test -f dist/common/schemas/json-schema-standard-adapter.js
+      - test -f dist/common/schemas/index.js
+    notes: |
+      Gate check before Phase 2. All Phase 1 tests must be green.
+      Phase 1 delivers production-ready adapter infrastructure.
+
+  # ============================================================================
+  # PHASE 2: INTEGRATION (3-4 hours)
+  # ============================================================================
+
+  - id: TASK-011
+    phase: 2
+    priority: P0
+    title: Add adapter import to tool-gateway
+    description: |
+      Import JsonSchemaStandardAdapter in tool-gateway.ts. Verify import
+      compiles and no circular dependencies.
+    status: pending
+    estimated_hours: 0.25
+    assigned_to: null
+    dependencies:
+      - TASK-010
+    files_modified:
+      - src/apps/tool-gateway.ts
+    acceptance_criteria:
+      - import_statement_added: true
+      - typescript_compiles: true
+      - no_circular_dependencies: true
+      - existing_tests_still_pass: true
+    code_snippet: |
+      import { JsonSchemaStandardAdapter } from '../common/schemas/json-schema-standard-adapter';
+      import { z } from 'zod';
+    validation:
+      - npm run build
+      - grep -q "JsonSchemaStandardAdapter" src/apps/tool-gateway.ts
+    notes: |
+      Simple import addition. Verify it doesn't break existing functionality.
+
+  - id: TASK-012
+    phase: 2
+    priority: P0
+    title: Implement wrapJsonSchemaWithAdapter helper method
+    description: |
+      Create private helper method in ToolGateway that wraps JSON Schema in
+      Standard Schema adapter. Implements fail-open strategy with logging.
+    status: pending
+    estimated_hours: 1.0
+    assigned_to: null
+    dependencies:
+      - TASK-011
+    files_modified:
+      - src/apps/tool-gateway.ts
+    acceptance_criteria:
+      - method_signature_correct: true
+      - handles_undefined_schema: true
+      - creates_adapter_for_valid_schema: true
+      - fail_open_on_adapter_error: true
+      - logs_debug_on_success: true
+      - logs_warn_on_failure: true
+      - measures_duration: true
+      - returns_z_any_on_failure: true
+      - typescript_compiles: true
+    implementation_checklist:
+      - Private method signature wrapJsonSchemaWithAdapter(jsonSchema, toolId)
+      - Return z.any() if jsonSchema is undefined/null
+      - Track startTime for duration measurement
+      - Try/catch around adapter creation
+      - Create adapter with vendor `bitbrat-composition-${toolId}`
+      - Log debug with vendor, duration, validation/jsonSchema presence
+      - Catch errors and log warning with toolId, error, fallback, duration
+      - Return z.any() on error (fail-open)
+    validation:
+      - npm run build
+      - grep -q "wrapJsonSchemaWithAdapter" src/apps/tool-gateway.ts
+    notes: |
+      Critical method: Implements fail-open strategy. If adapter creation
+      fails, composition remains usable with z.any() (current behavior).
+
+  - id: TASK-013
+    phase: 2
+    priority: P0
+    title: Modify registerCompositionTool to use adapter
+    description: |
+      Update registerCompositionTool method to wrap JSON Schema using new
+      helper before MCP registration. Maintain existing ToolRegistry registration
+      (still uses JSON Schema for CompositionExecutor).
+    status: pending
+    estimated_hours: 0.75
+    assigned_to: null
+    dependencies:
+      - TASK-012
+    files_modified:
+      - src/apps/tool-gateway.ts
+    acceptance_criteria:
+      - registry_registration_unchanged: true
+      - adapter_wrapping_added: true
+      - mcp_registration_uses_adapter: true
+      - logs_hasStandardSchema_flag: true
+      - typescript_compiles: true
+      - existing_functionality_preserved: true
+    implementation_checklist:
+      - Extract jsonSchema from composition.spec.inputSchema
+      - Keep existing this.registry.registerTool (uses jsonSchema)
+      - Add const standardSchema = this.wrapJsonSchemaWithAdapter(jsonSchema, toolId)
+      - Pass standardSchema to this.registerTool (MCP registration)
+      - Log debug with hasStandardSchema flag (standardSchema !== z.any())
+    code_location: src/apps/tool-gateway.ts:registerCompositionTool
+    validation:
+      - npm run build
+      - grep -q "wrapJsonSchemaWithAdapter" src/apps/tool-gateway.ts
+    notes: |
+      Two-layer registration:
+      1. ToolRegistry: JSON Schema (for executor validation)
+      2. MCP Server: Standard Schema adapter (for LLM discovery)
+
+  - id: TASK-014
+    phase: 2
+    priority: P0
+    title: Write integration tests for wrapJsonSchemaWithAdapter
+    description: |
+      Test the helper method with valid schemas, invalid schemas, undefined,
+      and verify logging behavior.
+    status: pending
+    estimated_hours: 0.75
+    assigned_to: null
+    dependencies:
+      - TASK-013
+    files_modified:
+      - src/apps/tool-gateway.test.ts
+    acceptance_criteria:
+      - test_wraps_valid_schema: true
+      - test_returns_z_any_for_undefined: true
+      - test_fails_open_for_invalid_schema: true
+      - test_logs_debug_on_success: true
+      - test_logs_warn_on_failure: true
+      - test_vendor_string_correct: true
+      - all_tests_pass: true
+    test_count: 6
+    validation:
+      - npm test -- tool-gateway.test.ts
+    notes: |
+      Integration tests verify the adapter works correctly within tool-gateway
+      context and logging behaves as expected.
+
+  - id: TASK-015
+    phase: 2
+    priority: P0
+    title: Write integration tests for registerCompositionTool
+    description: |
+      Test composition registration with schemas, without schemas, and verify
+      tools appear in both ToolRegistry and MCP server.
+    status: pending
+    estimated_hours: 1.0
+    assigned_to: null
+    dependencies:
+      - TASK-014
+    files_modified:
+      - src/apps/tool-gateway.test.ts
+    acceptance_criteria:
+      - test_registers_with_schema: true
+      - test_registers_without_schema: true
+      - test_appears_in_registry: true
+      - test_appears_in_mcp_server: true
+      - test_logs_hasStandardSchema_true: true
+      - test_logs_hasStandardSchema_false: true
+      - all_tests_pass: true
+      - no_test_regressions: true
+    test_count: 6
+    validation:
+      - npm test -- tool-gateway.test.ts
+      - npm test
+    notes: |
+      End-to-end integration tests within tool-gateway. Verify compositions
+      register correctly in both layers (ToolRegistry + MCP).
+
+  - id: TASK-016
+    phase: 2
+    priority: P1
+    title: Verify Phase 2 completion
+    description: |
+      Run full test suite to ensure no regressions. Verify tool-gateway builds
+      and all integration tests pass.
+    status: pending
+    estimated_hours: 0.25
+    assigned_to: null
+    dependencies:
+      - TASK-015
+    acceptance_criteria:
+      - typescript_build_succeeds: true
+      - all_tests_pass: true
+      - no_new_linting_errors: true
+      - no_test_regressions: true
+      - integration_complete: true
+    commands:
+      - npm run build
+      - npm test
+      - npm run lint
+    validation:
+      - test -f dist/apps/tool-gateway.js
+      - npm test -- --testPathPattern="tool-gateway"
+    notes: |
+      Gate check before Phase 3. All existing tests must still pass.
+      Integration should not break any existing functionality.
+
+  # ============================================================================
+  # PHASE 3: TESTING & VALIDATION (2-3 hours)
+  # ============================================================================
+
+  - id: TASK-017
+    phase: 3
+    priority: P0
+    title: Agent-dev validation - Deploy and verify adapter
+    description: |
+      Deploy tool-gateway to agent-dev context, verify service starts, check
+      logs for adapter wrapping, confirm no errors.
+    status: pending
+    estimated_hours: 1.0
+    assigned_to: null
+    dependencies:
+      - TASK-016
+    acceptance_criteria:
+      - agent_dev_provisioned: true
+      - tool_gateway_deployed: true
+      - service_starts_without_errors: true
+      - adapter_wrapping_logs_present: true
+      - no_crashes_in_logs: true
+    commands:
+      - agent_dev.provision({ name: "agent-dev-sprint43-validation" })
+      - npm run brat -- bit deploy tool-gateway --context agent-dev-sprint43-validation
+      - fleet.info({ bit: "tool-gateway", context: "agent-dev-sprint43-validation" })
+      - fleet.logs({ bit: "tool-gateway", context: "agent-dev-sprint43-validation", limit: 50 })
+    validation_queries:
+      - Look for "composition.schema.wrapped" debug logs
+      - Verify no "composition.schema.wrap_failed" warnings (or acceptable rate)
+      - Confirm service health is "healthy"
+    notes: |
+      First deployment to runtime environment. Verify adapter works in real
+      service context, not just unit tests.
+
+  - id: TASK-018
+    phase: 3
+    priority: P0
+    title: Agent-dev validation - Verify LLM schema visibility
+    description: |
+      Deploy llm-bot, verify it discovers composition tools with schemas,
+      test LLM can make correct tool calls with proper parameters.
+    status: pending
+    estimated_hours: 1.5
+    assigned_to: null
+    dependencies:
+      - TASK-017
+    acceptance_criteria:
+      - llm_bot_deployed: true
+      - tools_discovered_includes_compositions: true
+      - llm_sees_schemas_not_z_any: true
+      - llm_makes_correct_tool_calls: true
+      - no_parameter_errors: true
+      - trace_verification_complete: true
+    commands:
+      - npm run brat -- bit deploy llm-bot --context agent-dev-sprint43-validation
+      - fleet.logs({ bit: "llm-bot", context: "agent-dev-sprint43-validation", limit: 50 })
+      - message.send({ context: "agent-dev-sprint43-validation", text: "test composition usage", waitForResponse: true })
+      - fleet.trace({ correlationId: "...", context: "agent-dev-sprint43-validation" })
+    validation_queries:
+      - Check llm-bot logs for "tools_discovered" event
+      - Verify composition tools appear in toolNames array
+      - Confirm LLM uses correct parameter names and types
+      - Verify no "unknown parameter" or "missing required parameter" errors
+    success_criteria:
+      - LLM sees composition tools in discovery
+      - LLM knows which parameters are required vs optional
+      - LLM respects enum constraints
+      - Tool calls succeed with proper parameters
+    notes: |
+      End-to-end validation of the core sprint goal: LLMs can see and use
+      composition schemas. This is the primary success metric.
+
+  - id: TASK-019
+    phase: 3
+    priority: P1
+    title: Create automated validation script
+    description: |
+      Create bash script that runs all validation checks automatically.
+      Can be used in CI/CD and for sprint completion verification.
+    status: pending
+    estimated_hours: 0.5
+    assigned_to: null
+    dependencies:
+      - TASK-016
+    files_created:
+      - planning/sprint-43-bt55ep/validate_deliverable.sh
+    acceptance_criteria:
+      - script_runs_all_tests: true
+      - script_verifies_dependencies: true
+      - script_checks_file_existence: true
+      - script_exits_on_failure: true
+      - script_is_executable: true
+      - script_output_clear: true
+    validation:
+      - chmod +x planning/sprint-43-bt55ep/validate_deliverable.sh
+      - ./planning/sprint-43-bt55ep/validate_deliverable.sh
+    notes: |
+      Automated validation ensures all deliverables are complete and correct.
+      Useful for sprint completion checklist.
+
+  - id: TASK-020
+    phase: 3
+    priority: P2
+    title: Agent-dev cleanup
+    description: |
+      Destroy agent-dev context after validation complete. Clean up resources.
+    status: pending
+    estimated_hours: 0.1
+    assigned_to: null
+    dependencies:
+      - TASK-018
+    acceptance_criteria:
+      - agent_dev_destroyed: true
+      - resources_cleaned_up: true
+    commands:
+      - agent_dev.destroy({ name: "agent-dev-sprint43-validation", confirm: true })
+    notes: |
+      Cleanup task. Only run after full validation complete.
+
+  # ============================================================================
+  # PHASE 4: DEPLOYMENT & DOCUMENTATION (1-2 hours)
+  # ============================================================================
+
+  - id: TASK-021
+    phase: 4
+    priority: P1
+    title: Update compositions documentation
+    description: |
+      Add "Input Schema Format" section to compositions guide explaining
+      JSON Schema usage and best practices.
+    status: pending
+    estimated_hours: 0.5
+    assigned_to: null
+    dependencies:
+      - TASK-018
+    files_modified:
+      - documentation/guides/compositions.md
+    acceptance_criteria:
+      - section_added_input_schema_format: true
+      - examples_clear_and_accurate: true
+      - best_practices_documented: true
+      - links_to_reference_docs: true
+    content_checklist:
+      - Explain JSON Schema 2020-12 usage
+      - Provide simple schema example
+      - Explain what LLMs see
+      - Document best practices (flat objects, descriptions, defaults, enums)
+      - Link to advanced reference documentation
+    validation:
+      - grep -q "Input Schema Format" documentation/guides/compositions.md
+    notes: |
+      User-facing documentation. Composition authors need to understand how
+      to write effective schemas for LLM discovery.
+
+  - id: TASK-022
+    phase: 4
+    priority: P1
+    title: Update CHANGELOG
+    description: |
+      Add entry for version 0.41.0 documenting the composition schema
+      visibility feature.
+    status: pending
+    estimated_hours: 0.25
+    assigned_to: null
+    dependencies:
+      - TASK-021
+    files_modified:
+      - CHANGELOG.md
+    acceptance_criteria:
+      - version_entry_added: true
+      - feature_described_clearly: true
+      - migration_notes_included: true
+      - performance_notes_included: true
+    content_checklist:
+      - Version header [0.41.0]
+      - Added section with feature description
+      - Fixed section with issue resolution
+      - Changed section with tool-gateway modifications
+      - Performance section with metrics
+      - Migration section (backward compatible, no changes needed)
+    validation:
+      - grep -q "0.41.0" CHANGELOG.md
+      - grep -q "Composition Schema Visibility" CHANGELOG.md
+    notes: |
+      Standard changelog format. Document what changed, why, and impact.
+
+  - id: TASK-023
+    phase: 4
+    priority: P0
+    title: Commit sprint implementation
+    description: |
+      Commit all changes with structured commit message following platform
+      conventions. Include sprint artifacts and code changes.
+    status: pending
+    estimated_hours: 0.25
+    assigned_to: null
+    dependencies:
+      - TASK-022
+    acceptance_criteria:
+      - all_changes_staged: true
+      - commit_message_follows_convention: true
+      - sprint_artifacts_included: true
+      - commit_successful: true
+    commit_message: |
+      feat(sprint-43): Implement composition schema visibility
+
+      Implements JsonSchemaStandardAdapter to expose composition input schemas
+      to LLMs via MCP SDK 2.0, enabling proper parameter discovery.
+
+      Changes:
+      - Add JsonSchemaStandardAdapter (Standard Schema interface)
+      - Integrate adapter with tool-gateway composition registration
+      - Add comprehensive unit and integration tests
+      - Add dependencies: ajv@^8.12.0, ajv-formats@^2.1.1
+      - Update documentation (compositions.md, CHANGELOG.md)
+
+      Test Results:
+      - Unit tests: 39 tests, 100% pass rate
+      - Integration tests: 12 tests, 100% pass rate
+      - Coverage: >95% for adapter
+      - Agent-dev validation: LLM schema visibility confirmed
+
+      Sprint: sprint-43-bt55ep
+      Phase: Implementation complete
+
+      🤖 Generated with Claude Code
+    commands:
+      - git add .
+      - git status
+      - git commit -m "$(cat planning/sprint-43-bt55ep/commit-message.txt)"
+    validation:
+      - git log -1 --oneline
+      - git show --stat
+    notes: |
+      Single atomic commit with all sprint deliverables. Commit message
+      includes sprint context and test results.
+
+  - id: TASK-024
+    phase: 4
+    priority: P0
+    title: Update sprint status to validating
+    description: |
+      Update sprint manifest and index to "validating" status in preparation
+      for PR creation and final review.
+    status: pending
+    estimated_hours: 0.1
+    assigned_to: null
+    dependencies:
+      - TASK-023
+    acceptance_criteria:
+      - sprint_status_updated: true
+      - manifest_updated: true
+      - index_updated: true
+    commands:
+      - mcp__sprint-mcp-local__update-sprint-status({ sprintId: "sprint-43-bt55ep", status: "validating" })
+    notes: |
+      Status transition: planning → in-progress → validating
+      Signals sprint implementation complete, ready for final validation.
 
 # ============================================================================
-# CRITICAL PATH
+# BACKLOG SUMMARY
 # ============================================================================
 
-criticalPath:
-  - TEMPLATE-001  # Add types
-  - TEMPLATE-002  # Implement resolveTemplate
-  - TEMPLATE-003  # Integrate into resolveValue
-  - TEMPLATE-004  # Add compiler validation
-  - TEMPLATE-005  # Build successfully
-  - TEST-001      # Unit test executor
-  - TEST-002      # Unit test compiler
-  - TEST-003      # Integration test
-  - TEST-004      # Run full suite
-  - DEPLOY-001    # Validate in agent-dev
-  - DEPLOY-002    # Deploy to staging
-  - DEPLOY-003    # E2E validation
-  - DEPLOY-004    # Smoke test
-  - COMPLETE-001  # Verification report
-  - COMPLETE-002  # Retrospective
-  - COMPLETE-003  # Key learnings
+progress:
+  phase_1_tasks: 10
+  phase_1_estimated_hours: 6.75
+  phase_1_status: pending
 
-# ============================================================================
-# RISKS & MITIGATION
-# ============================================================================
+  phase_2_tasks: 6
+  phase_2_estimated_hours: 4.0
+  phase_2_status: pending
 
-risks:
-  - id: RISK-001
-    description: "Regex performance impact on complex templates"
-    impact: Medium
-    probability: Low
-    mitigation: "Benchmark template resolution, consider caching in future"
+  phase_3_tasks: 4
+  phase_3_estimated_hours: 3.1
+  phase_3_status: pending
 
-  - id: RISK-002
-    description: "Edge cases in template parsing (nested braces, special chars)"
-    impact: Medium
-    probability: Low
-    mitigation: "Comprehensive test coverage, clear error messages"
+  phase_4_tasks: 4
+  phase_4_estimated_hours: 1.1
+  phase_4_status: pending
 
-  - id: RISK-003
-    description: "Accidental template detection (objects with 'template' key)"
-    impact: Low
-    probability: Very Low
-    mitigation: "Strict type guard, validation, backward compatibility"
+  total_pending: 24
+  total_in_progress: 0
+  total_completed: 0
+  total_blocked: 0
 
-  - id: RISK-004
-    description: "Unclear error messages confuse users"
-    impact: Medium
-    probability: Medium
-    mitigation: "Extensive error message review, documentation examples"
+risk_assessment:
+  high_risk_tasks: []
+  dependencies_complex: false
+  external_dependencies:
+    - ajv (npm package)
+    - ajv-formats (npm package)
+  blocking_tasks:
+    - TASK-001 (blocks all Phase 1)
+    - TASK-010 (blocks all Phase 2)
+    - TASK-016 (blocks all Phase 3)
 
-# ============================================================================
-# DEPENDENCIES
-# ============================================================================
+milestones:
+  - name: Phase 1 Complete - Adapter Ready
+    tasks: [TASK-001, TASK-002, TASK-003, TASK-004, TASK-005, TASK-006, TASK-007, TASK-008, TASK-009, TASK-010]
+    estimated_completion: "After 6.75 hours"
 
-dependencies:
-  external: []  # No external dependencies
-  internal:
-    - Sprint 42 completion (composition loading works)
-    - Existing composition infrastructure stable
+  - name: Phase 2 Complete - Integration Done
+    tasks: [TASK-011, TASK-012, TASK-013, TASK-014, TASK-015, TASK-016]
+    estimated_completion: "After 10.75 hours"
 
-# ============================================================================
-# NOTES
-# ============================================================================
+  - name: Phase 3 Complete - Validation Passed
+    tasks: [TASK-017, TASK-018, TASK-019, TASK-020]
+    estimated_completion: "After 13.85 hours"
+
+  - name: Phase 4 Complete - Sprint Done
+    tasks: [TASK-021, TASK-022, TASK-023, TASK-024]
+    estimated_completion: "After 14.95 hours"
+
+quality_gates:
+  - phase: 1
+    gate: All unit tests pass, coverage >95%
+    task: TASK-010
+
+  - phase: 2
+    gate: All integration tests pass, no regressions
+    task: TASK-016
+
+  - phase: 3
+    gate: Agent-dev validation confirms LLM schema visibility
+    task: TASK-018
+
+  - phase: 4
+    gate: Documentation complete, commit successful
+    task: TASK-024
+
+success_criteria:
+  functional:
+    - LLMs see composition schemas in tools_discovered
+    - Adapter wrapping succeeds >99% of time
+    - Validation consistency between adapter and executor
+    - Fail-open for invalid schemas (z.any() fallback)
+    - No regressions in existing composition execution
+
+  non_functional:
+    - Adapter creation latency P95 <5ms
+    - Memory overhead <50KB per composition
+    - Zero crashes related to adapter
+    - 100% backward compatible
+    - Documentation complete
+
+  user_experience:
+    - LLM tool call accuracy increases
+    - Parameter error rate decreases
+    - Composition authors see no breaking changes
+
+rollback_plan:
+  trigger_conditions:
+    - Adapter wrapping success rate <95%
+    - Tool-gateway memory usage increases >20%
+    - Composition execution errors increase >10%
+    - Any crashes related to adapter
+
+  steps:
+    - Revert tool-gateway changes to z.any()
+    - Keep adapter code for future use
+    - Redeploy tool-gateway
+    - Verify baseline behavior restored
+    - Investigate root cause
+    - Fix and re-validate in agent-dev
 
 notes: |
-  This sprint implements template expression support to fix the grockle
-  composition failure and improve composition UX across the platform.
+  This backlog represents 13.5-15 hours of focused implementation work.
+  Tasks are prioritized by critical path (P0) and ordered for sequential
+  execution with clear dependencies.
 
-  Template syntax follows Mustache convention ({{variable}}) for familiarity
-  and compatibility with other devops/workflow tools.
+  Each task has:
+  - Clear acceptance criteria
+  - Validation commands
+  - Implementation checklists (where applicable)
+  - Notes explaining rationale
 
-  Estimated completion: 6-8 hours over 1-2 days
+  Quality gates at end of each phase ensure we don't proceed with issues.
 
-  Success criteria:
-  - Grockle composition works end-to-end
-  - No regressions in existing functionality
-  - Clear, actionable error messages
-  - Comprehensive documentation
-
-  Future enhancements (post-MVP):
-  - Template caching for performance
-  - Custom formatters (date, number)
-  - Conditional interpolation
+  The backlog is designed to be executed sequentially, with each task
+  building on previous tasks. Some tasks can be parallelized within phases
+  (e.g., different test suites), but phases must be sequential.
