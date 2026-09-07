@@ -415,4 +415,223 @@ describe('CompositionCompiler', () => {
       expect(compiled.compiledAt.getTime()).toBeLessThanOrEqual(after.getTime());
     });
   });
+
+  // ==========================================================================
+  // Template Expression Validation (8 tests)
+  // ==========================================================================
+
+  describe('Template expression validation', () => {
+    test('validates correct template expression', () => {
+      registry.addTool('test.tool', 'mcp-server');
+
+      const composition = createComposition('test', [
+        {
+          id: 'step1',
+          call: 'test.tool',
+          with: {
+            message: {
+              template: 'Hello, {{name}}!',
+              name: { $ref: { namespace: 'input', pointer: '/username' } },
+            },
+          },
+        },
+      ]);
+
+      const report = compiler.validate(composition);
+
+      expect(report.valid).toBe(true);
+      expect(report.errors).toHaveLength(0);
+    });
+
+    test('detects undefined template variable (error)', () => {
+      registry.addTool('test.tool', 'mcp-server');
+
+      const composition = createComposition('test', [
+        {
+          id: 'step1',
+          call: 'test.tool',
+          with: {
+            message: {
+              template: 'Hello, {{name}}! Your score is {{score}}.',
+              name: 'Alice',
+              // 'score' is used but not defined
+            },
+          },
+        },
+      ]);
+
+      const report = compiler.validate(composition);
+
+      expect(report.valid).toBe(false);
+      expect(report.errors.length).toBeGreaterThan(0);
+      expect(report.errors.some(e =>
+        e.code === CompositionErrorCode.VALIDATION_ERROR &&
+        e.message.includes('score') &&
+        e.message.includes('not defined')
+      )).toBe(true);
+      expect(report.errors.find(e => e.message.includes('score'))?.location).toContain('steps[0].with.message.template');
+    });
+
+    test('detects unused template variable (warning)', () => {
+      registry.addTool('test.tool', 'mcp-server');
+
+      const composition = createComposition('test', [
+        {
+          id: 'step1',
+          call: 'test.tool',
+          with: {
+            message: {
+              template: 'Hello, {{name}}!',
+              name: 'Alice',
+              unused: 'This variable is defined but not used',
+            },
+          },
+        },
+      ]);
+
+      const report = compiler.validate(composition);
+
+      expect(report.valid).toBe(true); // Warnings don't fail validation
+      expect(report.warnings.length).toBeGreaterThan(0);
+      expect(report.warnings.some(w =>
+        w.message.includes('unused') &&
+        w.message.includes('not used')
+      )).toBe(true);
+      expect(report.warnings.find(w => w.message.includes('unused'))?.location).toContain('steps[0].with.message.unused');
+    });
+
+    test('detects mismatched braces (error)', () => {
+      registry.addTool('test.tool', 'mcp-server');
+
+      const composition = createComposition('test', [
+        {
+          id: 'step1',
+          call: 'test.tool',
+          with: {
+            message: {
+              template: 'Hello, {{name}! Missing closing brace',
+              name: 'Alice',
+            },
+          },
+        },
+      ]);
+
+      const report = compiler.validate(composition);
+
+      expect(report.valid).toBe(false);
+      expect(report.errors.some(e =>
+        e.code === CompositionErrorCode.VALIDATION_ERROR &&
+        e.message.includes('mismatched braces')
+      )).toBe(true);
+    });
+
+    test('reports multiple template errors correctly', () => {
+      registry.addTool('test.tool', 'mcp-server');
+
+      const composition = createComposition('test', [
+        {
+          id: 'step1',
+          call: 'test.tool',
+          with: {
+            message: {
+              template: 'Hello, {{name}}! Your score is {{score}',
+              // Multiple issues:
+              // 1. 'name' and 'score' not defined
+              // 2. Mismatched braces (missing closing }})
+            },
+          },
+        },
+      ]);
+
+      const report = compiler.validate(composition);
+
+      expect(report.valid).toBe(false);
+      expect(report.errors.length).toBeGreaterThanOrEqual(2); // At least 2 errors
+
+      // Check for undefined variable errors
+      const undefinedErrors = report.errors.filter(e =>
+        e.message.includes('not defined') || e.message.includes('mismatched')
+      );
+      expect(undefinedErrors.length).toBeGreaterThanOrEqual(2);
+    });
+
+    test('validates nested template expressions', () => {
+      registry.addTool('test.tool', 'mcp-server');
+
+      const composition = createComposition('test', [
+        {
+          id: 'step1',
+          call: 'test.tool',
+          with: {
+            message: {
+              template: 'Outer: {{inner}}',
+              inner: {
+                template: 'Inner: {{name}}',
+                name: 'Nested',
+              },
+            },
+          },
+        },
+      ]);
+
+      const report = compiler.validate(composition);
+
+      expect(report.valid).toBe(true);
+      expect(report.errors).toHaveLength(0);
+    });
+
+    test('validates template in CallStep.with', () => {
+      registry.addTool('test.tool', 'mcp-server');
+
+      const composition = createComposition('test', [
+        {
+          id: 'step1',
+          call: 'test.tool',
+          with: {
+            greeting: {
+              template: 'Hello, {{name}}!',
+              name: { $ref: { namespace: 'input', pointer: '/user' } },
+            },
+            farewell: {
+              template: 'Goodbye, {{name}}!',
+              name: { $ref: { namespace: 'input', pointer: '/user' } },
+            },
+          },
+        },
+      ]);
+
+      const report = compiler.validate(composition);
+
+      expect(report.valid).toBe(true);
+      expect(report.errors).toHaveLength(0);
+    });
+
+    test('validates template in IfValueStep.then/else', () => {
+      registry.addTool('test.tool', 'mcp-server');
+
+      const composition = createComposition('test', [
+        {
+          id: 'step1',
+          if: {
+            condition: {
+              exists: { $ref: { namespace: 'input', pointer: '/name' } },
+            },
+            then: {
+              template: 'Welcome, {{name}}!',
+              name: { $ref: { namespace: 'input', pointer: '/name' } },
+            },
+            else: {
+              template: 'Welcome, {{guest}}!',
+              guest: 'Guest',
+            },
+          },
+        },
+      ]);
+
+      const report = compiler.validate(composition);
+
+      expect(report.valid).toBe(true);
+      expect(report.errors).toHaveLength(0);
+    });
+  });
 });

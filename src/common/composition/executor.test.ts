@@ -861,4 +861,433 @@ describe('CompositionExecutor', () => {
       expect(result.stepsExecuted).toBe(1);
     });
   });
+
+  // ==========================================================================
+  // Template Expression Resolution (Sprint 42)
+  // ==========================================================================
+
+  describe('Template expression resolution', () => {
+    test('interpolates simple template with one variable', async () => {
+      const composition = createCompiled(
+        [],
+        {
+          template: 'Hello, {{name}}!',
+          name: 'Alice',
+        }
+      );
+
+      const result = await executor.execute(composition, {
+        input: {},
+        context: {},
+        sessionId: 'session-1',
+        correlationId: 'corr-1',
+        userRoles: ['user'],
+      });
+
+      expect(result.status).toBe(ExecutionStatus.SUCCESS);
+      expect(result.output).toBe('Hello, Alice!');
+    });
+
+    test('interpolates template with multiple variables', async () => {
+      const composition = createCompiled(
+        [],
+        {
+          template: '{{greeting}} {{name}}, you have {{count}} messages.',
+          greeting: 'Hello',
+          name: 'Bob',
+          count: 5,
+        }
+      );
+
+      const result = await executor.execute(composition, {
+        input: {},
+        context: {},
+        sessionId: 'session-1',
+        correlationId: 'corr-1',
+        userRoles: ['user'],
+      });
+
+      expect(result.status).toBe(ExecutionStatus.SUCCESS);
+      expect(result.output).toBe('Hello Bob, you have 5 messages.');
+    });
+
+    test('interpolates template with references to input', async () => {
+      const composition = createCompiled(
+        [],
+        {
+          template: 'User {{username}} is {{status}}',
+          username: { $ref: { namespace: 'input', pointer: '/username' } },
+          status: { $ref: { namespace: 'input', pointer: '/status' } },
+        }
+      );
+
+      const result = await executor.execute(composition, {
+        input: { username: 'charlie', status: 'active' },
+        context: {},
+        sessionId: 'session-1',
+        correlationId: 'corr-1',
+        userRoles: ['user'],
+      });
+
+      expect(result.status).toBe(ExecutionStatus.SUCCESS);
+      expect(result.output).toBe('User charlie is active');
+    });
+
+    test('interpolates template with references to step outputs', async () => {
+      registry.addTool('test.get_user', async () => ({ name: 'Dave', org: 'Acme Inc' }));
+
+      const composition = createCompiled(
+        [
+          {
+            id: 'user',
+            call: 'test.get_user',
+            with: {},
+          },
+        ],
+        {
+          template: '{{name}} from {{org}}',
+          name: { $ref: { namespace: 'steps', pointer: '/user/name' } },
+          org: { $ref: { namespace: 'steps', pointer: '/user/org' } },
+        }
+      );
+
+      const result = await executor.execute(composition, {
+        input: {},
+        context: {},
+        sessionId: 'session-1',
+        correlationId: 'corr-1',
+        userRoles: ['user'],
+      });
+
+      expect(result.status).toBe(ExecutionStatus.SUCCESS);
+      expect(result.output).toBe('Dave from Acme Inc');
+    });
+
+    test('coerces null/undefined to empty string', async () => {
+      const composition = createCompiled(
+        [],
+        {
+          template: 'Value: {{value}}',
+          value: null,
+        }
+      );
+
+      const result = await executor.execute(composition, {
+        input: {},
+        context: {},
+        sessionId: 'session-1',
+        correlationId: 'corr-1',
+        userRoles: ['user'],
+      });
+
+      expect(result.status).toBe(ExecutionStatus.SUCCESS);
+      expect(result.output).toBe('Value: ');
+    });
+
+    test('coerces numbers to strings', async () => {
+      const composition = createCompiled(
+        [],
+        {
+          template: 'Count: {{count}}, Price: {{price}}',
+          count: 42,
+          price: 19.99,
+        }
+      );
+
+      const result = await executor.execute(composition, {
+        input: {},
+        context: {},
+        sessionId: 'session-1',
+        correlationId: 'corr-1',
+        userRoles: ['user'],
+      });
+
+      expect(result.status).toBe(ExecutionStatus.SUCCESS);
+      expect(result.output).toBe('Count: 42, Price: 19.99');
+    });
+
+    test('coerces booleans to strings', async () => {
+      const composition = createCompiled(
+        [],
+        {
+          template: 'Active: {{active}}, Enabled: {{enabled}}',
+          active: true,
+          enabled: false,
+        }
+      );
+
+      const result = await executor.execute(composition, {
+        input: {},
+        context: {},
+        sessionId: 'session-1',
+        correlationId: 'corr-1',
+        userRoles: ['user'],
+      });
+
+      expect(result.status).toBe(ExecutionStatus.SUCCESS);
+      expect(result.output).toBe('Active: true, Enabled: false');
+    });
+
+    test('throws error when variable references object', async () => {
+      const composition = createCompiled(
+        [],
+        {
+          template: 'User: {{user}}',
+          user: { name: 'Eve', age: 30 },
+        }
+      );
+
+      const result = await executor.execute(composition, {
+        input: {},
+        context: {},
+        sessionId: 'session-1',
+        correlationId: 'corr-1',
+        userRoles: ['user'],
+      });
+
+      expect(result.status).toBe(ExecutionStatus.FAILED);
+      expect(result.error).toContain('resolved to object');
+      expect(result.error).toContain('Templates require scalar values');
+      expect(result.errorCode).toBe(CompositionErrorCode.VALIDATION_ERROR);
+    });
+
+    test('throws error when variable references array', async () => {
+      const composition = createCompiled(
+        [],
+        {
+          template: 'Items: {{items}}',
+          items: ['a', 'b', 'c'],
+        }
+      );
+
+      const result = await executor.execute(composition, {
+        input: {},
+        context: {},
+        sessionId: 'session-1',
+        correlationId: 'corr-1',
+        userRoles: ['user'],
+      });
+
+      expect(result.status).toBe(ExecutionStatus.FAILED);
+      expect(result.error).toContain('resolved to array');
+      expect(result.error).toContain('Templates require scalar values');
+      expect(result.errorCode).toBe(CompositionErrorCode.VALIDATION_ERROR);
+    });
+
+    test('throws error for undefined template variable at runtime', async () => {
+      // Note: This should be caught by compiler validation, but test runtime behavior
+      const composition = createCompiled(
+        [],
+        {
+          template: 'Hello {{name}} and {{other}}',
+          name: 'Frank',
+          // 'other' is not defined
+        }
+      );
+
+      const result = await executor.execute(composition, {
+        input: {},
+        context: {},
+        sessionId: 'session-1',
+        correlationId: 'corr-1',
+        userRoles: ['user'],
+      });
+
+      expect(result.status).toBe(ExecutionStatus.FAILED);
+      expect(result.error).toContain('Undefined template variable: {{other}}');
+      expect(result.errorCode).toBe(CompositionErrorCode.UNDEFINED_REFERENCE);
+    });
+
+    test('handles escaped braces in template', async () => {
+      const composition = createCompiled(
+        [],
+        {
+          template: 'Use \\{{variable}} for interpolation, result: {{value}}',
+          value: '42',
+        }
+      );
+
+      const result = await executor.execute(composition, {
+        input: {},
+        context: {},
+        sessionId: 'session-1',
+        correlationId: 'corr-1',
+        userRoles: ['user'],
+      });
+
+      expect(result.status).toBe(ExecutionStatus.SUCCESS);
+      expect(result.output).toBe('Use {{variable}} for interpolation, result: 42');
+    });
+
+    test('uses templates in step arguments (grockle use case)', async () => {
+      registry.addTool('test.generate', async (args: any) => ({
+        result: `Generated with: ${args.prompt}`,
+      }));
+
+      const composition = createCompiled(
+        [
+          {
+            id: 'notes',
+            call: 'test.get_notes',
+            with: {},
+          },
+          {
+            id: 'generate',
+            call: 'test.generate',
+            with: {
+              prompt: {
+                template: '{{notes}} {{description}}',
+                notes: { $ref: { namespace: 'steps', pointer: '/notes/value' } },
+                description: { $ref: { namespace: 'input', pointer: '/description' } },
+              },
+            },
+          },
+        ],
+        { $ref: { namespace: 'steps', pointer: '/generate/result' } }
+      );
+
+      registry.addTool('test.get_notes', async () => ({ value: 'Important:' }));
+
+      const result = await executor.execute(composition, {
+        input: { description: 'Create a logo' },
+        context: {},
+        sessionId: 'session-1',
+        correlationId: 'corr-1',
+        userRoles: ['user'],
+      });
+
+      expect(result.status).toBe(ExecutionStatus.SUCCESS);
+      expect(result.output).toBe('Generated with: Important: Create a logo');
+    });
+
+    test('supports nested templates in objects', async () => {
+      const composition = createCompiled(
+        [],
+        {
+          greeting: {
+            template: 'Hello {{name}}',
+            name: 'Grace',
+          },
+          message: {
+            template: 'Welcome to {{place}}',
+            place: 'the platform',
+          },
+        }
+      );
+
+      const result = await executor.execute(composition, {
+        input: {},
+        context: {},
+        sessionId: 'session-1',
+        correlationId: 'corr-1',
+        userRoles: ['user'],
+      });
+
+      expect(result.status).toBe(ExecutionStatus.SUCCESS);
+      expect(result.output).toEqual({
+        greeting: 'Hello Grace',
+        message: 'Welcome to the platform',
+      });
+    });
+
+    test('supports templates in arrays', async () => {
+      const composition = createCompiled(
+        [],
+        [
+          {
+            template: 'Item {{index}}',
+            index: 1,
+          },
+          {
+            template: 'Item {{index}}',
+            index: 2,
+          },
+        ]
+      );
+
+      const result = await executor.execute(composition, {
+        input: {},
+        context: {},
+        sessionId: 'session-1',
+        correlationId: 'corr-1',
+        userRoles: ['user'],
+      });
+
+      expect(result.status).toBe(ExecutionStatus.SUCCESS);
+      expect(result.output).toEqual(['Item 1', 'Item 2']);
+    });
+
+    test('grockle integration: full composition with template and image generation', async () => {
+      // Track what arguments generate_image receives
+      let capturedPrompt: any = null;
+
+      // Mock get_state tool
+      registry.addTool('get_state', async (args: any) => ({
+        notes: 'User prefers vibrant colors and modern design.',
+      }));
+
+      // Mock generate_image tool
+      registry.addTool('generate_image', async (args: any) => {
+        capturedPrompt = args.prompt;
+
+        // Verify prompt is a STRING, not an object
+        if (typeof args.prompt !== 'string') {
+          throw new Error(
+            `generate_image expects prompt to be a string, got ${typeof args.prompt}`
+          );
+        }
+
+        return {
+          imageUrl: 'https://example.com/images/generated-123.png',
+        };
+      });
+
+      // Grockle composition structure
+      const composition = createCompiled(
+        [
+          {
+            id: 'get_notes',
+            call: 'get_state',
+            with: {
+              key: 'user_preferences',
+            },
+          },
+          {
+            id: 'generate',
+            call: 'generate_image',
+            with: {
+              prompt: {
+                template: '{{notes}} Create: {{description}}',
+                notes: { $ref: { namespace: 'steps', pointer: '/get_notes/notes' } },
+                description: { $ref: { namespace: 'input', pointer: '/description' } },
+              },
+            },
+          },
+        ],
+        { $ref: { namespace: 'steps', pointer: '/generate/imageUrl' } }
+      );
+
+      const result = await executor.execute(composition, {
+        input: { description: 'a happy robot waving' },
+        context: {},
+        sessionId: 'grockle-session',
+        correlationId: 'grockle-corr-1',
+        userRoles: ['user'],
+      });
+
+      // Verify execution succeeded
+      expect(result.status).toBe(ExecutionStatus.SUCCESS);
+
+      // Verify template was resolved correctly (combining notes + description)
+      expect(capturedPrompt).toBe(
+        'User prefers vibrant colors and modern design. Create: a happy robot waving'
+      );
+
+      // Verify prompt was passed as a STRING (not an object)
+      expect(typeof capturedPrompt).toBe('string');
+
+      // Verify image URL was returned
+      expect(result.output).toBe('https://example.com/images/generated-123.png');
+    });
+  });
 });
