@@ -363,7 +363,34 @@ async function fleetLogsHandler(
           break;
       }
 
-      const header = `Retrieved ${response.count} log entries from ${args.bit} (${response.deploymentType})\nTarget: ${connection.name}\n\n`;
+      // Build header with stats (Sprint 46)
+      let header = `Retrieved ${response.count} log entries from ${args.bit} (${response.deploymentType})\nTarget: ${connection.name}\n`;
+
+      // Add stats if available (Sprint 46)
+      if (response.stats) {
+        const { scanned, parsed, failed, filtered, returned, backend, lokiFallback, warnings } = response.stats;
+
+        header += `\n=== Pipeline Stats ===\n`;
+        header += `Scanned:  ${scanned} log lines from ${backend}${lokiFallback ? ' (Loki fallback)' : ''}\n`;
+        header += `Parsed:   ${parsed} successfully\n`;
+        if (failed > 0) {
+          header += `Failed:   ${failed} (malformed or invalid JSON)\n`;
+        }
+        if (filtered > 0) {
+          header += `Filtered: ${filtered} (excluded by level/correlation filters)\n`;
+        }
+        header += `Returned: ${returned} final entries\n`;
+
+        // Add warnings if present
+        if (warnings && warnings.length > 0) {
+          header += `\n`;
+          for (const warning of warnings) {
+            header += `⚠️  ${warning}\n`;
+          }
+        }
+      }
+
+      header += `\n`;
 
       return {
         content: [{

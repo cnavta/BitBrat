@@ -24,9 +24,13 @@ llm-bot | {"ts":"2026-07-10T12:34:56Z","level":"info","msg":"Processing request"
 llm-bot | {"ts":"2026-07-10T12:34:57Z","level":"error","msg":"Failed to connect","correlationId":"evt-123"}
       `.trim();
 
-      const logs = parseDockerLogs(output, 'llm-bot');
+      // Sprint 46: parseDockerLogs now returns { entries, scanned, parsed, failed }
+      const { entries: logs, scanned, parsed, failed } = parseDockerLogs(output, 'llm-bot');
 
       expect(logs).toHaveLength(2);
+      expect(scanned).toBe(2);
+      expect(parsed).toBe(2);
+      expect(failed).toBe(0);
       expect(logs[0]).toMatchObject({
         timestamp: '2026-07-10T12:34:56Z',
         level: 'info',
@@ -48,9 +52,12 @@ llm-bot | 2026-07-10 12:34:56 Service starting
 llm-bot | 2026-07-10 12:34:57 Service ready
       `.trim();
 
-      const logs = parseDockerLogs(output, 'llm-bot');
+      // Sprint 46: parseDockerLogs now returns { entries, scanned, parsed, failed }
+      const { entries: logs, scanned, parsed } = parseDockerLogs(output, 'llm-bot');
 
       expect(logs).toHaveLength(2);
+      expect(scanned).toBe(2);
+      expect(parsed).toBe(2);
       expect(logs[0].level).toBe('info');
       expect(logs[0].service).toBe('llm-bot');
       expect(logs[0].message).toContain('Service starting');
@@ -63,7 +70,8 @@ llm-bot | {"ts":"2026-07-10T12:34:56Z","level":"info","msg":"Test"}
 llm-bot | {"ts":"2026-07-10T12:34:57Z","level":"info","msg":"Test2"}
       `;
 
-      const logs = parseDockerLogs(output, 'llm-bot');
+      // Sprint 46: parseDockerLogs now returns { entries, scanned, parsed, failed }
+      const { entries: logs } = parseDockerLogs(output, 'llm-bot');
 
       expect(logs).toHaveLength(2);
     });
@@ -74,7 +82,8 @@ llm-bot | {"ts":"2026-07-10T12:34:56Z","level":"info","msg":"JSON log"}
 llm-bot | Plain text log
       `.trim();
 
-      const logs = parseDockerLogs(output, 'llm-bot');
+      // Sprint 46: parseDockerLogs now returns { entries, scanned, parsed, failed }
+      const { entries: logs } = parseDockerLogs(output, 'llm-bot');
 
       expect(logs).toHaveLength(2);
       expect(logs[0].message).toBe('JSON log');

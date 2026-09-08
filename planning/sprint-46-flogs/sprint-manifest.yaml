@@ -1,6 +1,6 @@
 id: sprint-46-flogs
 title: "Fleet.logs Infrastructure Remediation"
-status: planning
+status: in-progress
 goal: |
   Analyze and fix critical fleet.logs infrastructure issues discovered during staging
   error monitoring. Ensure error-level logs are properly retrieved, filtered, and displayed

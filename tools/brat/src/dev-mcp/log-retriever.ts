@@ -11,7 +11,8 @@ import {
   LogResponse,
   LogEntry,
   DeploymentType,
-  LogLevel
+  LogLevel,
+  LogStats
 } from './types.js';
 import { FirestoreRegistryReader } from '../fleet/firestore-registry.js';
 import { PostgresRegistryReader } from '../fleet/postgres-registry.js';
@@ -151,6 +152,9 @@ export class LogRetriever {
 
   /**
    * Main entry point: retrieve logs based on request parameters
+   *
+   * Sprint 46: Now includes stats in response to provide visibility into
+   * the log parsing/filtering pipeline.
    */
   async getLogs(request: LogRequest): Promise<LogResponse> {
     try {
@@ -164,19 +168,33 @@ export class LogRetriever {
 
       // Route to appropriate log retriever based on deployment type
       let logs: LogEntry[];
+      let stats: LogStats | undefined;
+
       if (deploymentType === 'cloud-run') {
         logs = await this.getCloudRunLogs(request);
+        // Cloud Run logs don't have parse stats yet (future enhancement)
+        stats = {
+          scanned: logs.length,
+          parsed: logs.length,
+          failed: 0,
+          filtered: 0,
+          returned: logs.length,
+          backend: 'loki' // Cloud Run uses Cloud Logging (similar to Loki)
+        };
       } else {
-        logs = await this.getDockerLogs(request);
+        const result = await this.getDockerLogs(request);
+        logs = result.logs;
+        stats = result.stats;
       }
 
-      // Return response
+      // Return response with stats (Sprint 46)
       return {
         bit: request.bit,
         target: this.connection.name,
         count: logs.length,
         logs,
-        deploymentType
+        deploymentType,
+        stats
       };
     } catch (error: any) {
       // Return error response
@@ -297,8 +315,11 @@ export class LogRetriever {
 
   /**
    * Retrieve logs from Docker using Loki (if available) or docker compose logs (fallback)
+   *
+   * Sprint 46: Now returns stats alongside logs to track which backend was used
+   * and whether Loki fallback occurred.
    */
-  private async getDockerLogs(request: LogRequest): Promise<LogEntry[]> {
+  private async getDockerLogs(request: LogRequest): Promise<{ logs: LogEntry[], stats: LogStats }> {
     if (!request.bit) {
       throw new Error('Bit name is required for log retrieval');
     }
@@ -310,7 +331,19 @@ export class LogRetriever {
       try {
         // Try Loki first
         const logs = await this.lokiClient.query(request);
-        return logs;
+
+        // Sprint 46: Build stats for Loki backend (simplified - no parse stats from Loki)
+        const stats: LogStats = {
+          scanned: logs.length,
+          parsed: logs.length,
+          failed: 0,
+          filtered: 0,
+          returned: logs.length,
+          backend: 'loki',
+          lokiFallback: false
+        };
+
+        return { logs, stats };
       } catch (error: any) {
         // Loki query failed, fall back to Docker logs
         // Note: We silently fall back to ensure graceful degradation
@@ -322,15 +355,23 @@ export class LogRetriever {
     }
 
     // Fallback to Docker compose logs
-    return this.getDockerComposeLogs(request);
+    const result = await this.getDockerComposeLogs(request);
+
+    // Mark that we fell back from Loki (if it was available but failed)
+    if (lokiAvailable && this.lokiClient) {
+      result.stats.lokiFallback = true;
+    }
+
+    return result;
   }
 
   /**
    * Retrieve logs directly from Docker using docker compose logs
    *
-   * This is the fallback when Loki is unavailable or fails.
+   * Sprint 46: Now returns stats alongside logs to provide visibility
+   * into parsing/filtering pipeline (scanned, parsed, failed, filtered counts).
    */
-  private async getDockerComposeLogs(request: LogRequest): Promise<LogEntry[]> {
+  private async getDockerComposeLogs(request: LogRequest): Promise<{ logs: LogEntry[], stats: LogStats }> {
     if (!request.bit) {
       throw new Error('Bit name is required for log retrieval');
     }
@@ -374,8 +415,12 @@ export class LogRetriever {
         });
       }
 
-      // Parse docker compose log output
-      let logs = parseDockerLogs(output, request.bit);
+      // Parse docker compose log output (Sprint 46: now returns stats)
+      const { entries, scanned, parsed, failed } = parseDockerLogs(output, request.bit);
+      let logs = entries;
+
+      // Track counts before filtering
+      const beforeFilterCount = logs.length;
 
       // Apply client-side filters
       if (request.level && request.level.length > 0) {
@@ -386,11 +431,44 @@ export class LogRetriever {
         logs = filterByCorrelation(logs, request.correlationId);
       }
 
-      return logs;
+      // Calculate filter count
+      const filtered = beforeFilterCount - logs.length;
+
+      // Build stats object (Sprint 46)
+      const stats: LogStats = {
+        scanned,
+        parsed,
+        failed,
+        filtered,
+        returned: logs.length,
+        backend: 'docker',
+        warnings: []
+      };
+
+      // Add warning if tail limit was likely hit
+      if (scanned >= tailLimit * 0.95) {
+        stats.warnings!.push(
+          `Retrieved ${scanned} logs (close to tail limit of ${tailLimit}). Some logs may be missing. ` +
+          `Use --correlationId or narrow --since window for better coverage.`
+        );
+      }
+
+      return { logs, stats };
     } catch (error: any) {
-      // If service not found or other docker error, return empty array
+      // If service not found or other docker error, return empty result with stats
       if (error.message?.includes('no such service') || error.message?.includes('No such service')) {
-        return [];
+        return {
+          logs: [],
+          stats: {
+            scanned: 0,
+            parsed: 0,
+            failed: 0,
+            filtered: 0,
+            returned: 0,
+            backend: 'docker',
+            warnings: ['Service not found']
+          }
+        };
       }
       throw new Error(`Failed to retrieve Docker logs: ${error.message}`);
     }

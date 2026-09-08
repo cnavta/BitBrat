@@ -12,23 +12,38 @@ import { LogEntry, LogLevel } from './types.js';
  *
  * Docker compose format: "service-name | {...}" for JSON logs
  * or "service-name | plain text" for text logs
+ *
+ * Sprint 46: Now returns both entries and parse stats
  */
-export function parseDockerLogs(output: string, serviceName: string): LogEntry[] {
+export function parseDockerLogs(
+  output: string,
+  serviceName: string
+): { entries: LogEntry[]; scanned: number; parsed: number; failed: number } {
   const lines = output.split('\n').filter(line => line.trim());
   const entries: LogEntry[] = [];
+  let scanned = 0;
+  let parsed = 0;
+  let failed = 0;
 
   for (const line of lines) {
+    scanned++;
     const entry = parseDockerLogLine(line, serviceName);
     if (entry) {
       entries.push(entry);
+      parsed++;
+    } else {
+      failed++;
     }
   }
 
-  return entries;
+  return { entries, scanned, parsed, failed };
 }
 
 /**
  * Parse a single docker compose log line
+ *
+ * Sprint 46: Added comprehensive error logging for parse failures
+ * to prevent silent data loss and improve debugging.
  */
 export function parseDockerLogLine(line: string, serviceName: string): LogEntry | null {
   try {
@@ -38,7 +53,20 @@ export function parseDockerLogLine(line: string, serviceName: string): LogEntry 
 
     if (composeMatch) {
       // Parse JSON log with pipe delimiter (docker compose logs)
-      return parseJsonLog(composeMatch[1], serviceName);
+      try {
+        return parseJsonLog(composeMatch[1], serviceName);
+      } catch (jsonError) {
+        // Sprint 46: Log JSON parse failures
+        if (process.env.LOG_LEVEL === 'debug' || process.env.LOG_PARSER_DEBUG === 'true') {
+          console.error('[log-parser] JSON parse failed (pipe format):', {
+            error: jsonError instanceof Error ? jsonError.message : String(jsonError),
+            line: line.substring(0, 200), // First 200 chars
+            serviceName,
+            matchedJson: composeMatch[1].substring(0, 100)
+          });
+        }
+        // Fall through to other formats
+      }
     }
 
     // Format 2: docker logs format (raw JSON, no pipe delimiter)
@@ -48,7 +76,15 @@ export function parseDockerLogLine(line: string, serviceName: string): LogEntry 
       try {
         return parseJsonLog(trimmed, serviceName);
       } catch (jsonError) {
-        // Not valid JSON, fall through to plain text handling
+        // Sprint 46: Log JSON parse failures
+        if (process.env.LOG_LEVEL === 'debug' || process.env.LOG_PARSER_DEBUG === 'true') {
+          console.error('[log-parser] JSON parse failed (raw format):', {
+            error: jsonError instanceof Error ? jsonError.message : String(jsonError),
+            line: trimmed.substring(0, 200),
+            serviceName
+          });
+        }
+        // Fall through to plain text handling
       }
     }
 
@@ -61,7 +97,15 @@ export function parseDockerLogLine(line: string, serviceName: string): LogEntry 
       message: line.replace(/^[^\|]+\|\s*/, '') // Remove service prefix
     };
   } catch (e) {
-    // Skip malformed lines
+    // Sprint 46: Log unexpected parse failures instead of silently returning null
+    if (process.env.LOG_LEVEL === 'debug' || process.env.LOG_PARSER_DEBUG === 'true') {
+      console.error('[log-parser] Unexpected parse failure:', {
+        error: e instanceof Error ? e.message : String(e),
+        line: line.substring(0, 200),
+        serviceName,
+        stack: e instanceof Error ? e.stack : undefined
+      });
+    }
     return null;
   }
 }

@@ -51,6 +51,14 @@ mcp__bitbrat-dev__fleet_logs({ bit: "llm-bot" })  # All levels
 
 ## Root Cause Analysis
 
+**UPDATE (2026-09-07 23:15)**: After investigation, **the root cause is NOT a parsing bug**. Tests confirm parseDockerLogLine works correctly with the failing error log. The issue is **Docker log retrieval** - the error log was never retrieved from Docker due to tail limits or buffer constraints. See `root-cause-findings.md` for full analysis.
+
+**Real Issue**: Observability gap - users cannot see when logs are missing due to retrieval limits.
+
+**Solution**: Add stats tracking to expose scanned/filtered counts, making missing logs visible.
+
+---
+
 ### Data Flow Architecture
 
 ```

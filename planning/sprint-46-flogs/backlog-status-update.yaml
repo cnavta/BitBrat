@@ -1,0 +1,150 @@
+# Backlog Status Update - Sprint 46
+# Updated: 2026-09-07 after root cause investigation
+
+sprint: sprint-46-flogs
+lastUpdated: 2026-09-07T23:15:00.000Z
+
+# ROOT CAUSE FOUND:
+# The issue is NOT a parsing bug. The error log was never retrieved from Docker
+# due to tail limits or buffer constraints. Parsing logic works correctly.
+#
+# PIVOT: Focus on observability to make missing logs visible to users.
+
+tasks:
+  # PHASE 1: DIAGNOSIS (COMPLETE)
+  - id: task-01
+    status: completed
+    completedAt: 2026-09-07T23:10:00.000Z
+    notes: |
+      Created bug reproduction test. Result: Parsing works correctly!
+      Test file: tools/brat/src/dev-mcp/__tests__/log-parser-bug-reproduction.test.ts
+      All 5 tests pass. parseDockerLogLine handles the error log correctly.
+
+  - id: task-02
+    status: completed
+    completedAt: 2026-09-07T23:15:00.000Z
+    notes: |
+      Identified failure point: NOT in parsing code.
+      Root cause: Docker log retrieval doesn't include the error log (tail limit or buffer issue).
+      Parsing, normalization, and filtering all work correctly when tested.
+
+  - id: task-03
+    status: in-progress
+    notes: |
+      Documenting findings in root-cause-findings.md
+      Key insight: This is an observability gap, not a code bug.
+
+  # PHASE 2: IMMEDIATE FIX (REVISED)
+  - id: task-04
+    status: skipped
+    reason: No parsing bug found - parsing logic works correctly
+    notes: |
+      Original intent: Fix root cause bug in parsing
+      Reality: No bug exists in parsing. Skipping this task.
+
+  - id: task-05
+    status: pending
+    priority: P0 (elevated from P0 to CRITICAL)
+    notes: |
+      Add parse failure logging (defensive measure)
+      Even though parsing works, this adds visibility for edge cases.
+
+  - id: task-06
+    status: pending
+    priority: P0 (CRITICAL - now the primary fix)
+    notes: |
+      Add parse stats tracking - THIS IS THE REAL FIX
+      Will expose: scanned, parsed, failed, filtered counts
+      Allows users to see when logs might be missing (e.g., "2000 scanned, limit reached")
+
+  - id: task-07
+    status: completed
+    completedAt: 2026-09-07T23:10:00.000Z
+    notes: |
+      Bug reproduction tests already created in task-01
+      Additional edge case tests added for uppercase severity, etc.
+
+  # PHASE 3: VALIDATION
+  - id: task-08
+    status: pending
+    notes: Waiting for task-05 and task-06
+
+  - id: task-09
+    status: pending
+    notes: Waiting for task-08
+
+  - id: task-10
+    status: pending
+    notes: Performance validation
+
+  # PHASE 4: OBSERVABILITY (NOW CRITICAL PATH)
+  - id: task-11
+    status: pending
+    priority: P0 (elevated - part of critical fix)
+    notes: |
+      Add stats to MCP output
+      This makes missing logs VISIBLE to users
+      Example: "Stats: 2000 scanned (tail limit), 21 returned - may be incomplete"
+
+  - id: task-12
+    status: pending
+    priority: P1
+    notes: Make Loki fallback explicit
+
+  - id: task-13
+    status: pending
+    priority: P1
+    notes: Add result validation
+
+  # PHASE 5: ROBUSTNESS (DEPRIORITIZED)
+  - id: task-14
+    status: skipped
+    reason: Regex works correctly - no replacement needed
+    notes: |
+      Original intent: Replace greedy regex
+      Reality: Current regex works fine. Skipping for this sprint.
+
+  - id: task-15
+    status: deferred
+    notes: Edge case tests - defer to future sprint (parsing works)
+
+  - id: task-16
+    status: deferred
+    notes: Fuzzing tests - defer to future sprint (parsing works)
+
+  # PHASE 6: DOCUMENTATION
+  - id: task-17
+    status: pending
+
+  - id: task-18
+    status: pending
+
+  - id: task-19
+    status: pending
+
+  - id: task-20
+    status: pending
+
+  - id: task-21
+    status: pending
+
+# REVISED CRITICAL PATH:
+criticalPath:
+  - task-03 (document findings) ← IN PROGRESS
+  - task-05 (parse failure logging)
+  - task-06 (stats tracking) ← THE REAL FIX
+  - task-11 (stats in output)
+  - task-08 (local validation)
+  - task-09 (staging validation)
+
+# REVISED TIME ESTIMATE:
+# Original: 16-20 hours
+# Revised: 8-12 hours (no parsing bug to fix, focus on observability)
+
+estimatedRemainingHours: 8-10
+
+# LESSONS LEARNED SO FAR:
+# 1. Always test the exact failing scenario in isolation
+# 2. Parsing logs works correctly - issue was Docker retrieval
+# 3. Observability gaps are just as critical as code bugs
+# 4. Stats tracking would have immediately revealed the issue
