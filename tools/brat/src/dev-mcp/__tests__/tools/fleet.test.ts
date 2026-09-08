@@ -418,7 +418,7 @@ describe('Fleet Tools', () => {
         level: ['error', 'warn'],
         since: undefined,
         until: undefined,
-        limit: 100,
+        limit: undefined, // Sprint 46: No default limit (platform-specific defaults applied in LogRetriever)
         correlationId: undefined
       });
     });
@@ -447,7 +447,7 @@ describe('Fleet Tools', () => {
         level: undefined,
         since: '1h',
         until: '2026-07-10T12:00:00Z',
-        limit: 100,
+        limit: undefined, // Sprint 46: No default limit (platform-specific defaults applied in LogRetriever)
         correlationId: undefined
       });
     });
@@ -478,7 +478,7 @@ describe('Fleet Tools', () => {
         level: undefined,
         since: undefined,
         until: undefined,
-        limit: 100,
+        limit: undefined, // Sprint 46: No default limit (platform-specific defaults applied in LogRetriever)
         correlationId: 'evt-123'
       });
     });
