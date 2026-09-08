@@ -511,20 +511,14 @@ describe('Fleet Tools', () => {
       expect(c0.text).toContain('"level": "info"');
     });
 
-    it('should handle Zod validation errors', async () => {
-      const result = await fleetLogsTool.handler({ level: 'invalid-level' }, mockConnection);
+    // NOTE: Zod validation errors are tested in tool-router.test.ts
+    // The handler assumes arguments are already validated by ToolRouter
 
-      expect(result.isError).toBe(true);
-      const c0 = result.content[0];
-      if (c0.type !== 'text') throw new Error('Expected text');
-      const parsedResult = JSON.parse(c0.text);
-      expect(parsedResult.error).toBe('Fleet logs query failed');
-      expect(parsedResult.message).toContain('');  // Zod error message
-    });
-
-    // Tests for JSON string array preprocessing (Sprint 44)
-    describe('level parameter preprocessing', () => {
-      it('should accept level as JSON string array', async () => {
+    // Tests for level parameter handling (Sprint 44/46)
+    // NOTE: These tests call the handler directly with preprocessed arguments.
+    // JSON string preprocessing and validation are tested in tool-router.test.ts
+    describe('level parameter handling', () => {
+      it('should accept level as preprocessed array', async () => {
         const mockLogs = [
           { timestamp: '2026-07-10T12:00:00Z', level: 'error' as const, service: 'llm-bot', message: 'Test error' }
         ];
@@ -539,19 +533,19 @@ describe('Fleet Tools', () => {
           getLogs: mockGetLogs
         }));
 
-        // Pass level as JSON string (how MCP XML passes it)
+        // Handler expects preprocessed arguments (ToolRouter does preprocessing)
         const result = await fleetLogsTool.handler({
           bit: 'llm-bot',
-          level: '["error", "warn"]',  // JSON string array
+          level: ['error', 'warn'],  // Already preprocessed
           limit: 10
         }, mockConnection);
 
         // Should succeed (not error)
         expect(result.isError).toBeFalsy();
 
-        // Verify it was converted to array before passing to LogRetriever
+        // Verify it was passed to LogRetriever
         expect(mockGetLogs).toHaveBeenCalledWith(expect.objectContaining({
-          level: ['error', 'warn']  // Should be converted to native array
+          level: ['error', 'warn']
         }));
       });
 
@@ -586,39 +580,6 @@ describe('Fleet Tools', () => {
         }));
       });
 
-      it('should reject invalid JSON in level parameter', async () => {
-        // Invalid JSON (missing quotes)
-        const result = await fleetLogsTool.handler({
-          bit: 'llm-bot',
-          level: '[error, warn]',  // Invalid JSON
-          limit: 10
-        }, mockConnection);
-
-        // Should fail with Zod validation error
-        expect(result.isError).toBe(true);
-        const c0 = result.content[0];
-        if (c0.type !== 'text') throw new Error('Expected text');
-        const parsedResult = JSON.parse(c0.text);
-        expect(parsedResult.error).toBe('Fleet logs query failed');
-        expect(parsedResult.message).toContain('expected array');
-      });
-
-      it('should reject non-array JSON in level parameter', async () => {
-        // Valid JSON but not an array
-        const result = await fleetLogsTool.handler({
-          bit: 'llm-bot',
-          level: '{"level": "error"}',  // Object, not array
-          limit: 10
-        }, mockConnection);
-
-        // Should fail with Zod validation error
-        expect(result.isError).toBe(true);
-        const c0 = result.content[0];
-        if (c0.type !== 'text') throw new Error('Expected text');
-        const parsedResult = JSON.parse(c0.text);
-        expect(parsedResult.error).toBe('Fleet logs query failed');
-        expect(parsedResult.message).toContain('expected array');
-      });
 
       it('should work with empty level array', async () => {
         const mockLogs = [
@@ -638,7 +599,7 @@ describe('Fleet Tools', () => {
         // Empty array should work (no filtering)
         const result = await fleetLogsTool.handler({
           bit: 'llm-bot',
-          level: '[]',  // Empty JSON array
+          level: [],  // Preprocessed empty array
           limit: 10
         }, mockConnection);
 
@@ -651,7 +612,7 @@ describe('Fleet Tools', () => {
         }));
       });
 
-      it('should work with single level in JSON string array', async () => {
+      it('should work with single level in array', async () => {
         const mockLogs = [
           { timestamp: '2026-07-10T12:00:00Z', level: 'error' as const, service: 'llm-bot', message: 'Test error' }
         ];
@@ -669,7 +630,7 @@ describe('Fleet Tools', () => {
         // Single level in array
         const result = await fleetLogsTool.handler({
           bit: 'llm-bot',
-          level: '["error"]',  // Single element JSON array
+          level: ['error'],  // Preprocessed single element array
           limit: 10
         }, mockConnection);
 

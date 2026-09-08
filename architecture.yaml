@@ -1111,6 +1111,8 @@ executionContexts:
       persistence:
         driver: postgres
         autoDiscover: true
+      loki:
+        url: http://bitbrat.lan:3100
       envOverlay:
         path: env/staging
         files:

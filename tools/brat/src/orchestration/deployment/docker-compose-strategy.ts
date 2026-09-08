@@ -1016,6 +1016,88 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       }
 
       // ============================================================================
+      // STAGE 2.5: Merge observability stack if --loki flag is set
+      // Sprint 46: Include Loki + Promtail observability stack in bulk deployments
+      //
+      // NOTE: Unlike service-specific compose files which contain a SINGLE service,
+      // the observability compose file contains MULTIPLE services (loki + promtail)
+      // plus volumes and networks. We merge it directly into baseYaml here rather
+      // than adding it to serviceFiles array (which is for single-service merges).
+      // ============================================================================
+      if (options.loki) {
+        const observabilityPath = path.join(
+          repoRoot,
+          'infrastructure/docker-compose/observability/docker-compose.observability.yaml'
+        );
+
+        console.log(`[docker-compose-strategy] --loki flag enabled, merging observability stack...`);
+
+        if (fs.existsSync(observabilityPath)) {
+          try {
+            const observabilityYaml = await fs.promises.readFile(observabilityPath, 'utf-8');
+            const observabilityCompose = yaml.load(observabilityYaml) as any;
+
+            // Fix volume mount paths to be relative to repo root (merged file location)
+            // Docker Compose requires bind mounts to start with ./ or / to distinguish from named volumes
+            if (observabilityCompose.services?.loki?.volumes) {
+              observabilityCompose.services.loki.volumes = observabilityCompose.services.loki.volumes.map((vol: string) => {
+                if (typeof vol === 'string' && vol.includes('loki-config.yaml')) {
+                  return vol.replace('./loki-config.yaml', './infrastructure/docker-compose/observability/loki-config.yaml');
+                }
+                return vol;
+              });
+            }
+
+            if (observabilityCompose.services?.promtail?.volumes) {
+              observabilityCompose.services.promtail.volumes = observabilityCompose.services.promtail.volumes.map((vol: string) => {
+                if (typeof vol === 'string' && vol.includes('promtail-config.yaml')) {
+                  return vol.replace('./promtail-config.yaml', './infrastructure/docker-compose/observability/promtail-config.yaml');
+                }
+                return vol;
+              });
+            }
+
+            // Merge observability compose into base compose
+            const baseComposeParsed = yaml.load(baseYaml) as any;
+
+            // Merge services
+            if (observabilityCompose.services) {
+              baseComposeParsed.services = baseComposeParsed.services || {};
+              for (const [serviceName, serviceConfig] of Object.entries(observabilityCompose.services)) {
+                baseComposeParsed.services[serviceName] = serviceConfig;
+              }
+            }
+
+            // Merge volumes
+            if (observabilityCompose.volumes) {
+              baseComposeParsed.volumes = baseComposeParsed.volumes || {};
+              for (const [volumeName, volumeConfig] of Object.entries(observabilityCompose.volumes)) {
+                baseComposeParsed.volumes[volumeName] = volumeConfig;
+              }
+            }
+
+            // Networks are already defined in base file, no need to merge
+            // (observability file uses same bitbrat-network)
+
+            // Convert back to YAML
+            baseYaml = yaml.dump(baseComposeParsed, {
+              indent: 2,
+              lineWidth: 120,
+              noRefs: true,
+            });
+
+            console.log(`[docker-compose-strategy] ✓ Observability stack merged (loki, promtail, 2 volumes)`);
+          } catch (error: any) {
+            console.error(`[docker-compose-strategy] WARNING: Failed to merge observability file: ${error.message}`);
+            console.error(`[docker-compose-strategy] Continuing without observability stack`);
+          }
+        } else {
+          console.error(`[docker-compose-strategy] WARNING: Observability file not found at ${observabilityPath}`);
+          console.error(`[docker-compose-strategy] Continuing without observability stack`);
+        }
+      }
+
+      // ============================================================================
       // STAGE 3: Iteratively merge service-specific files
       // ============================================================================
       let mergedYaml = baseYaml;

@@ -71,9 +71,14 @@ export class ToolRouter {
       throw new Error(`Unknown tool: ${name}`);
     }
 
+    // Preprocess arguments BEFORE validation (Sprint 44/45/46 fix)
+    // MCP XML protocol serializes array parameters as JSON strings
+    // Convert '["error", "warn"]' → ["error", "warn"] before Zod validation
+    const preprocessedArgs = this.preprocessMCPArguments(args);
+
     // Validate arguments
     try {
-      const validatedArgs = tool.inputSchema.parse(args);
+      const validatedArgs = tool.inputSchema.parse(preprocessedArgs);
 
       // Call handler
       return await tool.handler(validatedArgs, connection);
@@ -84,6 +89,34 @@ export class ToolRouter {
       }
       throw error;
     }
+  }
+
+  /**
+   * Preprocess MCP arguments to handle serialization quirks
+   *
+   * Sprint 44/45/46: MCP XML protocol serializes array parameters as JSON strings.
+   * This preprocessing converts JSON string arrays to native arrays before schema validation.
+   *
+   * Example: '["error", "warn"]' → ["error", "warn"]
+   */
+  private preprocessMCPArguments(args: Record<string, any>): Record<string, any> {
+    const preprocessed: Record<string, any> = {};
+
+    for (const [key, value] of Object.entries(args)) {
+      // Try to parse string values as JSON (handles array serialization)
+      if (typeof value === 'string' && (value.startsWith('[') || value.startsWith('{'))) {
+        try {
+          preprocessed[key] = JSON.parse(value);
+        } catch {
+          // Not valid JSON - keep original value
+          preprocessed[key] = value;
+        }
+      } else {
+        preprocessed[key] = value;
+      }
+    }
+
+    return preprocessed;
   }
 
   /**

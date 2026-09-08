@@ -302,22 +302,10 @@ async function fleetLogsHandler(
   connection: TargetConnection
 ): Promise<any> {
   try {
-    // Preprocess level parameter: MCP XML passes arrays as JSON strings
-    // Convert '["error", "warn"]' → ["error", "warn"]
-    if (typeof args.level === 'string') {
-      try {
-        const parsed = JSON.parse(args.level);
-        if (Array.isArray(parsed)) {
-          args.level = parsed;
-        }
-        // If parsed but not an array, leave as string for Zod validation error
-      } catch (e) {
-        // Invalid JSON - leave as string, let Zod validation provide clear error
-      }
-    }
-
-    // Parse and validate args
-    const parsed = fleetLogsSchema.parse(args);
+    // NOTE: MCP argument preprocessing (JSON string → array conversion) now happens
+    // in ToolRouter.preprocessMCPArguments() BEFORE this handler is called (Sprint 46 fix).
+    // Args are already preprocessed and validated by the time we reach here.
+    const parsed = args as z.infer<typeof fleetLogsSchema>;
     // Create LogRetriever
     const logRetriever = new LogRetriever(connection);
 
