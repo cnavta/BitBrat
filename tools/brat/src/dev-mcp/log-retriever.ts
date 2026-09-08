@@ -172,14 +172,25 @@ export class LogRetriever {
 
       if (deploymentType === 'cloud-run') {
         logs = await this.getCloudRunLogs(request);
-        // Cloud Run logs don't have parse stats yet (future enhancement)
+        // Cloud Run logs don't have parse stats (server-side filtering like Loki)
+        const warnings: string[] = [];
+
+        // Warn if user-specified limit was hit
+        if (request.limit && logs.length >= request.limit) {
+          warnings.push(
+            `Retrieved ${logs.length} logs (at user-specified limit of ${request.limit}). ` +
+            `Results may be incomplete. Increase --limit or narrow time range for complete results.`
+          );
+        }
+
         stats = {
           scanned: logs.length,
           parsed: logs.length,
           failed: 0,
           filtered: 0,
           returned: logs.length,
-          backend: 'loki' // Cloud Run uses Cloud Logging (similar to Loki)
+          backend: 'loki', // Cloud Run uses Cloud Logging (similar to Loki)
+          warnings: warnings.length > 0 ? warnings : undefined
         };
       } else {
         const result = await this.getDockerLogs(request);
@@ -292,11 +303,13 @@ export class LogRetriever {
 
     const filter = filters.join(' AND ');
 
-    // Execute query
+    // Execute query (Sprint 46: Platform-aware defaults)
+    // Cloud Logging uses server-side filtering like Loki
+    // Default: 5000 (Cloud Logging is efficient with server-side filtering)
     const [entries] = await logging.getEntries({
       filter,
       orderBy: 'timestamp desc',
-      pageSize: request.limit || 100
+      pageSize: request.limit ?? 5000
     });
 
     // Transform Cloud Logging entries to LogEntry format
@@ -334,15 +347,14 @@ export class LogRetriever {
 
         // Sprint 46: Build stats for Loki backend
         // Note: Loki does server-side filtering, so we can't track parse/filter stats
-        // like we do with Docker. We can only warn about potential result truncation.
-        const limit = request.limit || 1000; // Loki default limit
+        // like we do with Docker. We can only warn if user-specified limit was hit.
         const warnings: string[] = [];
 
-        // Warn if we hit the limit (suggests there might be more logs)
-        if (logs.length >= limit) {
+        // Warn if user-specified limit was hit (suggests there might be more logs)
+        if (request.limit && logs.length >= request.limit) {
           warnings.push(
-            `Retrieved ${logs.length} logs (at limit of ${limit}). Results may be incomplete. ` +
-            `Increase --limit or narrow time range for complete results.`
+            `Retrieved ${logs.length} logs (at user-specified limit of ${request.limit}). ` +
+            `Results may be incomplete. Increase --limit or narrow time range for complete results.`
           );
         }
 
@@ -393,10 +405,12 @@ export class LogRetriever {
     // Build docker compose logs command
     const args: string[] = ['compose', 'logs', '--no-color'];
 
-    // Add tail limit
+    // Add tail limit (Sprint 46: Platform-aware defaults)
+    // Docker requires client-side parsing, so we need reasonable limits
     // When filtering by correlation ID, use a much larger tail to ensure we capture the event
-    // Default to 2000 lines for Docker (each event generates ~58 log lines, so 2000 ≈ 34 events)
-    const tailLimit = request.correlationId ? 5000 : (request.limit || 2000);
+    // Default: 2000 lines for Docker (each event generates ~58 log lines, so 2000 ≈ 34 events)
+    // Correlation ID queries: 5000 lines (need larger window to find specific event)
+    const tailLimit = request.correlationId ? 5000 : (request.limit ?? 2000);
     args.push('--tail', tailLimit.toString());
 
     // Add time range filters

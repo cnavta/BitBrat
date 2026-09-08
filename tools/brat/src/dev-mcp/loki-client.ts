@@ -136,12 +136,13 @@ export class LokiClient {
       params.set('end', Date.now().toString() + '000000');
     }
 
-    // Limit (Loki accepts 'limit' parameter)
+    // Limit (Loki accepts 'limit' parameter, but it's optional)
+    // Sprint 46: Only set limit if explicitly provided
+    // Loki's server-side filtering is efficient and doesn't need artificial limits
     if (request.limit) {
       params.set('limit', request.limit.toString());
-    } else {
-      params.set('limit', '1000'); // Default limit
     }
+    // No default limit - let Loki return all matching results
 
     // Direction (newest first for consistency with Docker logs)
     params.set('direction', 'backward');
