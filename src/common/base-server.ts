@@ -1754,9 +1754,11 @@ export class Bit {
             const combinedExtra = {
               ...ctx,
               userId: meta?.userId || (ctx as any)?.http?.req?.headers?.['x-user-id'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-user-id'],
-              userRoles: meta?.userRoles || (ctx as any)?.http?.req?.headers?.['x-roles'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-roles']
+              userRoles: meta?.userRoles || (ctx as any)?.http?.req?.headers?.['x-roles'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-roles'],
+              correlationId: meta?.correlationId || (ctx as any)?.http?.req?.headers?.['x-correlation-id'],
+              sessionId: meta?.sessionId || (ctx as any)?.http?.req?.headers?.['x-session-id'],
             };
-            return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(args, combinedExtra));
+            return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(args, combinedExtra), combinedExtra);
           });
         } catch (toolErr: any) {
           this.getLogger().error('mcp_server.tool_registration_failed', {
@@ -1779,9 +1781,11 @@ export class Bit {
             const combinedExtra = {
               ...ctx,
               userId: (ctx as any)?.http?.req?.headers?.['x-user-id'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-user-id'],
-              userRoles: (ctx as any)?.http?.req?.headers?.['x-roles'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-roles']
+              userRoles: (ctx as any)?.http?.req?.headers?.['x-roles'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-roles'],
+              correlationId: (ctx as any)?.http?.req?.headers?.['x-correlation-id'],
+              sessionId: (ctx as any)?.http?.req?.headers?.['x-session-id'],
             };
-            return await this.traceMcpOperation(`resource:${resource.name}`, () => resource.handler(uri, combinedExtra));
+            return await this.traceMcpOperation(`resource:${resource.name}`, () => resource.handler(uri, combinedExtra), combinedExtra);
           });
         } catch (resourceErr: any) {
           this.getLogger().error('mcp_server.resource_registration_failed', {
@@ -1806,9 +1810,11 @@ export class Bit {
             const combinedExtra = {
               ...ctx,
               userId: (ctx as any)?.http?.req?.headers?.['x-user-id'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-user-id'],
-              userRoles: (ctx as any)?.http?.req?.headers?.['x-roles'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-roles']
+              userRoles: (ctx as any)?.http?.req?.headers?.['x-roles'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-roles'],
+              correlationId: (ctx as any)?.http?.req?.headers?.['x-correlation-id'],
+              sessionId: (ctx as any)?.http?.req?.headers?.['x-session-id'],
             };
-            return await this.traceMcpOperation(`prompt:${name}`, () => prompt.handler(name, promptArgs, combinedExtra));
+            return await this.traceMcpOperation(`prompt:${name}`, () => prompt.handler(name, promptArgs, combinedExtra), combinedExtra);
           });
         } catch (promptErr: any) {
           this.getLogger().error('mcp_server.prompt_registration_failed', {
@@ -2045,11 +2051,28 @@ export class Bit {
 
   /**
    * Helper to wrap MCP operations in OpenTelemetry spans if available.
+   * Also logs tool invocations with correlationId for distributed tracing.
+   * Sprint 48: Added correlationId logging for MCP tool observability.
    */
   protected async traceMcpOperation<T>(
     operation: string,
-    fn: () => Promise<T>
+    fn: () => Promise<T>,
+    extra?: { correlationId?: string; userId?: string; sessionId?: string }
   ): Promise<T> {
+    const logger = this.getLogger();
+    const correlationId = extra?.correlationId;
+    const userId = extra?.userId;
+    const sessionId = extra?.sessionId;
+    const startTime = Date.now();
+
+    // Log tool invocation start (debug level)
+    logger.debug('mcp_operation.started', {
+      operation,
+      correlationId,
+      userId,
+      sessionId,
+    });
+
     const tracer = (this as any).getTracer?.();
     if (tracer && typeof tracer.startActiveSpan === "function") {
       return await tracer.startActiveSpan(
@@ -2057,8 +2080,32 @@ export class Bit {
         async (span: any) => {
           try {
             const result = await fn();
+            const duration = Date.now() - startTime;
+
+            // Log successful completion
+            logger.debug('mcp_operation.succeeded', {
+              operation,
+              correlationId,
+              userId,
+              sessionId,
+              duration,
+            });
+
             return result;
           } catch (error) {
+            const duration = Date.now() - startTime;
+
+            // Log failure
+            logger.error('mcp_operation.failed', {
+              operation,
+              correlationId,
+              userId,
+              sessionId,
+              duration,
+              error: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined,
+            });
+
             span.recordException(error as Error);
             throw error;
           } finally {
@@ -2067,18 +2114,49 @@ export class Bit {
         }
       );
     }
-    return await fn();
+
+    // No tracer - just execute with logging
+    try {
+      const result = await fn();
+      const duration = Date.now() - startTime;
+
+      // Log successful completion
+      logger.debug('mcp_operation.succeeded', {
+        operation,
+        correlationId,
+        userId,
+        sessionId,
+        duration,
+      });
+
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+
+      // Log failure
+      logger.error('mcp_operation.failed', {
+        operation,
+        correlationId,
+        userId,
+        sessionId,
+        duration,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
+      throw error;
+    }
   }
 
   /**
    * Execute a registered tool by name with arguments.
    * Useful for internal calls and testing without going through SSE.
    */
-  public async executeTool(name: string, args: any): Promise<CallToolResult> {
+  public async executeTool(name: string, args: any, extra?: { correlationId?: string; userId?: string; sessionId?: string }): Promise<CallToolResult> {
     const tool = this.registeredTools.get(name);
     if (!tool) throw new Error(`Tool not found: ${name}`);
     const validatedArgs = tool.schema.parse(args);
-    return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(validatedArgs));
+    return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(validatedArgs, extra), extra);
   }
 
   /**
