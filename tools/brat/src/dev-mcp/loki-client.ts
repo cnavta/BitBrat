@@ -78,6 +78,9 @@ export class LokiClient {
    * Build LogQL query from LogRequest
    *
    * LogQL syntax: {label="value"} |= "search" | json | level="info"
+   *
+   * Uses indexed labels for maximum query performance. The 'level' label is extracted
+   * by Promtail during ingestion, allowing fast indexed lookups without parsing JSON at query time.
    */
   private buildLogQL(request: LogRequest): string {
     const selectors: string[] = [];
@@ -93,6 +96,7 @@ export class LokiClient {
     }
 
     // Level filtering (supports multiple levels)
+    // Uses indexed labels for fast filtering
     if (request.level && request.level.length > 0) {
       if (request.level.length === 1) {
         selectors.push(`level="${request.level[0]}"`);
@@ -136,12 +140,13 @@ export class LokiClient {
       params.set('end', Date.now().toString() + '000000');
     }
 
-    // Limit (Loki accepts 'limit' parameter)
+    // Limit (Loki accepts 'limit' parameter, but it's optional)
+    // Sprint 46: Only set limit if explicitly provided
+    // Loki's server-side filtering is efficient and doesn't need artificial limits
     if (request.limit) {
       params.set('limit', request.limit.toString());
-    } else {
-      params.set('limit', '1000'); // Default limit
     }
+    // No default limit - let Loki return all matching results
 
     // Direction (newest first for consistency with Docker logs)
     params.set('direction', 'backward');

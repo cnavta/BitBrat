@@ -183,6 +183,31 @@ export interface LogEntry {
 }
 
 /**
+ * Log retrieval statistics (Sprint 46)
+ *
+ * Provides visibility into the log parsing pipeline to help diagnose
+ * missing logs due to buffer limits, parse failures, or filtering.
+ */
+export interface LogStats {
+  /** Total log lines retrieved from source (Docker/Loki) */
+  scanned: number;
+  /** Successfully parsed log entries */
+  parsed: number;
+  /** Failed to parse (malformed, invalid JSON, etc.) */
+  failed: number;
+  /** Removed by level/correlation filters */
+  filtered: number;
+  /** Final count returned to user */
+  returned: number;
+  /** Backend used (loki, docker) */
+  backend?: 'loki' | 'docker';
+  /** Whether Loki was attempted but failed (fell back to docker) */
+  lokiFallback?: boolean;
+  /** Warning messages (e.g., tail limit reached) */
+  warnings?: string[];
+}
+
+/**
  * Log response
  */
 export interface LogResponse {
@@ -198,6 +223,8 @@ export interface LogResponse {
   deploymentType?: DeploymentType;
   /** Error message (if failed) */
   error?: string;
+  /** Pipeline statistics (Sprint 46) */
+  stats?: LogStats;
 }
 
 /**

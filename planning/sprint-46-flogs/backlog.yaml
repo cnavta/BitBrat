@@ -1,0 +1,587 @@
+# Sprint 46: Fleet.logs Infrastructure Remediation - Prioritized Backlog
+# Auto-generated: 2026-09-07
+# Format: Trackable task list with dependencies, estimates, and acceptance criteria
+
+version: "1.0"
+sprint: sprint-46-flogs
+generatedAt: 2026-09-07T22:50:00.000Z
+
+# Task priority levels:
+# P0 = Critical/Blocking (must complete for sprint success)
+# P1 = High (should complete, sprint incomplete without)
+# P2 = Medium (nice to have, enhances quality)
+# P3 = Low (stretch goals, future sprints)
+
+tasks:
+  # ============================================================================
+  # PHASE 1: ROOT CAUSE DIAGNOSIS (P0 - Critical Path)
+  # ============================================================================
+
+  - id: task-01-reproduce-bug
+    title: "Reproduce the missing error log bug locally"
+    priority: P0
+    phase: 1
+    estimatedHours: 0.5
+    status: pending
+    dependencies: []
+    description: |
+      Extract the exact error log line from staging Docker logs and create a minimal
+      test case to confirm parseDockerLogLine returns null for the failing log.
+    acceptanceCriteria:
+      - Exact error log line extracted from staging
+      - Minimal test created: parseDockerLogLine(errorLogLine, "llm-bot")
+      - Confirmed: function returns null (bug reproduced)
+    technicalNotes:
+      - Error log format: {"ts":"2026-09-07T22:45:31.975Z","service":"llm-bot","level":"error",...}
+      - Correlation ID: d75e7c4c-dcb5-4d5f-870f-6081a7e66df8
+      - Expected: LogEntry object, Actual: null
+    files:
+      - tools/brat/src/dev-mcp/log-parser.ts (test parseDockerLogLine)
+
+  - id: task-02-identify-failure-point
+    title: "Identify exact failure point in parsing pipeline"
+    priority: P0
+    phase: 1
+    estimatedHours: 1.0
+    status: pending
+    dependencies: [task-01-reproduce-bug]
+    description: |
+      Add debug logging to parseDockerLogLine and test each step:
+      1. Regex match: line.match(/\|\s*(\{.*\})/)
+      2. JSON.parse(jsonString)
+      3. normalizeLevel(json.level || json.severity)
+      Identify which step causes the null return.
+    acceptanceCriteria:
+      - Debug logging added to parseDockerLogLine
+      - Each parsing step tested in isolation
+      - Exact failure point identified with evidence
+      - Stack trace captured if exception occurs
+    technicalNotes:
+      - Possible causes: regex mismatch, JSON parse exception, level normalization bug
+      - Use console.error for debug output (respects LOG_LEVEL env var)
+    files:
+      - tools/brat/src/dev-mcp/log-parser.ts (add debug logging)
+
+  - id: task-03-document-root-cause
+    title: "Document confirmed root cause in analysis doc"
+    priority: P0
+    phase: 1
+    estimatedHours: 0.5
+    status: pending
+    dependencies: [task-02-identify-failure-point]
+    description: |
+      Update infrastructure-analysis.md with:
+      - Confirmed root cause (which hypothesis was correct)
+      - Evidence (logs, stack traces, test output)
+      - Reproduction steps
+      - Impact assessment
+    acceptanceCriteria:
+      - infrastructure-analysis.md updated with "Root Cause Confirmed" section
+      - Includes reproduction steps anyone can follow
+      - Includes evidence (error logs, test output)
+    files:
+      - planning/sprint-46-flogs/infrastructure-analysis.md
+
+  # ============================================================================
+  # PHASE 2: IMMEDIATE FIX (P0 - Critical Path)
+  # ============================================================================
+
+  - id: task-04-fix-root-cause
+    title: "Implement fix for confirmed root cause"
+    priority: P0
+    phase: 2
+    estimatedHours: 1.5
+    status: pending
+    dependencies: [task-03-document-root-cause]
+    description: |
+      Apply the appropriate fix based on confirmed root cause:
+      - If level normalization: Fix normalizeLevel to handle uppercase
+      - If parse exception: Fix regex or JSON parsing
+      - If regex match: Replace greedy regex with robust extraction
+    acceptanceCriteria:
+      - Root cause bug fixed
+      - Fix tested with failing log line (now returns LogEntry)
+      - No regressions in existing functionality
+    technicalNotes:
+      - Most likely: normalizeLevel doesn't handle severity="ERROR" (uppercase)
+      - Fix: Ensure .toLowerCase() before comparison
+    files:
+      - tools/brat/src/dev-mcp/log-parser.ts
+
+  - id: task-05-add-parse-failure-logging
+    title: "Add comprehensive logging for parse failures"
+    priority: P0
+    phase: 2
+    estimatedHours: 1.0
+    status: pending
+    dependencies: []
+    description: |
+      Replace silent failures with explicit logging:
+      - Log parse failures with line preview (first 200 chars)
+      - Log error message/stack trace
+      - Respect LOG_LEVEL and LOG_PARSER_DEBUG env vars
+      - Ensure no sensitive data logged (truncate if needed)
+    acceptanceCriteria:
+      - parseDockerLogLine logs errors instead of silently returning null
+      - Logs include: error message, line preview, service name
+      - Logs only appear when LOG_LEVEL=debug or LOG_PARSER_DEBUG=true
+      - Verified in local environment
+    technicalNotes: |
+      Example output:
+      [log-parser] Failed to parse log line: {
+        error: "Unexpected token...",
+        line: "llm-bot-1 | {\"ts\":\"2026-09-07...",
+        serviceName: "llm-bot"
+      }
+    files:
+      - tools/brat/src/dev-mcp/log-parser.ts
+
+  - id: task-06-add-parse-stats-tracking
+    title: "Implement parse success/failure counters"
+    priority: P0
+    phase: 2
+    estimatedHours: 1.5
+    status: pending
+    dependencies: [task-05-add-parse-failure-logging]
+    description: |
+      Add stats tracking throughout the pipeline:
+      1. parseDockerLogs: Track total lines scanned
+      2. parseDockerLogLine: Track successful parses vs failures
+      3. filterByLevel/filterByCorrelation: Track filtered count
+      4. LogRetriever: Aggregate and return stats in LogResponse
+    acceptanceCriteria:
+      - LogResponse includes stats object with: scanned, parsed, failed, filtered
+      - Stats accurately reflect parsing pipeline
+      - Stats exposed in fleet.logs MCP tool output
+    technicalNotes: |
+      Add to LogResponse type:
+      {
+        stats: {
+          scanned: number,      // Total log lines processed
+          parsed: number,       // Successfully parsed to LogEntry
+          failed: number,       // Parse failures (returned null)
+          filtered: number      // Logs removed by level/correlation filters
+        }
+      }
+    files:
+      - tools/brat/src/dev-mcp/types.ts (add stats to LogResponse)
+      - tools/brat/src/dev-mcp/log-parser.ts (track parse counts)
+      - tools/brat/src/dev-mcp/log-retriever.ts (aggregate stats)
+      - tools/brat/src/dev-mcp/tools/fleet.ts (display stats)
+
+  - id: task-07-add-unit-tests-for-bug
+    title: "Add unit tests for the specific bug"
+    priority: P0
+    phase: 2
+    estimatedHours: 1.0
+    status: pending
+    dependencies: [task-04-fix-root-cause]
+    description: |
+      Create comprehensive tests for the bug:
+      1. Test with exact failing log line (should now parse successfully)
+      2. Test uppercase severity values (ERROR, WARN, INFO)
+      3. Test level normalization edge cases
+      4. Test malformed JSON (should log error, return null gracefully)
+    acceptanceCriteria:
+      - At least 5 new tests added
+      - Test for exact failing log line passes
+      - Test coverage >90% on parseDockerLogLine and normalizeLevel
+      - All existing tests still pass
+    files:
+      - tools/brat/src/dev-mcp/__tests__/log-parser.test.ts (create if doesn't exist)
+      - tools/brat/src/dev-mcp/__tests__/tools/fleet.test.ts
+
+  # ============================================================================
+  # PHASE 3: VALIDATION (P0 - Critical Path)
+  # ============================================================================
+
+  - id: task-08-local-validation
+    title: "Validate fix in local development environment"
+    priority: P0
+    phase: 3
+    estimatedHours: 0.5
+    status: pending
+    dependencies: [task-06-add-parse-stats-tracking, task-07-add-unit-tests-for-bug]
+    description: |
+      Test the fix locally:
+      1. npm test (all tests pass)
+      2. npm run build (clean build)
+      3. npm run local (start local stack)
+      4. Test fleet.logs MCP tool with local llm-bot
+    acceptanceCriteria:
+      - All tests pass (including new ones)
+      - Clean TypeScript compilation
+      - Local deployment successful
+      - fleet.logs returns results with stats
+    files:
+      - Run npm test, npm run build
+
+  - id: task-09-staging-integration-test
+    title: "Integration test against staging environment"
+    priority: P0
+    phase: 3
+    estimatedHours: 1.0
+    status: pending
+    dependencies: [task-08-local-validation]
+    description: |
+      Test against staging with the exact failing query:
+      1. Query by correlation ID (d75e7c4c-dcb5-4d5f-870f-6081a7e66df8)
+      2. Query by level filter (level: ["error"])
+      3. Verify error log at 22:45:31.975Z appears in results
+      4. Verify stats output shows parse success
+    acceptanceCriteria:
+      - Error log with correlation ID d75e7c4c-dcb5-4d5f-870f-6081a7e66df8 is retrieved
+      - Error log timestamp 22:45:31.975Z present in results
+      - Stats show 0 parse failures (or expected number)
+      - Level filtering accurately returns error logs
+    technicalNotes: |
+      Test queries:
+      1. fleet.logs({ bit: "llm-bot", correlationId: "d75e7c4c...", context: "staging" })
+      2. fleet.logs({ bit: "llm-bot", level: ["error"], since: "2h", context: "staging" })
+    validation:
+      - Take screenshot/copy output showing error log present
+      - Document in verification-report.md
+
+  - id: task-10-performance-validation
+    title: "Validate no performance regression"
+    priority: P1
+    phase: 3
+    estimatedHours: 0.5
+    status: pending
+    dependencies: [task-09-staging-integration-test]
+    description: |
+      Benchmark query latency before/after changes:
+      1. Measure baseline query time (from main branch)
+      2. Measure new query time (with fix)
+      3. Ensure <10% regression
+      4. If regression >10%, investigate and optimize
+    acceptanceCriteria:
+      - Query latency measured for both versions
+      - Regression <10% (acceptable for added stats tracking)
+      - Results documented
+    files:
+      - planning/sprint-46-flogs/verification-report.md (add performance section)
+
+  # ============================================================================
+  # PHASE 4: OBSERVABILITY ENHANCEMENTS (P1 - High Priority)
+  # ============================================================================
+
+  - id: task-11-add-stats-to-output
+    title: "Add pipeline stats to MCP tool output"
+    priority: P1
+    phase: 4
+    estimatedHours: 1.0
+    status: pending
+    dependencies: [task-06-add-parse-stats-tracking]
+    description: |
+      Enhance fleet.logs output to include stats:
+      1. Add stats to response header
+      2. Format stats in human-readable way
+      3. Show warnings if parse failures occurred
+      4. Include backend info (loki vs docker)
+    acceptanceCriteria:
+      - Stats displayed in fleet.logs output
+      - Format: "Stats: 2543 scanned, 2541 parsed, 2 failed, 2520 filtered"
+      - Warnings shown if failures > 0
+      - Backend clearly indicated
+    technicalNotes: |
+      Example output:
+      Retrieved 21 log entries from llm-bot (docker)
+      Target: staging
+      Stats: 2543 scanned, 2541 parsed, 2 failed, 2520 filtered
+      Warnings: 2 parse failures (enable LOG_PARSER_DEBUG=true for details)
+    files:
+      - tools/brat/src/dev-mcp/log-formatter.ts (add formatStats function)
+      - tools/brat/src/dev-mcp/tools/fleet.ts (include stats in header)
+
+  - id: task-12-make-loki-fallback-explicit
+    title: "Make Loki fallback visible in output"
+    priority: P1
+    phase: 4
+    estimatedHours: 0.5
+    status: pending
+    dependencies: []
+    description: |
+      When Loki query fails and falls back to Docker logs, make this visible:
+      1. Add backend field to LogResponse: "loki" | "docker"
+      2. Add lokiFallback boolean (true if Loki attempted but failed)
+      3. Display in output header
+    acceptanceCriteria:
+      - LogResponse includes backend and lokiFallback fields
+      - Output clearly shows which backend was used
+      - If fallback occurred, user sees warning message
+    technicalNotes: |
+      Example: "Backend: docker (Loki unavailable, fallback used)"
+    files:
+      - tools/brat/src/dev-mcp/types.ts (add fields to LogResponse)
+      - tools/brat/src/dev-mcp/log-retriever.ts (track backend used)
+      - tools/brat/src/dev-mcp/tools/fleet.ts (display in output)
+
+  - id: task-13-add-result-validation
+    title: "Add validation layer for parsed LogEntry objects"
+    priority: P1
+    phase: 4
+    estimatedHours: 1.0
+    status: pending
+    dependencies: []
+    description: |
+      Validate LogEntry objects before returning to user:
+      1. Check required fields present (timestamp, level, service)
+      2. Validate timestamp is valid ISO 8601
+      3. Validate level is valid enum value
+      4. Filter out invalid entries, count as failures
+    acceptanceCriteria:
+      - validateLogEntry function created
+      - Applied to all parsed logs before returning
+      - Invalid entries counted in stats.failed
+      - Validation logged if LOG_LEVEL=debug
+    technicalNotes: |
+      function validateLogEntry(entry: LogEntry): boolean {
+        if (!entry.timestamp || !entry.level || !entry.service) return false;
+        if (isNaN(new Date(entry.timestamp).getTime())) return false;
+        if (!['error','warn','info','debug','trace'].includes(entry.level)) return false;
+        return true;
+      }
+    files:
+      - tools/brat/src/dev-mcp/log-parser.ts (add validation function)
+
+  # ============================================================================
+  # PHASE 5: ROBUSTNESS IMPROVEMENTS (P2 - Medium Priority)
+  # ============================================================================
+
+  - id: task-14-replace-greedy-regex
+    title: "Replace greedy regex with robust JSON extraction"
+    priority: P2
+    phase: 5
+    estimatedHours: 2.0
+    status: pending
+    dependencies: [task-04-fix-root-cause]
+    description: |
+      Current regex /\|\s*(\{.*\})/ is greedy and fragile.
+      Replace with proper JSON start/end detection:
+      1. Find pipe delimiter
+      2. Extract everything after pipe
+      3. Validate with JSON.parse (don't rely on regex to extract JSON)
+      4. Handle edge cases (escaped braces, nested objects)
+    acceptanceCriteria:
+      - New extractJsonFromDockerLine function created
+      - Handles all edge cases (nested objects, arrays, escaped quotes)
+      - Tests added for complex JSON structures
+      - All existing tests still pass
+    technicalNotes: |
+      Approach: Use JSON.parse for validation instead of regex extraction.
+      This is more robust because JSON.parse handles complexity correctly.
+    files:
+      - tools/brat/src/dev-mcp/log-parser.ts
+
+  - id: task-15-comprehensive-edge-case-tests
+    title: "Add comprehensive test suite for edge cases"
+    priority: P2
+    phase: 5
+    estimatedHours: 2.0
+    status: pending
+    dependencies: [task-14-replace-greedy-regex]
+    description: |
+      Test all edge cases:
+      1. Nested JSON objects
+      2. Arrays containing objects
+      3. Escaped quotes in strings
+      4. Unicode characters (emoji, non-ASCII)
+      5. Very long log lines (10KB+)
+      6. Multiline JSON (shouldn't happen, but handle gracefully)
+      7. Truncated JSON
+      8. Invalid JSON
+    acceptanceCriteria:
+      - At least 20 edge case tests added
+      - All tests pass
+      - Code handles all cases without crashing
+      - Invalid cases return null gracefully (with logging)
+    files:
+      - tools/brat/src/dev-mcp/__tests__/log-parser.test.ts
+
+  - id: task-16-add-fuzzing-tests
+    title: "Add fuzzing test suite"
+    priority: P2
+    phase: 5
+    estimatedHours: 1.0
+    status: pending
+    dependencies: [task-15-comprehensive-edge-case-tests]
+    description: |
+      Generate random log-like strings and ensure no crashes:
+      1. Generate 1000 random log lines
+      2. Test parseDockerLogLine with each
+      3. Verify: returns LogEntry or null, never crashes/hangs
+      4. Track failure rate (should be <1% for valid-looking JSON)
+    acceptanceCriteria:
+      - Fuzzing test added with 1000 iterations
+      - No crashes/exceptions propagate
+      - All returns are LogEntry | null
+      - Test completes in <10 seconds
+    files:
+      - tools/brat/src/dev-mcp/__tests__/log-parser-fuzz.test.ts (new file)
+
+  # ============================================================================
+  # PHASE 6: DOCUMENTATION & CLEANUP (P1 - High Priority)
+  # ============================================================================
+
+  - id: task-17-update-claude-md
+    title: "Update CLAUDE.md with bug documentation"
+    priority: P1
+    phase: 6
+    estimatedHours: 0.5
+    status: pending
+    dependencies: [task-09-staging-integration-test]
+    description: |
+      Add section to CLAUDE.md documenting:
+      1. The bug (what, when, impact)
+      2. The fix (how it was resolved)
+      3. fleet.logs debugging tips
+      4. How to use stats output
+    acceptanceCriteria:
+      - CLAUDE.md updated with "Fleet.logs Debugging" section
+      - Includes examples of using stats output
+      - Includes common failure modes and solutions
+    files:
+      - CLAUDE.md
+
+  - id: task-18-update-fleet-docs
+    title: "Update fleet documentation with troubleshooting guide"
+    priority: P1
+    phase: 6
+    estimatedHours: 0.5
+    status: pending
+    dependencies: [task-11-add-stats-to-output]
+    description: |
+      Update documentation/guides/brat-fleet.md:
+      1. Add troubleshooting section
+      2. Document new stats output format
+      3. Add examples of debugging parse failures
+      4. Document LOG_PARSER_DEBUG env var
+    acceptanceCriteria:
+      - documentation/guides/brat-fleet.md updated
+      - Troubleshooting section added
+      - Examples of stats interpretation
+      - All new features documented
+    files:
+      - documentation/guides/brat-fleet.md
+
+  - id: task-19-create-verification-report
+    title: "Create comprehensive verification report"
+    priority: P1
+    phase: 6
+    estimatedHours: 1.0
+    status: pending
+    dependencies: [task-10-performance-validation]
+    description: |
+      Document all changes and validation results:
+      1. List all files changed
+      2. List all tests added
+      3. Staging validation results (screenshots/logs)
+      4. Performance benchmarks
+      5. Final checklist (all acceptance criteria met)
+    acceptanceCriteria:
+      - verification-report.md created
+      - Includes all validation evidence
+      - Includes before/after comparisons
+      - Documents all tests added and their results
+    files:
+      - planning/sprint-46-flogs/verification-report.md
+
+  - id: task-20-create-retrospective
+    title: "Create sprint retrospective"
+    priority: P1
+    phase: 6
+    estimatedHours: 0.5
+    status: pending
+    dependencies: [task-19-create-verification-report]
+    description: |
+      Reflect on the sprint:
+      1. What went wrong (root cause, why it happened)
+      2. What was learned (technical, process)
+      3. Process improvements (testing, integration tests)
+      4. Prevention measures (linting, pre-commit hooks)
+    acceptanceCriteria:
+      - retrospective.md created
+      - Includes lessons learned
+      - Includes actionable improvements
+      - Documents prevention measures
+    files:
+      - planning/sprint-46-flogs/retrospective.md
+
+  - id: task-21-create-key-learnings
+    title: "Document key learnings for future reference"
+    priority: P1
+    phase: 6
+    estimatedHours: 0.5
+    status: pending
+    dependencies: [task-20-create-retrospective]
+    description: |
+      Create key-learnings.md with:
+      1. Silent failure anti-pattern (never use try/catch without logging)
+      2. Importance of integration tests
+      3. Regex vs proper parsing (JSON.parse > regex)
+      4. Observability best practices (stats, metrics)
+    acceptanceCriteria:
+      - key-learnings.md created
+      - Concise, actionable lessons
+      - Examples/code snippets included
+      - Referenced in CLAUDE.md for discoverability
+    files:
+      - planning/sprint-46-flogs/key-learnings.md
+
+# ============================================================================
+# SUMMARY STATISTICS
+# ============================================================================
+
+summary:
+  totalTasks: 21
+  byPriority:
+    P0: 10  # Critical path
+    P1: 8   # High priority
+    P2: 3   # Medium priority
+    P3: 0   # Low priority / stretch goals
+  byPhase:
+    phase1: 3   # Diagnosis
+    phase2: 4   # Fix
+    phase3: 3   # Validation
+    phase4: 3   # Observability
+    phase5: 3   # Robustness
+    phase6: 5   # Documentation
+  estimatedHours:
+    minimum: 16
+    maximum: 20
+    average: 18
+  criticalPath:
+    tasks: [task-01, task-02, task-03, task-04, task-07, task-08, task-09]
+    estimatedHours: 6.5
+
+# ============================================================================
+# DEPENDENCIES GRAPH
+# ============================================================================
+
+dependencyChains:
+  criticalPath:
+    - task-01-reproduce-bug
+    - task-02-identify-failure-point
+    - task-03-document-root-cause
+    - task-04-fix-root-cause
+    - task-07-add-unit-tests-for-bug
+    - task-08-local-validation
+    - task-09-staging-integration-test
+
+  parallel:
+    - [task-05-add-parse-failure-logging, task-04-fix-root-cause]
+    - [task-06-add-parse-stats-tracking, task-05-add-parse-failure-logging]
+    - [task-11-add-stats-to-output, task-12-make-loki-fallback-explicit, task-13-add-result-validation]
+    - [task-14-replace-greedy-regex, task-04-fix-root-cause]
+
+# ============================================================================
+# NOTES
+# ============================================================================
+
+notes:
+  - All P0 tasks must complete for sprint success
+  - Phases 4-5 can be partially deferred if time-constrained (P2 tasks)
+  - Integration test (task-09) is MANDATORY before marking sprint complete
+  - Stats tracking (task-06) unlocks Phase 4 observability tasks
+  - Regex replacement (task-14) is nice-to-have, not critical

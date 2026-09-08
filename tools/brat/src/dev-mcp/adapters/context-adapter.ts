@@ -132,20 +132,23 @@ export class ContextAdapter {
   /**
    * Extract Loki configuration from resolved context
    *
-   * Note: Loki config is not currently part of ResolvedContext,
-   * so we extract it from environment variables or deployment config if available.
-   * This is a placeholder for future Loki integration in ContextResolver.
+   * Sprint 46: Now reads from resolved.runtime.loki (populated by ContextResolver).
+   * Falls back to env vars for backwards compatibility.
    */
   private extractLokiConfig(resolved: ResolvedContext): TargetConnection['loki'] | undefined {
-    const envVars = resolved.runtime.envVars;
+    // Priority 1: Use resolved loki config from architecture.yaml (Sprint 46)
+    if (resolved.runtime.loki) {
+      return resolved.runtime.loki;
+    }
 
-    // Check for Loki URL in env vars
+    // Priority 2: Check for Loki URL in env vars (backwards compatibility)
+    const envVars = resolved.runtime.envVars;
     const lokiUrl = envVars.LOKI_URL;
     if (lokiUrl) {
       return { url: lokiUrl };
     }
 
-    // Check for tunnel configuration
+    // Priority 3: Check for tunnel configuration in env vars (backwards compatibility)
     const lokiTunnelLocal = envVars.LOKI_TUNNEL_LOCAL_PORT;
     const lokiTunnelRemote = envVars.LOKI_TUNNEL_REMOTE_PORT;
 
@@ -158,7 +161,7 @@ export class ContextAdapter {
       };
     }
 
-    // Default Loki for remote SSH deployments
+    // Priority 4: Default Loki for remote SSH deployments (fallback)
     if (resolved.deployment.docker?.host?.startsWith('ssh://')) {
       return {
         tunnel: {

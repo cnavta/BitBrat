@@ -43,14 +43,13 @@ scrape_configs:
         regex: '.*bitbrat.*'
         action: keep
 
-      # Extract service name from container name
-      # Container names are like: bitbrat-event-router-1 or event-router.bitbrat.local
-      - source_labels: ['__meta_docker_container_name']
-        regex: '/?(.*?)[-.].*'
+      # Extract service name from Docker Compose service label (PRIMARY)
+      # This is the most reliable method - it gives us the actual service name
+      # from docker-compose.yaml (e.g., "tool-gateway", "llm-bot", "auth")
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
         target_label: 'service'
-        replacement: '${1}'
 
-      # Extract compose service name (backup method)
+      # Keep compose_service as well for debugging
       - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
         target_label: 'compose_service'
 
@@ -111,8 +110,12 @@ scrape_configs:
             - "2006-01-02T15:04:05.999999999Z07:00"
 
       # Stage 5: Construct log line output
-      - output:
-          source: message
+      # NOTE: We want to preserve the full JSON log for rich querying, not just the message.
+      # The 'output' stage would replace the entire log line with just the message field,
+      # losing all structured data (correlationId, level, etc.).
+      # REMOVED: output stage to preserve full JSON structure in Loki
+      # - output:
+      #     source: message
 
       # Stage 6: Drop healthcheck/debug noise (optional - uncomment if needed)
       # - drop:
