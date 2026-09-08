@@ -11,8 +11,20 @@
  * @module composition/compiler.test
  */
 
+import type { Logger } from '../logging';
 import { CompositionCompiler, ToolRegistryInterface } from './compiler';
 import { CompositionDefinition, CompositionErrorCode } from './types';
+
+// Mock Logger
+const createMockLogger = (): Logger => ({
+  info: jest.fn(),
+  debug: jest.fn(),
+  trace: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  fatal: jest.fn(),
+  child: jest.fn(() => createMockLogger()),
+} as unknown as Logger);
 
 // Mock ToolRegistry
 class MockToolRegistry implements ToolRegistryInterface {
@@ -34,10 +46,12 @@ class MockToolRegistry implements ToolRegistryInterface {
 describe('CompositionCompiler', () => {
   let compiler: CompositionCompiler;
   let registry: MockToolRegistry;
+  let mockLogger: Logger;
 
   beforeEach(() => {
     registry = new MockToolRegistry();
-    compiler = new CompositionCompiler(registry);
+    mockLogger = createMockLogger();
+    compiler = new CompositionCompiler(registry, mockLogger);
   });
 
   // Helper to create minimal valid composition

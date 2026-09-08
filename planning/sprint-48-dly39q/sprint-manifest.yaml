@@ -1,0 +1,12 @@
+id: sprint-48-dly39q
+title: Composition Debug Logging Infrastructure
+goal: Add comprehensive trace/debug logging to Composition compiler, executor,
+  and registry to enable rapid diagnosis of composition failures. Increase from
+  5 to 100+ structured log statements with correlation IDs, step-by-step
+  execution traces, and actionable error messages.
+owner: navta3
+createdAt: 2026-09-08T17:59:18.433Z
+status: planning
+links:
+  branch: feature/sprint-48-dly39q-composition-debug-logging-infr
+notes: Sprint initialized via MCP start-sprint tool

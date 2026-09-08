@@ -12,6 +12,7 @@
  */
 
 import { randomUUID } from 'crypto';
+import type { Logger } from '../logging';
 import {
   CompiledComposition,
   CompositionDefinition,
@@ -118,7 +119,7 @@ export class RegistryError extends Error {
  *
  * @example
  * ```typescript
- * const registry = new CompositionRegistry(documentStore, toolRegistry);
+ * const registry = new CompositionRegistry(documentStore, toolRegistry, logger);
  *
  * // Register new composition
  * const compiled = await registry.register(definition);
@@ -136,9 +137,10 @@ export class CompositionRegistry {
 
   constructor(
     private store: DocumentStore,
-    private toolRegistry: ToolRegistryInterface
+    private toolRegistry: ToolRegistryInterface,
+    private logger: Logger
   ) {
-    this.compiler = new CompositionCompiler(toolRegistry);
+    this.compiler = new CompositionCompiler(toolRegistry, logger);
   }
 
   /**

@@ -10,6 +10,7 @@
  */
 
 import { createHash } from 'crypto';
+import type { Logger } from '../logging';
 import {
   CompositionDefinition,
   CompiledComposition,
@@ -56,12 +57,15 @@ export interface ToolRegistryInterface {
  *
  * @example
  * ```typescript
- * const compiler = new CompositionCompiler(toolRegistry);
+ * const compiler = new CompositionCompiler(toolRegistry, logger);
  * const compiled = compiler.compile(definition);
  * ```
  */
 export class CompositionCompiler {
-  constructor(private registry: ToolRegistryInterface) {}
+  constructor(
+    private registry: ToolRegistryInterface,
+    private logger: Logger
+  ) {}
 
   /**
    * Compile a composition definition

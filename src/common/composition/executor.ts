@@ -10,6 +10,7 @@
  */
 
 import Ajv from 'ajv';
+import type { Logger } from '../logging';
 import {
   CompiledComposition,
   ExecutionContext,
@@ -84,7 +85,7 @@ interface StepState {
  *
  * @example
  * ```typescript
- * const executor = new CompositionExecutor(toolRegistry);
+ * const executor = new CompositionExecutor(toolRegistry, logger);
  * const result = await executor.execute(compiled, {
  *   input: { user_id: '123' },
  *   context: { channel_id: 'abc' },
@@ -96,7 +97,10 @@ interface StepState {
 export class CompositionExecutor {
   private ajv: Ajv;
 
-  constructor(private registry: ToolRegistryInterface) {
+  constructor(
+    private registry: ToolRegistryInterface,
+    private logger: Logger
+  ) {
     this.ajv = new Ajv({ strict: false });
   }
 
