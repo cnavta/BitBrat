@@ -153,19 +153,57 @@ export class CompositionRegistry {
    * @returns Compiled composition with assigned ID
    */
   async register(definition: CompositionDefinition): Promise<CompiledComposition> {
+    const compositionName = definition.metadata.name;
+
+    this.logger.debug('registry_register_started', {
+      composition: compositionName,
+      stepCount: definition.spec.steps.length,
+    });
+
     // Compile composition
+    this.logger.trace('registry_compiling', {
+      composition: compositionName,
+    });
+
     const compiled = this.compiler.compile(definition);
 
+    this.logger.debug('registry_compilation_complete', {
+      composition: compositionName,
+      contentHash: compiled.contentHash,
+    });
+
     // Check for existing composition with same content hash (deduplication)
+    this.logger.trace('registry_checking_deduplication', {
+      composition: compositionName,
+      contentHash: compiled.contentHash,
+    });
+
     const existing = await this.findByContentHash(compiled.contentHash);
     if (existing) {
+      this.logger.info('registry_register_deduplicated', {
+        composition: compositionName,
+        contentHash: compiled.contentHash,
+        existingId: existing.id,
+        existingVersion: existing.version,
+      });
+
       // Return existing composition (deduplicated)
       return existing.compiled;
     }
 
     // Determine version number
+    this.logger.trace('registry_determining_version', {
+      composition: compositionName,
+    });
+
     const versions = await this.listVersions(definition.metadata.name);
     const version = versions.length > 0 ? Math.max(...versions.map((v) => v.version)) + 1 : 1;
+
+    this.logger.debug('registry_version_assigned', {
+      composition: compositionName,
+      version,
+      previousVersionCount: versions.length,
+    });
 
     // Assign ID and version
     const id = randomUUID();
@@ -185,7 +223,21 @@ export class CompositionRegistry {
     };
 
     // Store in DocumentStore
+    this.logger.trace('registry_storing', {
+      composition: compositionName,
+      id,
+      version,
+    });
+
     await this.store.put(this.collection, id, record);
+
+    this.logger.info('registry_register_succeeded', {
+      composition: compositionName,
+      id,
+      version,
+      contentHash: compiled.contentHash,
+      dependencyCount: compiled.dependencies.length,
+    });
 
     return compiled;
   }
@@ -212,18 +264,50 @@ export class CompositionRegistry {
    * @returns Compiled composition or null if not found
    */
   async get(name: string, version?: number): Promise<CompiledComposition | null> {
+    this.logger.debug('registry_get_started', {
+      composition: name,
+      version: version ?? 'latest',
+    });
+
     if (version !== undefined) {
       // Get specific version
+      this.logger.trace('registry_querying_specific_version', {
+        composition: name,
+        version,
+      });
+
       const results = await this.store.query(this.collection, { name, version });
       if (results.length === 0) {
+        this.logger.debug('registry_get_not_found', {
+          composition: name,
+          version,
+        });
         return null;
       }
+
       const record = results[0] as CompositionRecord;
+
+      this.logger.debug('registry_get_succeeded', {
+        composition: name,
+        version,
+        id: record.id,
+        contentHash: record.contentHash,
+      });
+
       return record.compiled;
     } else {
       // Get latest version
+      this.logger.trace('registry_querying_latest_version', {
+        composition: name,
+      });
+
       const versions = await this.listVersions(name);
       if (versions.length === 0) {
+        this.logger.debug('registry_get_not_found', {
+          composition: name,
+          version: 'latest',
+          reason: 'no_versions',
+        });
         return null;
       }
 
@@ -231,6 +315,14 @@ export class CompositionRegistry {
       const latest = versions.reduce((prev, curr) =>
         curr.version > prev.version ? curr : prev
       );
+
+      this.logger.debug('registry_get_succeeded', {
+        composition: name,
+        version: latest.version,
+        id: latest.id,
+        contentHash: latest.contentHash,
+        totalVersions: versions.length,
+      });
 
       return latest.compiled;
     }
@@ -243,12 +335,27 @@ export class CompositionRegistry {
    * @returns Compiled composition or null if not found
    */
   async getById(id: string): Promise<CompiledComposition | null> {
+    this.logger.debug('registry_getById_started', {
+      id,
+    });
+
     const data = await this.store.get(this.collection, id);
     if (!data) {
+      this.logger.debug('registry_getById_not_found', {
+        id,
+      });
       return null;
     }
 
     const record = data as CompositionRecord;
+
+    this.logger.debug('registry_getById_succeeded', {
+      id,
+      composition: record.name,
+      version: record.version,
+      contentHash: record.contentHash,
+    });
+
     return record.compiled;
   }
 
@@ -261,8 +368,18 @@ export class CompositionRegistry {
    * @param version - Version number
    */
   async delete(name: string, version: number): Promise<void> {
+    this.logger.debug('registry_delete_started', {
+      composition: name,
+      version,
+    });
+
     const results = await this.store.query(this.collection, { name, version });
     if (results.length === 0) {
+      this.logger.warn('registry_delete_not_found', {
+        composition: name,
+        version,
+      });
+
       throw new RegistryError(
         CompositionErrorCode.TOOL_NOT_FOUND,
         `Composition not found: ${name} v${version}`
@@ -270,7 +387,20 @@ export class CompositionRegistry {
     }
 
     const record = results[0] as CompositionRecord;
+
+    this.logger.trace('registry_deleting', {
+      composition: name,
+      version,
+      id: record.id,
+    });
+
     await this.store.delete(this.collection, record.id);
+
+    this.logger.info('registry_delete_succeeded', {
+      composition: name,
+      version,
+      id: record.id,
+    });
   }
 
   /**
@@ -304,9 +434,18 @@ export class CompositionRegistry {
    * @returns Array of all composition records with compiled definitions
    */
   async list(): Promise<CompositionRecord[]> {
+    this.logger.debug('registry_list_started');
+
     const results = await this.store.query(this.collection, {});
 
+    this.logger.debug('registry_list_query_complete', {
+      rowCount: results.length,
+    });
+
     const records: CompositionRecord[] = [];
+    let compiledCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
 
     for (const row of results) {
       try {
@@ -316,15 +455,13 @@ export class CompositionRegistry {
 
         // Validate that we have the required fields
         if (!dbRow.name || !dbRow.definition) {
-          console.error(
-            `[CompositionRegistry] Skipping invalid composition record - missing name or definition:`,
-            {
-              hasName: !!dbRow.name,
-              hasDefinition: !!dbRow.definition,
-              rowKeys: Object.keys(dbRow),
-              id: dbRow.id || 'unknown'
-            }
-          );
+          this.logger.warn('registry_list_invalid_record', {
+            hasName: !!dbRow.name,
+            hasDefinition: !!dbRow.definition,
+            rowKeys: Object.keys(dbRow),
+            id: dbRow.id || 'unknown'
+          });
+          skippedCount++;
           continue;
         }
 
@@ -333,12 +470,19 @@ export class CompositionRegistry {
 
         // Additional validation: ensure definition has required structure
         if (!definition || typeof definition !== 'object') {
-          console.error(
-            `[CompositionRegistry] Skipping composition ${dbRow.name}:${dbRow.version} - definition is not an object:`,
-            { definitionType: typeof definition }
-          );
+          this.logger.warn('registry_list_invalid_definition', {
+            composition: dbRow.name,
+            version: dbRow.version,
+            definitionType: typeof definition,
+          });
+          skippedCount++;
           continue;
         }
+
+        this.logger.trace('registry_list_compiling', {
+          composition: dbRow.name,
+          version: dbRow.version,
+        });
 
         // Compile definition to get executable composition
         const compiled = this.compiler.compile(definition);
@@ -354,6 +498,8 @@ export class CompositionRegistry {
           createdAt: dbRow.created_at ? new Date(dbRow.created_at) : dbRow.createdAt,
           updatedAt: dbRow.updated_at ? new Date(dbRow.updated_at) : dbRow.updatedAt,
         });
+
+        compiledCount++;
       } catch (err) {
         // Log compilation error but continue loading other compositions
         // This allows the system to remain functional even if some compositions are invalid
@@ -361,16 +507,26 @@ export class CompositionRegistry {
         const errorStack = err instanceof Error ? err.stack : undefined;
         const dbRow = row as any;
 
-        console.error(
-          `[CompositionRegistry] Failed to compile composition ${dbRow.name}:${dbRow.version}:`,
-          errorMessage,
-          errorStack
-        );
+        this.logger.error('registry_list_compilation_failed', {
+          composition: dbRow.name,
+          version: dbRow.version,
+          error: errorMessage,
+          stack: errorStack,
+        });
+
+        errorCount++;
 
         // Continue processing other compositions
         continue;
       }
     }
+
+    this.logger.info('registry_list_succeeded', {
+      totalRows: results.length,
+      compiledCount,
+      skippedCount,
+      errorCount,
+    });
 
     return records;
   }
