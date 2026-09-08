@@ -371,15 +371,24 @@ async function fleetLogsHandler(
         const { scanned, parsed, failed, filtered, returned, backend, lokiFallback, warnings } = response.stats;
 
         header += `\n=== Pipeline Stats ===\n`;
-        header += `Scanned:  ${scanned} log lines from ${backend}${lokiFallback ? ' (Loki fallback)' : ''}\n`;
-        header += `Parsed:   ${parsed} successfully\n`;
-        if (failed > 0) {
-          header += `Failed:   ${failed} (malformed or invalid JSON)\n`;
+
+        // Loki backend (server-side filtering) - simplified stats
+        if (backend === 'loki') {
+          header += `Backend:  Loki (server-side filtering)\n`;
+          header += `Returned: ${returned} entries\n`;
+          header += `Note: Loki performs server-side parsing/filtering. Stats show returned count only.\n`;
+        } else {
+          // Docker backend - detailed stats
+          header += `Scanned:  ${scanned} log lines from ${backend}${lokiFallback ? ' (Loki fallback)' : ''}\n`;
+          header += `Parsed:   ${parsed} successfully\n`;
+          if (failed > 0) {
+            header += `Failed:   ${failed} (malformed or invalid JSON)\n`;
+          }
+          if (filtered > 0) {
+            header += `Filtered: ${filtered} (excluded by level/correlation filters)\n`;
+          }
+          header += `Returned: ${returned} final entries\n`;
         }
-        if (filtered > 0) {
-          header += `Filtered: ${filtered} (excluded by level/correlation filters)\n`;
-        }
-        header += `Returned: ${returned} final entries\n`;
 
         // Add warnings if present
         if (warnings && warnings.length > 0) {

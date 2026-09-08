@@ -332,15 +332,29 @@ export class LogRetriever {
         // Try Loki first
         const logs = await this.lokiClient.query(request);
 
-        // Sprint 46: Build stats for Loki backend (simplified - no parse stats from Loki)
+        // Sprint 46: Build stats for Loki backend
+        // Note: Loki does server-side filtering, so we can't track parse/filter stats
+        // like we do with Docker. We can only warn about potential result truncation.
+        const limit = request.limit || 1000; // Loki default limit
+        const warnings: string[] = [];
+
+        // Warn if we hit the limit (suggests there might be more logs)
+        if (logs.length >= limit) {
+          warnings.push(
+            `Retrieved ${logs.length} logs (at limit of ${limit}). Results may be incomplete. ` +
+            `Increase --limit or narrow time range for complete results.`
+          );
+        }
+
         const stats: LogStats = {
-          scanned: logs.length,
-          parsed: logs.length,
-          failed: 0,
-          filtered: 0,
+          scanned: logs.length,  // Can't know actual scanned count (server-side)
+          parsed: logs.length,   // Can't know parse failures (server-side)
+          failed: 0,             // Unknown (Loki drops malformed logs internally)
+          filtered: 0,           // Unknown (filtering done server-side in LogQL)
           returned: logs.length,
           backend: 'loki',
-          lokiFallback: false
+          lokiFallback: false,
+          warnings: warnings.length > 0 ? warnings : undefined
         };
 
         return { logs, stats };
