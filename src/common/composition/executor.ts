@@ -116,12 +116,29 @@ export class CompositionExecutor {
     composition: CompiledComposition,
     context: ExecutionContext
   ): Promise<ExecutionResult> {
+    const compositionName = composition.metadata.name;
+    const stepCount = composition.spec.steps.length;
+
+    this.logger.debug('execution_started', {
+      composition: compositionName,
+      stepCount,
+      hasInputSchema: !!composition.spec.inputSchema,
+      hasOutputSchema: !!composition.spec.outputSchema,
+      sessionId: context.sessionId,
+    });
+
     const startTime = Date.now();
 
     try {
       // 1. Validate input against inputSchema
       if (composition.spec.inputSchema) {
+        this.logger.trace('execution_validating_input', {
+          composition: compositionName,
+        });
         this.validateInput(context.input, composition.spec.inputSchema);
+        this.logger.debug('execution_input_validated', {
+          composition: compositionName,
+        });
       }
 
       // 2. Execute steps sequentially
@@ -138,6 +155,11 @@ export class CompositionExecutor {
           );
 
           if (!shouldExecute) {
+            this.logger.debug('execution_step_skipped', {
+              composition: compositionName,
+              stepId: step.id,
+              reason: 'condition_false',
+            });
             // Skip this step
             continue;
           }
@@ -157,6 +179,10 @@ export class CompositionExecutor {
       }
 
       // 3. Resolve return expression
+      this.logger.trace('execution_resolving_return', {
+        composition: compositionName,
+      });
+
       const output = await this.resolveValue(
         composition.spec.return,
         context.input,
@@ -166,31 +192,62 @@ export class CompositionExecutor {
 
       // 4. Validate output against outputSchema
       if (composition.spec.outputSchema) {
+        this.logger.trace('execution_validating_output', {
+          composition: compositionName,
+        });
         this.validateOutput(output, composition.spec.outputSchema);
+        this.logger.debug('execution_output_validated', {
+          composition: compositionName,
+        });
       }
 
       const endTime = Date.now();
+      const executionTime = endTime - startTime;
+      const stepsExecuted = Object.keys(stepState).length;
+
+      this.logger.info('execution_succeeded', {
+        composition: compositionName,
+        executionTime,
+        stepsExecuted,
+        totalSteps: stepCount,
+      });
 
       return {
         status: ExecutionStatus.SUCCESS,
         output,
-        executionTime: endTime - startTime,
-        stepsExecuted: Object.keys(stepState).length,
+        executionTime,
+        stepsExecuted,
       };
     } catch (error) {
       const endTime = Date.now();
+      const executionTime = endTime - startTime;
 
       if (error instanceof ExecutionError) {
+        this.logger.error('execution_failed', {
+          composition: compositionName,
+          executionTime,
+          errorCode: error.code,
+          errorMessage: error.message,
+          errorLocation: error.location,
+        });
+
         return {
           status: ExecutionStatus.FAILED,
           error: error.message,
           errorCode: error.code,
           errorLocation: error.location,
-          executionTime: endTime - startTime,
+          executionTime,
         };
       }
 
       // Unexpected error
+      this.logger.error('execution_failed_unexpected', {
+        composition: compositionName,
+        executionTime,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
       throw error;
     }
   }
@@ -212,18 +269,59 @@ export class CompositionExecutor {
     stepState: StepState,
     execContext: ExecutionContext
   ): Promise<unknown> {
-    if (isCallStep(step)) {
-      return await this.executeCallStep(step, input, context, stepState, execContext);
-    } else if (isIfValueStep(step)) {
-      return await this.executeIfValueStep(step, input, context, stepState);
-    } else {
-      // TypeScript narrows to 'never' here, but we still know step has an id
-      const unknownStep = step as { id: string };
-      throw new ExecutionError(
-        CompositionErrorCode.INVALID_FORMAT,
-        `Unknown step type for step: ${unknownStep.id}`,
-        `steps[${unknownStep.id}]`
-      );
+    const stepType = isCallStep(step) ? 'call' : isIfValueStep(step) ? 'if_value' : 'unknown';
+
+    this.logger.trace('step_execution_started', {
+      stepId: step.id,
+      stepType,
+    });
+
+    const startTime = Date.now();
+
+    try {
+      let result: unknown;
+
+      if (isCallStep(step)) {
+        result = await this.executeCallStep(step, input, context, stepState, execContext);
+      } else if (isIfValueStep(step)) {
+        result = await this.executeIfValueStep(step, input, context, stepState);
+      } else {
+        // TypeScript narrows to 'never' here, but we still know step has an id
+        const unknownStep = step as { id: string };
+
+        this.logger.error('step_execution_unknown_type', {
+          stepId: unknownStep.id,
+        });
+
+        throw new ExecutionError(
+          CompositionErrorCode.INVALID_FORMAT,
+          `Unknown step type for step: ${unknownStep.id}`,
+          `steps[${unknownStep.id}]`
+        );
+      }
+
+      const executionTime = Date.now() - startTime;
+
+      this.logger.debug('step_execution_succeeded', {
+        stepId: step.id,
+        stepType,
+        executionTime,
+        hasOutput: result !== undefined && result !== null,
+      });
+
+      return result;
+    } catch (error) {
+      const executionTime = Date.now() - startTime;
+
+      this.logger.error('step_execution_failed', {
+        stepId: step.id,
+        stepType,
+        executionTime,
+        error: error instanceof Error ? error.message : String(error),
+        errorCode: error instanceof ExecutionError ? error.code : undefined,
+      });
+
+      throw error;
     }
   }
 
@@ -237,10 +335,20 @@ export class CompositionExecutor {
     stepState: StepState,
     execContext: ExecutionContext
   ): Promise<unknown> {
+    this.logger.trace('tool_invocation_resolving', {
+      stepId: step.id,
+      toolId: step.call,
+    });
+
     // Resolve tool from registry
     const tool = this.registry.getTool(step.call);
 
     if (!tool) {
+      this.logger.error('tool_invocation_not_found', {
+        stepId: step.id,
+        toolId: step.call,
+      });
+
       throw new ExecutionError(
         CompositionErrorCode.TOOL_NOT_FOUND,
         `Tool not found: ${step.call}`,
@@ -249,6 +357,11 @@ export class CompositionExecutor {
     }
 
     if (!tool.execute) {
+      this.logger.error('tool_invocation_not_executable', {
+        stepId: step.id,
+        toolId: step.call,
+      });
+
       throw new ExecutionError(
         CompositionErrorCode.TOOL_NOT_FOUND,
         `Tool ${step.call} does not support execution`,
@@ -259,25 +372,66 @@ export class CompositionExecutor {
     // Resolve arguments
     let args: unknown = {};
     if (step.with) {
+      this.logger.trace('tool_invocation_resolving_args', {
+        stepId: step.id,
+        toolId: step.call,
+      });
       args = await this.resolveValue(step.with, input, context, stepState);
     }
 
     // Validate input against tool's inputSchema
     if (tool.inputSchema) {
+      this.logger.trace('tool_invocation_validating_input', {
+        stepId: step.id,
+        toolId: step.call,
+      });
       this.validateToolInput(args, tool.inputSchema, step.call);
     }
 
     // Invoke tool
+    this.logger.debug('tool_invocation_started', {
+      stepId: step.id,
+      toolId: step.call,
+      hasArgs: !!step.with,
+      hasInputSchema: !!tool.inputSchema,
+      hasOutputSchema: !!tool.outputSchema,
+    });
+
+    const startTime = Date.now();
+
     try {
       const result = await tool.execute(args, execContext);
 
+      const executionTime = Date.now() - startTime;
+
       // Validate output against tool's outputSchema
       if (tool.outputSchema) {
+        this.logger.trace('tool_invocation_validating_output', {
+          stepId: step.id,
+          toolId: step.call,
+        });
         this.validateToolOutput(result, tool.outputSchema, step.call);
       }
 
+      this.logger.debug('tool_invocation_succeeded', {
+        stepId: step.id,
+        toolId: step.call,
+        executionTime,
+        hasResult: result !== undefined && result !== null,
+      });
+
       return result;
     } catch (error) {
+      const executionTime = Date.now() - startTime;
+
+      this.logger.error('tool_invocation_failed', {
+        stepId: step.id,
+        toolId: step.call,
+        executionTime,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
       throw new ExecutionError(
         CompositionErrorCode.EXECUTION_ERROR,
         `Tool execution failed: ${step.call}`,
@@ -375,6 +529,11 @@ export class CompositionExecutor {
   ): unknown {
     const { namespace, pointer } = ref.$ref;
 
+    this.logger.trace('reference_resolution_started', {
+      namespace,
+      pointer,
+    });
+
     let target: unknown;
     if (namespace === 'input') {
       target = input;
@@ -383,6 +542,11 @@ export class CompositionExecutor {
     } else if (namespace === 'steps') {
       target = stepState;
     } else {
+      this.logger.error('reference_resolution_invalid_namespace', {
+        namespace,
+        pointer,
+      });
+
       throw new ExecutionError(
         CompositionErrorCode.INVALID_NAMESPACE,
         `Invalid reference namespace: ${namespace}`,
@@ -391,7 +555,15 @@ export class CompositionExecutor {
     }
 
     // Use JSON Pointer to extract value
-    return this.getByPointer(target, pointer);
+    const value = this.getByPointer(target, pointer);
+
+    this.logger.trace('reference_resolution_succeeded', {
+      namespace,
+      pointer,
+      hasValue: value !== undefined,
+    });
+
+    return value;
   }
 
   /**
@@ -461,9 +633,20 @@ export class CompositionExecutor {
       }
     }
 
+    const variableCount = Object.keys(variableDefinitions).length;
+
+    this.logger.trace('template_interpolation_started', {
+      templateString,
+      variableCount,
+    });
+
     // Resolve all variables
     const resolvedVariables: Record<string, string> = {};
     for (const [varName, varExpression] of Object.entries(variableDefinitions)) {
+      this.logger.trace('template_variable_resolving', {
+        variableName: varName,
+      });
+
       const resolvedValue = await this.resolveValue(
         varExpression,
         input,
@@ -473,6 +656,9 @@ export class CompositionExecutor {
 
       // Coerce to string
       if (resolvedValue === null || resolvedValue === undefined) {
+        this.logger.debug('template_variable_null', {
+          variableName: varName,
+        });
         resolvedVariables[varName] = '';
       } else if (typeof resolvedValue === 'string') {
         resolvedVariables[varName] = resolvedValue;
@@ -481,6 +667,12 @@ export class CompositionExecutor {
       } else {
         // Object/array -> error with helpful message
         const type = Array.isArray(resolvedValue) ? 'array' : 'object';
+
+        this.logger.error('template_variable_non_scalar', {
+          variableName: varName,
+          type,
+        });
+
         throw new ExecutionError(
           CompositionErrorCode.VALIDATION_ERROR,
           `Template variable "${varName}" resolved to ${type}. ` +
@@ -490,6 +682,11 @@ export class CompositionExecutor {
         );
       }
     }
+
+    this.logger.debug('template_variables_resolved', {
+      variableCount,
+      variables: Object.keys(resolvedVariables),
+    });
 
     // Step 1: Replace escaped braces with placeholder to protect them
     const ESCAPE_PLACEHOLDER = '\x00ESCAPED_BRACE\x00';
@@ -502,6 +699,11 @@ export class CompositionExecutor {
         return resolvedVariables[varName];
       } else {
         // Undefined variable - throw clear error
+        this.logger.error('template_variable_undefined', {
+          variableName: varName,
+          availableVariables: Object.keys(resolvedVariables),
+        });
+
         throw new ExecutionError(
           CompositionErrorCode.UNDEFINED_REFERENCE,
           `Undefined template variable: {{${varName}}}. ` +
@@ -513,6 +715,10 @@ export class CompositionExecutor {
 
     // Step 3: Restore escaped braces: placeholder -> {{
     result = result.replace(new RegExp(ESCAPE_PLACEHOLDER, 'g'), '{{');
+
+    this.logger.debug('template_interpolation_succeeded', {
+      resultLength: result.length,
+    });
 
     return result;
   }
@@ -534,69 +740,142 @@ export class CompositionExecutor {
     context: unknown,
     stepState: StepState
   ): Promise<boolean> {
+    // Determine condition type for logging
+    const conditionType = Object.keys(condition)[0] as string;
+
+    this.logger.trace('condition_evaluation_started', {
+      conditionType,
+    });
+
+    let result: boolean;
+
     if ('exists' in condition) {
       // Check if value exists (not null/undefined)
       const value = await this.resolveValue(condition.exists, input, context, stepState);
-      return value !== null && value !== undefined;
+      result = value !== null && value !== undefined;
+
+      this.logger.trace('condition_evaluation_exists', {
+        result,
+        hasValue: result,
+      });
     } else if ('equals' in condition) {
       // Check equality
       const [left, right] = condition.equals;
       const leftValue = await this.resolveValue(left, input, context, stepState);
       const rightValue = await this.resolveValue(right, input, context, stepState);
-      return leftValue === rightValue;
+      result = leftValue === rightValue;
+
+      this.logger.trace('condition_evaluation_equals', {
+        result,
+      });
     } else if ('greaterThan' in condition) {
       // Check greater than
       const [left, right] = condition.greaterThan;
       const leftValue = await this.resolveValue(left, input, context, stepState);
       const rightValue = await this.resolveValue(right, input, context, stepState);
-      return (leftValue as number) > (rightValue as number);
+      result = (leftValue as number) > (rightValue as number);
+
+      this.logger.trace('condition_evaluation_greaterThan', {
+        result,
+      });
     } else if ('lessThan' in condition) {
       // Check less than
       const [left, right] = condition.lessThan;
       const leftValue = await this.resolveValue(left, input, context, stepState);
       const rightValue = await this.resolveValue(right, input, context, stepState);
-      return (leftValue as number) < (rightValue as number);
+      result = (leftValue as number) < (rightValue as number);
+
+      this.logger.trace('condition_evaluation_lessThan', {
+        result,
+      });
     } else if ('greaterThanOrEqual' in condition) {
       // Check greater than or equal
       const [left, right] = condition.greaterThanOrEqual;
       const leftValue = await this.resolveValue(left, input, context, stepState);
       const rightValue = await this.resolveValue(right, input, context, stepState);
-      return (leftValue as number) >= (rightValue as number);
+      result = (leftValue as number) >= (rightValue as number);
+
+      this.logger.trace('condition_evaluation_greaterThanOrEqual', {
+        result,
+      });
     } else if ('lessThanOrEqual' in condition) {
       // Check less than or equal
       const [left, right] = condition.lessThanOrEqual;
       const leftValue = await this.resolveValue(left, input, context, stepState);
       const rightValue = await this.resolveValue(right, input, context, stepState);
-      return (leftValue as number) <= (rightValue as number);
+      result = (leftValue as number) <= (rightValue as number);
+
+      this.logger.trace('condition_evaluation_lessThanOrEqual', {
+        result,
+      });
     } else if ('all' in condition) {
       // All sub-conditions must be true
+      this.logger.trace('condition_evaluation_all_started', {
+        subConditionCount: condition.all.length,
+      });
+
       for (const subCondition of condition.all) {
-        const result = await this.evaluateCondition(subCondition, input, context, stepState);
-        if (!result) {
-          return false;
+        const subResult = await this.evaluateCondition(subCondition, input, context, stepState);
+        if (!subResult) {
+          result = false;
+          this.logger.trace('condition_evaluation_all_short_circuit', {
+            result: false,
+          });
+          return result;
         }
       }
-      return true;
+      result = true;
+
+      this.logger.trace('condition_evaluation_all_succeeded', {
+        result: true,
+      });
     } else if ('any' in condition) {
       // Any sub-condition must be true
+      this.logger.trace('condition_evaluation_any_started', {
+        subConditionCount: condition.any.length,
+      });
+
       for (const subCondition of condition.any) {
-        const result = await this.evaluateCondition(subCondition, input, context, stepState);
-        if (result) {
-          return true;
+        const subResult = await this.evaluateCondition(subCondition, input, context, stepState);
+        if (subResult) {
+          result = true;
+          this.logger.trace('condition_evaluation_any_short_circuit', {
+            result: true,
+          });
+          return result;
         }
       }
-      return false;
+      result = false;
+
+      this.logger.trace('condition_evaluation_any_failed', {
+        result: false,
+      });
     } else if ('not' in condition) {
       // Negate sub-condition
-      const result = await this.evaluateCondition(condition.not, input, context, stepState);
-      return !result;
+      const subResult = await this.evaluateCondition(condition.not, input, context, stepState);
+      result = !subResult;
+
+      this.logger.trace('condition_evaluation_not', {
+        result,
+      });
     } else {
+      this.logger.error('condition_evaluation_unknown_type', {
+        conditionKeys: Object.keys(condition),
+      });
+
       throw new ExecutionError(
         CompositionErrorCode.INVALID_FORMAT,
         `Unknown condition type`,
         `condition`
       );
     }
+
+    this.logger.debug('condition_evaluation_completed', {
+      conditionType,
+      result,
+    });
+
+    return result;
   }
 
   /**
