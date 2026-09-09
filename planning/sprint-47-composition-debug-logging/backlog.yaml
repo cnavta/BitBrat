@@ -1,0 +1,821 @@
+# Sprint 47: Composition Debug Logging - Prioritized Backlog
+
+sprint:
+  id: sprint-47-composition-debug-logging
+  title: Composition Debug Logging Infrastructure
+  goal: Add comprehensive trace/debug logging to Composition compiler, executor, and registry to enable rapid diagnosis of composition failures
+  owner: navta3
+  estimatedHours: 25
+  priority: HIGH
+
+# ============================================================================
+# PHASE 1: Foundation - Logger Injection & Type Updates
+# ============================================================================
+# Priority: CRITICAL (blocks all other work)
+# Estimated: 3 hours
+
+- id: COMP-LOG-001
+  title: Update CompositionCompiler constructor to accept logger
+  description: |
+    Add logger parameter to CompositionCompiler constructor signature.
+    - Import Pino Logger type
+    - Add logger parameter to constructor
+    - Store as private field
+    - Update all method signatures as needed
+  files:
+    - src/common/composition/compiler.ts
+  priority: CRITICAL
+  estimatedHours: 0.5
+  dependencies: []
+  tags:
+    - foundation
+    - compiler
+    - types
+
+- id: COMP-LOG-002
+  title: Update CompositionExecutor constructor to accept logger
+  description: |
+    Add logger parameter to CompositionExecutor constructor signature.
+    - Import Pino Logger type
+    - Add logger parameter to constructor
+    - Store as private field
+    - Update all method signatures as needed
+  files:
+    - src/common/composition/executor.ts
+  priority: CRITICAL
+  estimatedHours: 0.5
+  dependencies: []
+  tags:
+    - foundation
+    - executor
+    - types
+
+- id: COMP-LOG-003
+  title: Update CompositionRegistry constructor to accept logger
+  description: |
+    Add logger parameter to CompositionRegistry constructor.
+    - Import Pino Logger type
+    - Add logger parameter to constructor
+    - Pass logger to CompositionCompiler constructor
+    - Store as private field
+  files:
+    - src/common/composition/registry.ts
+  priority: CRITICAL
+  estimatedHours: 0.5
+  dependencies:
+    - COMP-LOG-001
+  tags:
+    - foundation
+    - registry
+    - types
+
+- id: COMP-LOG-004
+  title: Update tool-gateway instantiation to pass loggers
+  description: |
+    Update tool-gateway.ts to pass logger instances to composition classes.
+    - Update CompositionRegistry instantiation
+    - Update CompositionExecutor instantiation
+    - Use logger.child() for component-specific loggers
+  files:
+    - src/apps/tool-gateway.ts
+  priority: CRITICAL
+  estimatedHours: 0.5
+  dependencies:
+    - COMP-LOG-001
+    - COMP-LOG-002
+    - COMP-LOG-003
+  tags:
+    - foundation
+    - integration
+
+- id: COMP-LOG-005
+  title: Create mock logger fixture for tests
+  description: |
+    Create reusable mock logger fixture for all composition tests.
+    - Define mock logger interface
+    - Implement jest.fn() for all log methods
+    - Export from test-utils or define in each test file
+  files:
+    - src/common/composition/compiler.test.ts
+    - src/common/composition/executor.test.ts
+    - src/common/composition/registry.test.ts
+  priority: CRITICAL
+  estimatedHours: 0.5
+  dependencies: []
+  tags:
+    - foundation
+    - testing
+
+- id: COMP-LOG-006
+  title: Update all test instantiations to pass mock logger
+  description: |
+    Update all test cases to instantiate compiler/executor/registry with mock logger.
+    - Update compiler tests
+    - Update executor tests
+    - Update registry tests
+    - Verify all tests still pass
+  files:
+    - src/common/composition/compiler.test.ts
+    - src/common/composition/executor.test.ts
+    - src/common/composition/registry.test.ts
+  priority: CRITICAL
+  estimatedHours: 1.0
+  dependencies:
+    - COMP-LOG-005
+  tags:
+    - foundation
+    - testing
+
+# ============================================================================
+# PHASE 2: Compiler Logging Implementation
+# ============================================================================
+# Priority: HIGH
+# Estimated: 6 hours
+
+- id: COMP-LOG-101
+  title: Add compilation entry/exit logging
+  description: |
+    Add INFO-level logging to compile() method for start and completion.
+    - Log compilation_started with compositionName
+    - Log compilation_completed with duration, contentHash, dependencies
+    - Include structured fields: component, operation
+  files:
+    - src/common/composition/compiler.ts
+  priority: HIGH
+  estimatedHours: 0.5
+  dependencies:
+    - COMP-LOG-001
+  tags:
+    - compiler
+    - logging
+
+- id: COMP-LOG-102
+  title: Add validation phase logging
+  description: |
+    Add DEBUG/TRACE logging to validate() method.
+    - Log validation_started (DEBUG)
+    - Log validation_completed (DEBUG) with error/warning counts
+    - Log sub-phase starts/completions (TRACE)
+  files:
+    - src/common/composition/compiler.ts
+  priority: HIGH
+  estimatedHours: 1.0
+  dependencies:
+    - COMP-LOG-001
+  tags:
+    - compiler
+    - logging
+    - validation
+
+- id: COMP-LOG-103
+  title: Add tool resolution logging (CRITICAL)
+  description: |
+    Add comprehensive TRACE logging to findTool() method.
+    - Log tool_lookup_started (TRACE)
+    - Log each lookup variant attempt (TRACE)
+    - Log tool_found_exact / tool_found_with_prefix (TRACE)
+    - Log tool_not_found (WARN) with all attempted variants
+    - Include toolId, attemptedId, resolvedId, source in fields
+  files:
+    - src/common/composition/compiler.ts
+  priority: CRITICAL
+  estimatedHours: 1.5
+  dependencies:
+    - COMP-LOG-001
+  tags:
+    - compiler
+    - logging
+    - tool-resolution
+
+- id: COMP-LOG-104
+  title: Add cycle detection logging
+  description: |
+    Add TRACE/ERROR logging to detectCycles() method.
+    - Log cycle_detection_started (TRACE)
+    - Log dependency_graph_built (TRACE) with full graph
+    - Log circular_dependency_detected (ERROR) with cycle path
+    - Log no_cycles_detected (TRACE)
+  files:
+    - src/common/composition/compiler.ts
+  priority: HIGH
+  estimatedHours: 1.0
+  dependencies:
+    - COMP-LOG-001
+  tags:
+    - compiler
+    - logging
+    - validation
+
+- id: COMP-LOG-105
+  title: Add reference validation logging
+  description: |
+    Add TRACE/WARN logging to validateReferences() method.
+    - Log reference_validation_started (TRACE)
+    - Log step_ids_extracted (TRACE)
+    - Log reference_validation_errors (WARN) with structured error data
+    - Include compositionName, stepIds, errorCount
+  files:
+    - src/common/composition/compiler.ts
+  priority: HIGH
+  estimatedHours: 1.0
+  dependencies:
+    - COMP-LOG-001
+  tags:
+    - compiler
+    - logging
+    - validation
+
+- id: COMP-LOG-106
+  title: Add template validation logging
+  description: |
+    Add TRACE/DEBUG logging to validateTemplates() method.
+    - Log template_validation_started (TRACE)
+    - Log template_validation_completed (DEBUG) with error/warning counts
+    - Include compositionName, errorCount, warningCount
+  files:
+    - src/common/composition/compiler.ts
+  priority: MEDIUM
+  estimatedHours: 0.5
+  dependencies:
+    - COMP-LOG-001
+  tags:
+    - compiler
+    - logging
+    - validation
+
+- id: COMP-LOG-107
+  title: Add dependency resolution logging
+  description: |
+    Add TRACE logging to resolveDependencies() method.
+    - Log dependencies_resolved (TRACE)
+    - Include toolIds, dependencyCount, schemaFingerprints
+  files:
+    - src/common/composition/compiler.ts
+  priority: LOW
+  estimatedHours: 0.5
+  dependencies:
+    - COMP-LOG-001
+  tags:
+    - compiler
+    - logging
+
+# ============================================================================
+# PHASE 3: Executor Logging Implementation
+# ============================================================================
+# Priority: HIGH
+# Estimated: 8 hours
+
+- id: COMP-LOG-201
+  title: Add execution entry/exit logging
+  description: |
+    Add INFO-level logging to execute() method for start and completion.
+    - Log execution_started with compositionId, correlationId, sessionId
+    - Log execution_completed with status, duration, stepsExecuted
+    - Include structured fields: component, operation
+  files:
+    - src/common/composition/executor.ts
+  priority: HIGH
+  estimatedHours: 0.5
+  dependencies:
+    - COMP-LOG-002
+  tags:
+    - executor
+    - logging
+
+- id: COMP-LOG-202
+  title: Add input validation logging
+  description: |
+    Add TRACE/ERROR logging to validateInput() method.
+    - Log input_validation_started (TRACE)
+    - Log input_validation_passed (TRACE)
+    - Log input_validation_failed (ERROR) with structured error data
+  files:
+    - src/common/composition/executor.ts
+  priority: HIGH
+  estimatedHours: 0.5
+  dependencies:
+    - COMP-LOG-002
+  tags:
+    - executor
+    - logging
+    - validation
+
+- id: COMP-LOG-203
+  title: Add output validation logging
+  description: |
+    Add TRACE/ERROR logging to validateOutput() method.
+    - Log output_validation_started (TRACE)
+    - Log output_validation_passed (TRACE)
+    - Log output_validation_failed (ERROR) with structured error data
+  files:
+    - src/common/composition/executor.ts
+  priority: HIGH
+  estimatedHours: 0.5
+  dependencies:
+    - COMP-LOG-002
+  tags:
+    - executor
+    - logging
+    - validation
+
+- id: COMP-LOG-204
+  title: Add step execution logging (CRITICAL)
+  description: |
+    Add DEBUG logging to step execution loop in execute() method.
+    - Log step_started (DEBUG) with stepId, stepType, correlationId
+    - Log step_completed (DEBUG) with duration, outputType
+    - Log step_skipped (DEBUG) with reason
+    - Include per-step timing
+  files:
+    - src/common/composition/executor.ts
+  priority: CRITICAL
+  estimatedHours: 1.5
+  dependencies:
+    - COMP-LOG-002
+  tags:
+    - executor
+    - logging
+    - execution-trace
+
+- id: COMP-LOG-205
+  title: Add condition evaluation logging
+  description: |
+    Add DEBUG/TRACE logging to evaluateCondition() method.
+    - Log condition_evaluation_started (TRACE)
+    - Log condition_evaluation_completed (TRACE) with result
+    - Log specific condition types (exists, equals, etc.) (TRACE)
+    - Log when guard condition result (DEBUG) in step execution loop
+  files:
+    - src/common/composition/executor.ts
+  priority: HIGH
+  estimatedHours: 1.5
+  dependencies:
+    - COMP-LOG-002
+  tags:
+    - executor
+    - logging
+    - conditions
+
+- id: COMP-LOG-206
+  title: Add tool invocation logging
+  description: |
+    Add TRACE/ERROR logging to executeCallStep() method.
+    - Log tool_invocation_started (TRACE)
+    - Log arguments_resolved (TRACE) with argumentKeys
+    - Log tool_invocation_completed (TRACE) with duration, resultType
+    - Log tool_not_found_at_runtime (ERROR)
+  files:
+    - src/common/composition/executor.ts
+  priority: HIGH
+  estimatedHours: 1.0
+  dependencies:
+    - COMP-LOG-002
+  tags:
+    - executor
+    - logging
+    - tool-invocation
+
+- id: COMP-LOG-207
+  title: Add reference resolution logging (CRITICAL)
+  description: |
+    Add TRACE/ERROR logging to resolveReference() and getByPointer() methods.
+    - Log reference_resolution_started (TRACE)
+    - Log reference_resolved (TRACE) with namespace, pointer, valueType, valueExists
+    - Log invalid_namespace (ERROR)
+    - Log pointer traversal steps (TRACE)
+  files:
+    - src/common/composition/executor.ts
+  priority: CRITICAL
+  estimatedHours: 1.5
+  dependencies:
+    - COMP-LOG-002
+  tags:
+    - executor
+    - logging
+    - reference-resolution
+
+- id: COMP-LOG-208
+  title: Add template resolution logging
+  description: |
+    Add TRACE logging to resolveTemplate() method.
+    - Log template_resolution_started (TRACE)
+    - Log template_variable_resolved (TRACE) for each variable
+    - Log template_resolution_completed (TRACE)
+    - Include templateString, variableCount, variableName, resolvedType
+  files:
+    - src/common/composition/executor.ts
+  priority: MEDIUM
+  estimatedHours: 1.0
+  dependencies:
+    - COMP-LOG-002
+  tags:
+    - executor
+    - logging
+    - templates
+
+- id: COMP-LOG-209
+  title: Add value resolution logging
+  description: |
+    Add TRACE logging to resolveValue() method.
+    - Log value type being resolved (reference, template, array, object, literal)
+    - Keep logging minimal to avoid noise (only at TRACE level)
+  files:
+    - src/common/composition/executor.ts
+  priority: LOW
+  estimatedHours: 0.5
+  dependencies:
+    - COMP-LOG-002
+  tags:
+    - executor
+    - logging
+
+# ============================================================================
+# PHASE 4: Registry Logging Implementation
+# ============================================================================
+# Priority: MEDIUM
+# Estimated: 3 hours
+
+- id: COMP-LOG-301
+  title: Add registration logging
+  description: |
+    Add INFO logging to register() method.
+    - Log registration_started (INFO)
+    - Log composition_deduplicated (INFO) if duplicate found
+    - Log composition_registered (INFO) with version, contentHash
+  files:
+    - src/common/composition/registry.ts
+  priority: MEDIUM
+  estimatedHours: 1.0
+  dependencies:
+    - COMP-LOG-003
+  tags:
+    - registry
+    - logging
+
+- id: COMP-LOG-302
+  title: Add lookup logging
+  description: |
+    Add DEBUG/WARN logging to get() method.
+    - Log composition_lookup_started (DEBUG)
+    - Log composition_found (DEBUG) with compositionId, version
+    - Log composition_not_found (WARN)
+  files:
+    - src/common/composition/registry.ts
+  priority: MEDIUM
+  estimatedHours: 0.5
+  dependencies:
+    - COMP-LOG-003
+  tags:
+    - registry
+    - logging
+
+- id: COMP-LOG-303
+  title: Add list/version logging
+  description: |
+    Add DEBUG logging to list() and listVersions() methods.
+    - Log list operation with resultCount, filters
+    - Log version listing with versionCount
+  files:
+    - src/common/composition/registry.ts
+  priority: LOW
+  estimatedHours: 0.5
+  dependencies:
+    - COMP-LOG-003
+  tags:
+    - registry
+    - logging
+
+- id: COMP-LOG-304
+  title: Add deduplication logging
+  description: |
+    Add TRACE logging to findByContentHash() method.
+    - Log content hash lookup started
+    - Log found/not found result
+  files:
+    - src/common/composition/registry.ts
+  priority: LOW
+  estimatedHours: 0.5
+  dependencies:
+    - COMP-LOG-003
+  tags:
+    - registry
+    - logging
+
+- id: COMP-LOG-305
+  title: Add update/delete logging
+  description: |
+    Add INFO logging to update() and delete() methods.
+    - Log composition_updated with old/new version
+    - Log composition_deleted with compositionId
+  files:
+    - src/common/composition/registry.ts
+  priority: LOW
+  estimatedHours: 0.5
+  dependencies:
+    - COMP-LOG-003
+  tags:
+    - registry
+    - logging
+
+# ============================================================================
+# PHASE 5: Watcher Enhancement
+# ============================================================================
+# Priority: LOW
+# Estimated: 1 hour
+
+- id: COMP-LOG-401
+  title: Enhance watcher logging with structured fields
+  description: |
+    Update existing logs in composition-watcher.ts to include structured fields.
+    - Add component: 'composition:watcher'
+    - Add operation field to each log
+    - Add composition reload success logging (INFO)
+  files:
+    - src/common/composition/composition-watcher.ts
+  priority: LOW
+  estimatedHours: 1.0
+  dependencies: []
+  tags:
+    - watcher
+    - logging
+
+# ============================================================================
+# PHASE 6: MCP Tool Handler Enhancement
+# ============================================================================
+# Priority: HIGH
+# Estimated: 3 hours
+
+- id: COMP-LOG-501
+  title: Add logging to composition.register MCP handler
+  description: |
+    Add INFO logging to composition.register MCP tool handler.
+    - Log handler invocation start/complete
+    - Include sessionId, compositionName, duration
+  files:
+    - src/apps/tool-gateway.ts
+  priority: HIGH
+  estimatedHours: 0.5
+  dependencies:
+    - COMP-LOG-004
+  tags:
+    - integration
+    - mcp
+    - logging
+
+- id: COMP-LOG-502
+  title: Add logging to composition.execute MCP handler
+  description: |
+    Add INFO logging to composition.execute MCP tool handler.
+    - Generate correlationId
+    - Log handler invocation start/complete
+    - Pass correlationId to executor
+    - Include compositionId, correlationId, sessionId, status, duration
+  files:
+    - src/apps/tool-gateway.ts
+  priority: HIGH
+  estimatedHours: 1.0
+  dependencies:
+    - COMP-LOG-004
+    - COMP-LOG-201
+  tags:
+    - integration
+    - mcp
+    - logging
+    - correlation
+
+- id: COMP-LOG-503
+  title: Add logging to composition.list/get/delete MCP handlers
+  description: |
+    Add DEBUG/INFO logging to remaining composition MCP handlers.
+    - composition.list (DEBUG)
+    - composition.get (DEBUG)
+    - composition.delete (INFO)
+  files:
+    - src/apps/tool-gateway.ts
+  priority: MEDIUM
+  estimatedHours: 0.5
+  dependencies:
+    - COMP-LOG-004
+  tags:
+    - integration
+    - mcp
+    - logging
+
+- id: COMP-LOG-504
+  title: Update ExecutionContext to include correlationId
+  description: |
+    Ensure correlationId flows through entire execution pipeline.
+    - Verify ExecutionContext includes correlationId field
+    - Update all executor logs to include correlationId
+    - Test correlation ID tracing end-to-end
+  files:
+    - src/common/composition/types.ts
+    - src/common/composition/executor.ts
+    - src/apps/tool-gateway.ts
+  priority: HIGH
+  estimatedHours: 1.0
+  dependencies:
+    - COMP-LOG-502
+  tags:
+    - integration
+    - correlation
+    - types
+
+# ============================================================================
+# PHASE 7: Test Coverage & Validation
+# ============================================================================
+# Priority: HIGH
+# Estimated: 4 hours
+
+- id: COMP-LOG-601
+  title: Add log assertion tests to compiler tests
+  description: |
+    Update compiler.test.ts to assert critical logs are called.
+    - Assert compilation_started/completed logs
+    - Assert tool_not_found logs
+    - Assert cycle detection logs
+    - Assert validation error logs
+  files:
+    - src/common/composition/compiler.test.ts
+  priority: HIGH
+  estimatedHours: 1.5
+  dependencies:
+    - COMP-LOG-101
+    - COMP-LOG-102
+    - COMP-LOG-103
+    - COMP-LOG-104
+    - COMP-LOG-105
+  tags:
+    - testing
+    - compiler
+
+- id: COMP-LOG-602
+  title: Add log assertion tests to executor tests
+  description: |
+    Update executor.test.ts to assert critical logs are called.
+    - Assert execution_started/completed logs
+    - Assert step_started/completed logs
+    - Assert reference resolution logs
+    - Assert condition evaluation logs
+    - Assert tool invocation logs
+  files:
+    - src/common/composition/executor.test.ts
+  priority: HIGH
+  estimatedHours: 1.5
+  dependencies:
+    - COMP-LOG-201
+    - COMP-LOG-204
+    - COMP-LOG-205
+    - COMP-LOG-206
+    - COMP-LOG-207
+  tags:
+    - testing
+    - executor
+
+- id: COMP-LOG-603
+  title: Add log assertion tests to registry tests
+  description: |
+    Update registry.test.ts to assert logs are called.
+    - Assert registration logs
+    - Assert deduplication logs
+    - Assert lookup logs
+  files:
+    - src/common/composition/registry.test.ts
+  priority: MEDIUM
+  estimatedHours: 0.5
+  dependencies:
+    - COMP-LOG-301
+    - COMP-LOG-302
+    - COMP-LOG-304
+  tags:
+    - testing
+    - registry
+
+- id: COMP-LOG-604
+  title: Run full test suite and fix failures
+  description: |
+    Execute npm test and fix any failing tests.
+    - Run npm run build
+    - Run npm test
+    - Fix any TypeScript errors
+    - Fix any test failures
+    - Confirm 100% pass rate
+  files:
+    - "*"
+  priority: CRITICAL
+  estimatedHours: 1.0
+  dependencies:
+    - COMP-LOG-601
+    - COMP-LOG-602
+    - COMP-LOG-603
+  tags:
+    - testing
+    - validation
+
+- id: COMP-LOG-605
+  title: Integration testing in agent-dev environment
+  description: |
+    Deploy changes to agent-dev and test with real compositions.
+    - Provision agent-dev context
+    - Deploy tool-gateway
+    - Register test composition with deliberate errors
+    - Execute composition
+    - Retrieve logs via fleet.logs with TRACE level
+    - Verify log sequence, structured data, correlation IDs
+  files:
+    - N/A (manual testing)
+  priority: HIGH
+  estimatedHours: 2.0
+  dependencies:
+    - COMP-LOG-604
+  tags:
+    - testing
+    - integration
+    - agent-dev
+
+- id: COMP-LOG-606
+  title: Performance testing and optimization
+  description: |
+    Test logging performance impact and optimize if needed.
+    - Execute composition 100 times
+    - Measure p50, p95, p99 latency
+    - Compare with/without TRACE logging
+    - Confirm overhead < 5%
+    - Add conditional logging if needed
+  files:
+    - src/common/composition/*.ts
+  priority: MEDIUM
+  estimatedHours: 1.5
+  dependencies:
+    - COMP-LOG-605
+  tags:
+    - testing
+    - performance
+
+# ============================================================================
+# PHASE 8: Documentation & Cleanup
+# ============================================================================
+# Priority: MEDIUM
+# Estimated: 2 hours
+
+- id: COMP-LOG-701
+  title: Update composition-usage.md with debugging section
+  description: |
+    Add "Debugging Compositions" section to existing guide.
+    - Document log levels and what to expect
+    - Provide example log queries
+    - Link to new debugging guide
+  files:
+    - documentation/guides/composition-usage.md
+  priority: MEDIUM
+  estimatedHours: 0.5
+  dependencies:
+    - COMP-LOG-605
+  tags:
+    - documentation
+
+- id: COMP-LOG-702
+  title: Create debugging-compositions.md guide
+  description: |
+    Create comprehensive debugging guide for compositions.
+    - Document log structure and fields
+    - Provide troubleshooting flowcharts
+    - Include example Loki/CloudWatch queries
+    - List common error patterns and diagnosis steps
+  files:
+    - documentation/guides/debugging-compositions.md
+  priority: MEDIUM
+  estimatedHours: 1.5
+  dependencies:
+    - COMP-LOG-605
+  tags:
+    - documentation
+
+- id: COMP-LOG-703
+  title: Code cleanup and linting
+  description: |
+    Final code cleanup and quality checks.
+    - Remove commented code
+    - Verify consistent log message naming
+    - Verify all logs use structured fields
+    - Run npm run lint
+    - Fix any linting issues
+  files:
+    - src/common/composition/*.ts
+  priority: LOW
+  estimatedHours: 0.5
+  dependencies:
+    - COMP-LOG-604
+  tags:
+    - cleanup
+    - quality
+
+# ============================================================================
+# Summary Statistics
+# ============================================================================
+# Total tasks: 38
+# Total estimated hours: ~35 hours
+# Critical tasks: 8
+# High priority tasks: 14
+# Medium priority tasks: 10
+# Low priority tasks: 6

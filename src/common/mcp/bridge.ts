@@ -67,7 +67,12 @@ export class McpBridge {
             : await this.client.callTool({
                 name: mcpTool.name,
                 arguments: args,
-                _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
+                _meta: context ? {
+                  userRoles: context.userRoles,
+                  userId: context.userId,
+                  correlationId: context.correlationId,
+                  sessionId: context.sessionId,
+                } : undefined
               } as any);
 
           if (result.isError) {
@@ -124,9 +129,14 @@ export class McpBridge {
         if (this.invoker) {
           return await this.invoker.invokeResource(this.serverName, mcpResource.uri, this.client, context, this.invokerOptions);
         }
-        return await this.client.readResource({ 
+        return await this.client.readResource({
           uri: mcpResource.uri,
-          _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
+          _meta: context ? {
+            userRoles: context.userRoles,
+            userId: context.userId,
+            correlationId: context.correlationId,
+            sessionId: context.sessionId,
+          } : undefined
         } as any);
       }
     };
@@ -148,10 +158,15 @@ export class McpBridge {
         if (this.invoker) {
           return await this.invoker.invokePrompt(this.serverName, mcpPrompt.name, args, this.client, context, this.invokerOptions);
         }
-        return await this.client.getPrompt({ 
-          name: mcpPrompt.name, 
+        return await this.client.getPrompt({
+          name: mcpPrompt.name,
           arguments: args,
-          _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
+          _meta: context ? {
+            userRoles: context.userRoles,
+            userId: context.userId,
+            correlationId: context.correlationId,
+            sessionId: context.sessionId,
+          } : undefined
         } as any);
       }
     };

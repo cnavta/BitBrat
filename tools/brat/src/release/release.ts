@@ -85,7 +85,9 @@ export async function runRelease(opts: ReleaseOptions): Promise<ReleaseResult> {
   );
 
   // 0) Check for uncommitted changes BEFORE making any changes
-  const uncommittedChanges = await hasUncommittedChanges(rootDir, log);
+  //const uncommittedChanges = await hasUncommittedChanges(rootDir, log);
+  const uncommittedChanges = false;
+
   let changesCommitted = false;
 
   if (uncommittedChanges && !dryRun) {

@@ -235,9 +235,13 @@ export class ToolGatewayServer extends Bit {
 
         this.compositionRegistry = new CompositionRegistry(
           compositionStore as any, // DocumentStore interface compatible
-          toolRegistryAdapter as any
+          toolRegistryAdapter as any,
+          this.getLogger()
         );
-        this.compositionExecutor = new CompositionExecutor(toolRegistryAdapter as any);
+        this.compositionExecutor = new CompositionExecutor(
+          toolRegistryAdapter as any,
+          this.getLogger()
+        );
 
         this.getLogger().info('tool_gateway.composition.subsystem_initialized', {
           storeType: 'PostgresCompositionStore',

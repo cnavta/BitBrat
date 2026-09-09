@@ -18,6 +18,7 @@ import {
 } from './registry';
 import { ToolRegistryInterface } from './compiler';
 import { CompositionDefinition } from './types';
+import type { Logger } from '../logging';
 
 // Mock DocumentStore
 class MockDocumentStore implements DocumentStore {
@@ -91,15 +92,28 @@ class MockToolRegistry implements ToolRegistryInterface {
   }
 }
 
+// Mock Logger
+const createMockLogger = (): Logger => ({
+  info: jest.fn(),
+  debug: jest.fn(),
+  trace: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  fatal: jest.fn(),
+  child: jest.fn(() => createMockLogger()),
+} as unknown as Logger);
+
 describe('CompositionRegistry', () => {
   let registry: CompositionRegistry;
   let store: MockDocumentStore;
   let toolRegistry: MockToolRegistry;
+  let mockLogger: Logger;
 
   beforeEach(() => {
     store = new MockDocumentStore();
     toolRegistry = new MockToolRegistry();
-    registry = new CompositionRegistry(store, toolRegistry);
+    mockLogger = createMockLogger();
+    registry = new CompositionRegistry(store, toolRegistry, mockLogger);
 
     // Add mock tools
     toolRegistry.addTool('test.echo', { type: 'object' });
@@ -505,8 +519,6 @@ describe('CompositionRegistry', () => {
     });
 
     test('skips invalid compositions with error logging', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-
       const validDef = createDefinition('valid_composition', [
         { id: 'step1', call: 'test.echo' },
       ]);
@@ -539,15 +551,14 @@ describe('CompositionRegistry', () => {
       expect(records).toHaveLength(1);
       expect(records[0].name).toBe('valid_composition');
 
-      // Should log error for invalid composition
-      expect(consoleSpy).toHaveBeenCalled();
-      const errorCall = consoleSpy.mock.calls.find((call) =>
-        call[0].includes('Failed to compile composition')
+      // Should log error for invalid composition using logger (not console)
+      expect(mockLogger.error).toHaveBeenCalled();
+      const errorCalls = (mockLogger.error as jest.Mock).mock.calls;
+      const compilationErrorCall = errorCalls.find((call) =>
+        call[0] === 'registry_list_compilation_failed'
       );
-      expect(errorCall).toBeDefined();
-      expect(errorCall![0]).toContain('invalid_composition');
-
-      consoleSpy.mockRestore();
+      expect(compilationErrorCall).toBeDefined();
+      expect(compilationErrorCall![1].composition).toBe('invalid_composition');
     });
 
     test('preserves all CompositionRecord fields', async () => {

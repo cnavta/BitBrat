@@ -10,6 +10,7 @@
  * @module composition/executor.test
  */
 
+import type { Logger } from '../logging';
 import { CompositionExecutor, ToolRegistryInterface, ExecutionError } from './executor';
 import {
   CompiledComposition,
@@ -17,6 +18,17 @@ import {
   ExecutionStatus,
   CompositionErrorCode,
 } from './types';
+
+// Mock Logger
+const createMockLogger = (): Logger => ({
+  info: jest.fn(),
+  debug: jest.fn(),
+  trace: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  fatal: jest.fn(),
+  child: jest.fn(() => createMockLogger()),
+} as unknown as Logger);
 
 // Mock ToolRegistry
 class MockToolRegistry implements ToolRegistryInterface {
@@ -59,7 +71,8 @@ describe('CompositionExecutor', () => {
 
   beforeEach(() => {
     registry = new MockToolRegistry();
-    executor = new CompositionExecutor(registry);
+    const mockLogger = createMockLogger();
+    executor = new CompositionExecutor(registry, mockLogger);
   });
 
   // Helper to create minimal compiled composition

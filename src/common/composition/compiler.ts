@@ -10,6 +10,7 @@
  */
 
 import { createHash } from 'crypto';
+import type { Logger } from '../logging';
 import {
   CompositionDefinition,
   CompiledComposition,
@@ -56,12 +57,15 @@ export interface ToolRegistryInterface {
  *
  * @example
  * ```typescript
- * const compiler = new CompositionCompiler(toolRegistry);
+ * const compiler = new CompositionCompiler(toolRegistry, logger);
  * const compiled = compiler.compile(definition);
  * ```
  */
 export class CompositionCompiler {
-  constructor(private registry: ToolRegistryInterface) {}
+  constructor(
+    private registry: ToolRegistryInterface,
+    private logger: Logger
+  ) {}
 
   /**
    * Compile a composition definition
@@ -71,37 +75,74 @@ export class CompositionCompiler {
    * @throws Error if validation fails
    */
   compile(def: CompositionDefinition): CompiledComposition {
-    // Validate composition
-    const report = this.validate(def);
+    const compositionName = def.metadata.name;
+    const stepCount = def.spec.steps.length;
 
-    if (!report.valid) {
-      const errorList = report.errors
-        .map((e) => `  ${e.code}: ${e.message}${e.location ? ` (at ${e.location})` : ''}`)
-        .join('\n');
+    this.logger.debug('compilation_started', {
+      composition: compositionName,
+      stepCount,
+      description: def.metadata.description,
+    });
 
-      throw new Error(
-        `Composition validation failed:\n${errorList}`
-      );
+    try {
+      // Validate composition
+      const report = this.validate(def);
+
+      if (!report.valid) {
+        const errorList = report.errors
+          .map((e) => `  ${e.code}: ${e.message}${e.location ? ` (at ${e.location})` : ''}`)
+          .join('\n');
+
+        this.logger.error('compilation_failed_validation', {
+          composition: compositionName,
+          errorCount: report.errors.length,
+          warningCount: report.warnings.length,
+          errors: report.errors.map(e => ({ code: e.code, message: e.message, location: e.location })),
+        });
+
+        throw new Error(
+          `Composition validation failed:\n${errorList}`
+        );
+      }
+
+      // Resolve dependencies
+      const dependencies = this.resolveDependencies(def);
+
+      // Compute content hash
+      const contentHash = this.computeHash(def);
+
+      const compiled: CompiledComposition = {
+        id: '', // Will be assigned by registry
+        metadata: {
+          ...def.metadata,
+          version: def.metadata.version || 1,
+        },
+        spec: def.spec,
+        compiledAt: new Date(),
+        contentHash,
+        dependencies,
+        validationReport: report,
+      };
+
+      this.logger.info('compilation_succeeded', {
+        composition: compositionName,
+        contentHash,
+        dependencyCount: dependencies.length,
+        warningCount: report.warnings.length,
+      });
+
+      return compiled;
+    } catch (err) {
+      // Only log if not already logged (avoid duplicate logging for validation errors)
+      if (!(err instanceof Error && err.message.includes('Composition validation failed'))) {
+        this.logger.error('compilation_failed_unexpected', {
+          composition: compositionName,
+          error: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+        });
+      }
+      throw err;
     }
-
-    // Resolve dependencies
-    const dependencies = this.resolveDependencies(def);
-
-    // Compute content hash
-    const contentHash = this.computeHash(def);
-
-    return {
-      id: '', // Will be assigned by registry
-      metadata: {
-        ...def.metadata,
-        version: def.metadata.version || 1,
-      },
-      spec: def.spec,
-      compiledAt: new Date(),
-      contentHash,
-      dependencies,
-      validationReport: report,
-    };
   }
 
   /**
@@ -116,11 +157,28 @@ export class CompositionCompiler {
    * @returns Validation report
    */
   validate(def: CompositionDefinition): ValidationReport {
+    const compositionName = def.metadata.name;
+
+    this.logger.debug('validation_started', {
+      composition: compositionName,
+      stepCount: def.spec.steps.length,
+    });
+
     const errors: ValidationError[] = [];
     const warnings: ValidationWarning[] = [];
 
     // 1. Validate tool dependencies
+    this.logger.trace('validation_step_tools_started', {
+      composition: compositionName,
+    });
+
     const toolIds = this.extractToolIds(def);
+    this.logger.debug('validation_tools_extracted', {
+      composition: compositionName,
+      toolCount: toolIds.length,
+      tools: toolIds,
+    });
+
     for (const toolId of toolIds) {
       // Sprint 41: Use findTool() to handle both canonical and MCP-prefixed lookups
       const tool = this.findTool(toolId);
@@ -141,6 +199,12 @@ export class CompositionCompiler {
           message = `Tool not found: ${toolId}. Use 'composition.list_tools' to see all available tools.`;
         }
 
+        this.logger.warn('validation_tool_not_found', {
+          composition: compositionName,
+          toolId,
+          suggestion: message,
+        });
+
         errors.push({
           code: CompositionErrorCode.TOOL_NOT_FOUND,
           message,
@@ -150,6 +214,11 @@ export class CompositionCompiler {
 
       // Sprint 41: Warn about mcp_ prefix even if tool exists (shouldn't happen, but defensive)
       if (toolId.startsWith('mcp_') && tool) {
+        this.logger.debug('validation_tool_prefix_warning', {
+          composition: compositionName,
+          toolId,
+        });
+
         warnings.push({
           code: 'COMPOSE-WARN-001',
           message: `Tool ID '${toolId}' uses 'mcp_' prefix. Consider using canonical ID without prefix for consistency.`,
@@ -159,8 +228,17 @@ export class CompositionCompiler {
     }
 
     // 2. Detect circular dependencies
+    this.logger.trace('validation_step_cycles_started', {
+      composition: compositionName,
+    });
+
     const cycles = this.detectCycles(def);
     if (cycles.length > 0) {
+      this.logger.warn('validation_circular_dependency_detected', {
+        composition: compositionName,
+        cycle: cycles.join(' → '),
+      });
+
       errors.push({
         code: CompositionErrorCode.CIRCULAR_DEPENDENCY,
         message: `Circular dependency detected: ${cycles.join(' → ')}`,
@@ -168,19 +246,50 @@ export class CompositionCompiler {
     }
 
     // 3. Validate references
+    this.logger.trace('validation_step_references_started', {
+      composition: compositionName,
+    });
+
     const refErrors = this.validateReferences(def);
+    if (refErrors.length > 0) {
+      this.logger.debug('validation_reference_errors', {
+        composition: compositionName,
+        errorCount: refErrors.length,
+        errors: refErrors.map(e => ({ code: e.code, message: e.message, location: e.location })),
+      });
+    }
     errors.push(...refErrors);
 
     // 4. Validate template expressions
+    this.logger.trace('validation_step_templates_started', {
+      composition: compositionName,
+    });
+
     const { errors: templateErrors, warnings: templateWarnings } = this.validateTemplates(def);
+    if (templateErrors.length > 0 || templateWarnings.length > 0) {
+      this.logger.debug('validation_template_issues', {
+        composition: compositionName,
+        errorCount: templateErrors.length,
+        warningCount: templateWarnings.length,
+      });
+    }
     errors.push(...templateErrors);
     warnings.push(...templateWarnings);
 
-    return {
+    const report = {
       valid: errors.length === 0,
       errors,
       warnings,
     };
+
+    this.logger.debug('validation_completed', {
+      composition: compositionName,
+      valid: report.valid,
+      errorCount: errors.length,
+      warningCount: warnings.length,
+    });
+
+    return report;
   }
 
   /**
@@ -248,10 +357,17 @@ export class CompositionCompiler {
    * @returns Array representing cycle path, or empty if no cycle
    */
   private detectCycles(def: CompositionDefinition): string[] {
+    const compositionName = def.metadata.name;
+
+    this.logger.trace('cycle_detection_started', {
+      composition: compositionName,
+    });
+
     // Build dependency graph
     const graph: Map<string, string[]> = new Map();
     graph.set(def.metadata.name, []);
 
+    let compositionCallCount = 0;
     for (const step of def.spec.steps) {
       if (isCallStep(step)) {
         // Sprint 41: Use findTool() to handle canonical IDs
@@ -262,9 +378,22 @@ export class CompositionCompiler {
           const deps = graph.get(def.metadata.name) || [];
           deps.push(step.call);
           graph.set(def.metadata.name, deps);
+          compositionCallCount++;
+
+          this.logger.trace('cycle_detection_composition_edge', {
+            composition: compositionName,
+            callsComposition: step.call,
+            stepId: step.id,
+          });
         }
       }
     }
+
+    this.logger.debug('cycle_detection_graph_built', {
+      composition: compositionName,
+      compositionCallCount,
+      graphSize: graph.size,
+    });
 
     // DFS cycle detection
     const visited = new Set<string>();
@@ -275,6 +404,13 @@ export class CompositionCompiler {
       // Cycle detected
       if (recursionStack.has(node)) {
         cyclePath.push(node);
+
+        this.logger.warn('cycle_detection_cycle_found', {
+          composition: compositionName,
+          cycleNode: node,
+          recursionStack: Array.from(recursionStack),
+        });
+
         return true;
       }
 
@@ -300,8 +436,20 @@ export class CompositionCompiler {
 
     if (dfs(def.metadata.name)) {
       cyclePath.reverse();
+
+      this.logger.error('cycle_detection_circular_dependency', {
+        composition: compositionName,
+        cyclePath,
+        cycleString: cyclePath.join(' → '),
+      });
+
       return cyclePath;
     }
+
+    this.logger.debug('cycle_detection_no_cycles', {
+      composition: compositionName,
+      nodesVisited: visited.size,
+    });
 
     return [];
   }
@@ -686,19 +834,52 @@ export class CompositionCompiler {
    * Builds list of ToolDependency records with schema fingerprints
    */
   private resolveDependencies(def: CompositionDefinition): ToolDependency[] {
+    const compositionName = def.metadata.name;
+
+    this.logger.trace('dependency_resolution_started', {
+      composition: compositionName,
+    });
+
     const toolIds = this.extractToolIds(def);
     const dependencies: ToolDependency[] = [];
+
+    this.logger.debug('dependency_resolution_tools', {
+      composition: compositionName,
+      toolCount: toolIds.length,
+      tools: toolIds,
+    });
 
     for (const toolId of toolIds) {
       // Sprint 41: Use findTool() to handle canonical IDs
       const tool = this.findTool(toolId);
       if (tool) {
+        const schemaFingerprint = this.hashSchema(tool.inputSchema || {});
+
+        this.logger.trace('dependency_resolved', {
+          composition: compositionName,
+          toolId,
+          schemaFingerprint,
+          hasInputSchema: !!tool.inputSchema,
+        });
+
         dependencies.push({
           toolId,
-          schemaFingerprint: this.hashSchema(tool.inputSchema || {}),
+          schemaFingerprint,
+        });
+      } else {
+        // Tool not found - should have been caught in validation
+        this.logger.warn('dependency_resolution_tool_missing', {
+          composition: compositionName,
+          toolId,
+          note: 'Tool not found during dependency resolution (should have been caught in validation)',
         });
       }
     }
+
+    this.logger.debug('dependency_resolution_completed', {
+      composition: compositionName,
+      dependencyCount: dependencies.length,
+    });
 
     return dependencies;
   }

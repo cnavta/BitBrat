@@ -1,0 +1,347 @@
+# Sprint 38 Backlog: Fix Dev MCP Tools Schema Validation
+# Sprint ID: sprint-38-wwlvmg
+# Goal: Fix JSON Schema validation errors preventing bitbrat-dev MCP tools from registering in Claude Code
+
+sprint:
+  id: sprint-38-wwlvmg
+  title: Fix Dev MCP Tools Schema Validation
+  goal: Fix JSON Schema validation errors preventing bitbrat-dev MCP tools from registering in Claude Code
+  owner: christophernavta
+  status: planning
+  estimated_hours: 3
+
+# Task Priority Levels:
+# - P0: Blocking, must complete for sprint success
+# - P1: High priority, core functionality
+# - P2: Medium priority, enhancements
+# - P3: Low priority, nice-to-have
+
+tasks:
+  # ============================================================================
+  # PHASE 1: INVESTIGATION (15 min)
+  # ============================================================================
+
+  - id: investigate-mcp-schema-support
+    title: Investigate MCP v2 Native Zod Support
+    priority: P0
+    status: pending
+    estimated_minutes: 15
+    description: |
+      Determine if @modelcontextprotocol/server@2.0.0 accepts Zod schemas
+      directly via Standard Schema v1, eliminating need for conversion.
+    acceptance_criteria:
+      - Read MCP v2 type definitions for Tool.inputSchema
+      - Check if Standard Schema v1 supports Zod natively
+      - Document findings in request-log.md
+      - Make go/no-go decision on manual conversion
+    files:
+      - node_modules/@modelcontextprotocol/server/dist/*.d.mts (READ)
+      - planning/sprint-38-wwlvmg/request-log.md (UPDATE)
+    next_task: implement-schema-conversion OR integrate-native-zod
+
+  # ============================================================================
+  # PHASE 2A: IMPLEMENTATION - Manual Conversion Path (if MCP doesn't support Zod)
+  # ============================================================================
+
+  - id: implement-schema-conversion
+    title: Implement Manual Zod to JSON Schema Converter
+    priority: P0
+    status: pending
+    estimated_minutes: 90
+    description: |
+      Create custom Zod→JSON Schema converter compatible with Zod v4.5.2
+      and Claude Code's validation requirements.
+    depends_on:
+      - investigate-mcp-schema-support
+    acceptance_criteria:
+      - Create tools/brat/src/dev-mcp/zod-schema-converter.ts
+      - Support z.object() with type: "object" at root
+      - Support z.string(), z.number(), z.boolean()
+      - Support z.optional() with proper required array
+      - Support z.enum() and z.array()
+      - Handle .describe() → description mapping
+      - All conversions produce valid JSON Schema Draft 7
+    files:
+      - tools/brat/src/dev-mcp/zod-schema-converter.ts (CREATE)
+    next_task: update-tool-router-manual
+
+  - id: update-tool-router-manual
+    title: Update ToolRouter to Use Manual Converter
+    priority: P0
+    status: pending
+    estimated_minutes: 15
+    description: |
+      Replace zodToJsonSchema import with custom converter.
+    depends_on:
+      - implement-schema-conversion
+    acceptance_criteria:
+      - Replace import in tool-router.ts
+      - Update listTools() to use new converter
+      - Remove zod-to-json-schema dependency (future PR)
+      - TypeScript compiles without errors
+    files:
+      - tools/brat/src/dev-mcp/tool-router.ts (MODIFY)
+    next_task: write-converter-tests
+
+  - id: write-converter-tests
+    title: Write Unit Tests for Schema Converter
+    priority: P1
+    status: pending
+    estimated_minutes: 30
+    description: |
+      Comprehensive tests for Zod→JSON Schema conversion.
+    depends_on:
+      - implement-schema-conversion
+    acceptance_criteria:
+      - Create zod-schema-converter.test.ts
+      - Test z.object() → type: "object"
+      - Test required vs optional fields
+      - Test primitive types (string, number, boolean)
+      - Test descriptions
+      - Test nested objects (if supported)
+      - All tests pass
+    files:
+      - tools/brat/src/dev-mcp/zod-schema-converter.test.ts (CREATE)
+    next_task: integration-test-all-tools
+
+  # ============================================================================
+  # PHASE 2B: IMPLEMENTATION - Native Zod Path (if MCP supports it)
+  # ============================================================================
+
+  - id: integrate-native-zod
+    title: Integrate MCP Native Zod Support
+    priority: P0
+    status: pending
+    estimated_minutes: 30
+    description: |
+      Remove zodToJsonSchema conversion and pass Zod schemas directly to MCP.
+    depends_on:
+      - investigate-mcp-schema-support
+    acceptance_criteria:
+      - Remove zodToJsonSchema import from tool-router.ts
+      - Pass def.inputSchema directly in listTools()
+      - Update types if needed
+      - TypeScript compiles without errors
+    files:
+      - tools/brat/src/dev-mcp/tool-router.ts (MODIFY)
+      - tools/brat/src/dev-mcp/types.ts (MODIFY if needed)
+    next_task: integration-test-all-tools
+
+  # ============================================================================
+  # PHASE 3: TESTING (45 min)
+  # ============================================================================
+
+  - id: integration-test-all-tools
+    title: Integration Test - All 15 Tools
+    priority: P0
+    status: pending
+    estimated_minutes: 15
+    description: |
+      Verify all 15 dev-mcp tools register without schema errors.
+    depends_on:
+      - update-tool-router-manual OR integrate-native-zod
+    acceptance_criteria:
+      - Restart dev-mcp server (npm run brat dev-mcp start --context staging)
+      - Check ~/.claude/debug/latest for errors
+      - Verify NO "Failed to fetch tools" errors
+      - Verify NO "invalid_literal" / "expected object" errors
+      - Confirm all 15 tools listed in Claude Code
+    verification:
+      - grep "Failed to fetch tools" ~/.claude/debug/latest (should be empty)
+      - Count tools in Claude Code UI (should be 15)
+    files:
+      - ~/.claude/debug/latest (CHECK)
+      - .brat/dev-mcp-audit.log (CHECK)
+    next_task: functional-test-tools
+
+  - id: functional-test-tools
+    title: Functional Test - Tool Execution
+    priority: P1
+    status: pending
+    estimated_minutes: 20
+    description: |
+      Test representative tools from each category to verify execution works.
+    depends_on:
+      - integration-test-all-tools
+    acceptance_criteria:
+      - Test config.show() → returns architecture.yaml
+      - Test db.query() → returns database results
+      - Test fleet.info() → returns service info
+      - Test agent_dev.provision() → creates context (or error if exists)
+      - All tools execute without schema errors
+      - Audit log shows successful executions
+    verification:
+      - Check .brat/dev-mcp-audit.log for success: true
+    files:
+      - .brat/dev-mcp-audit.log (CHECK)
+    next_task: verify-no-regressions
+
+  - id: verify-no-regressions
+    title: Verify No Regressions in Existing Functionality
+    priority: P1
+    status: pending
+    estimated_minutes: 10
+    description: |
+      Ensure fix doesn't break existing MCP tool functionality.
+    depends_on:
+      - functional-test-tools
+    acceptance_criteria:
+      - sprint-mcp-local tools still work (test check-sprint-status)
+      - Dev-mcp server starts/stops cleanly
+      - No new errors in debug logs
+      - Existing tool calls in audit log still succeed
+    verification:
+      - Test mcp__sprint-mcp-local__check-sprint-status
+      - Verify no ERROR logs in ~/.claude/debug/latest
+    files:
+      - ~/.claude/debug/latest (CHECK)
+    next_task: write-verification-report
+
+  # ============================================================================
+  # PHASE 4: DOCUMENTATION & VALIDATION (15 min)
+  # ============================================================================
+
+  - id: write-verification-report
+    title: Write Verification Report
+    priority: P1
+    status: pending
+    estimated_minutes: 15
+    description: |
+      Document test results and validation steps.
+    depends_on:
+      - verify-no-regressions
+    acceptance_criteria:
+      - Create planning/sprint-38-wwlvmg/verification-report.md
+      - Document all 15 tools confirmed working
+      - Include before/after debug log snippets
+      - List all tests performed with results
+      - Confirm success criteria met
+    files:
+      - planning/sprint-38-wwlvmg/verification-report.md (CREATE)
+    next_task: update-request-log
+
+  - id: update-request-log
+    title: Update Request Log with Final Decisions
+    priority: P2
+    status: pending
+    estimated_minutes: 10
+    description: |
+      Document key decisions made during implementation.
+    depends_on:
+      - write-verification-report
+    acceptance_criteria:
+      - Update planning/sprint-38-wwlvmg/request-log.md
+      - Document MCP native Zod support decision
+      - Document any deviations from plan
+      - Document lessons learned
+    files:
+      - planning/sprint-38-wwlvmg/request-log.md (UPDATE)
+    next_task: null
+
+  # ============================================================================
+  # OPTIONAL: ENHANCEMENTS (If time permits)
+  # ============================================================================
+
+  - id: add-schema-validation-tests
+    title: Add Automated Schema Validation Tests
+    priority: P3
+    status: pending
+    estimated_minutes: 30
+    description: |
+      Create automated tests to prevent future schema regressions.
+    depends_on:
+      - integration-test-all-tools
+    acceptance_criteria:
+      - Create tool-router.test.ts
+      - Test listTools() returns valid Tool[] array
+      - Test each tool has inputSchema with type: "object"
+      - Test schema properties match Zod definitions
+      - Mock ToolDefinition for repeatability
+    files:
+      - tools/brat/src/dev-mcp/tool-router.test.ts (CREATE)
+    next_task: null
+
+  - id: document-tool-creation-guide
+    title: Document Best Practices for Creating Dev-MCP Tools
+    priority: P3
+    status: pending
+    estimated_minutes: 20
+    description: |
+      Create guide to prevent similar issues in future.
+    depends_on:
+      - write-verification-report
+    acceptance_criteria:
+      - Create tools/brat/src/dev-mcp/README.md
+      - Document Zod schema requirements
+      - Provide tool creation examples
+      - List common pitfalls
+      - Include testing checklist
+    files:
+      - tools/brat/src/dev-mcp/README.md (CREATE)
+    next_task: null
+
+# ============================================================================
+# TASK SUMMARY
+# ============================================================================
+
+summary:
+  total_tasks: 13
+  p0_tasks: 5  # Must complete for success
+  p1_tasks: 5  # Should complete for quality
+  p2_tasks: 1  # Nice to have
+  p3_tasks: 2  # Enhancements
+
+  estimated_hours: 3.0
+
+  critical_path:
+    - investigate-mcp-schema-support
+    - implement-schema-conversion OR integrate-native-zod
+    - integration-test-all-tools
+    - functional-test-tools
+    - verify-no-regressions
+    - write-verification-report
+
+  success_criteria:
+    - All 15 tools appear in Claude Code
+    - No schema validation errors in debug logs
+    - Tools execute successfully
+    - No regressions in existing functionality
+    - Verification report documents success
+
+# ============================================================================
+# RISK TRACKING
+# ============================================================================
+
+risks:
+  - risk: MCP doesn't support native Zod
+    impact: Medium
+    likelihood: Medium
+    mitigation: Fallback to manual conversion (already planned)
+
+  - risk: Manual converter misses edge cases
+    impact: Low
+    likelihood: Medium
+    mitigation: Start with common types, iterate as needed
+
+  - risk: Claude Code changes validation rules
+    impact: High
+    likelihood: Low
+    mitigation: Document exact validation requirements
+
+  - risk: Breaking changes to tool handlers
+    impact: High
+    likelihood: Low
+    mitigation: Preserve handler signatures, only modify schema conversion
+
+# ============================================================================
+# DEPENDENCIES
+# ============================================================================
+
+dependencies:
+  external: []
+  internal:
+    - zod@4.5.2 (must maintain compatibility)
+    - "@modelcontextprotocol/server@2.0.0" (no upgrades)
+
+  blocked_by: []
+  blocks: []

@@ -787,13 +787,32 @@ export async function processEvent(
             description: tool.description,
             inputSchema: tool.inputSchema,
             execute: tool.execute ? async (args: any) => {
+              const startTime = Date.now();
               try {
-                logger.debug(`llm_bot.tool_call.${name}`, { tool: tool.id});
+                logger.debug(`llm_bot.tool_call.${name}`, {
+                  tool: tool.id,
+                  correlationId: toolContext.correlationId,
+                  userId: toolContext.userId,
+                });
                 const resp = await tool.execute!(args, toolContext);
-                logger?.debug(`llm_bot.tool_call.${name}.success`, { tool: tool.id });
+                const duration = Date.now() - startTime;
+                logger?.debug(`llm_bot.tool_call.${name}.success`, {
+                  tool: tool.id,
+                  correlationId: toolContext.correlationId,
+                  userId: toolContext.userId,
+                  duration,
+                });
                 return resp;
               } catch (e: any) {
-                logger.error('llm_bot.tool_error', { tool: tool.id, error: e.message });
+                const duration = Date.now() - startTime;
+                logger.error('llm_bot.tool_error', {
+                  tool: tool.id,
+                  correlationId: toolContext.correlationId,
+                  userId: toolContext.userId,
+                  duration,
+                  error: e.message,
+                  stack: e.stack,
+                });
                 if (!Array.isArray(evt.errors)) evt.errors = [];
                 evt.errors.push({
                   source: tool.source === 'mcp' ? `mcp:${tool.id}` : tool.source,
