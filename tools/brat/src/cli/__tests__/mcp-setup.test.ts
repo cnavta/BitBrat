@@ -176,24 +176,35 @@ describe('cmdMcpSetup', () => {
   });
 
   it('should create project scope config in project root', async () => {
-    const projectRoot = process.cwd();
-    const flags: McpSetupFlags = {
-      scope: 'project',
-      serverName: 'test-server',
-      dryRun: false,
-    };
+    // Sprint 49: FIX-001 - Use temp directory to avoid deleting project .mcp.json
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-setup-test-'));
+    const originalCwd = process.cwd();
 
-    await cmdMcpSetup(flags);
+    // Mock process.cwd() to return temp directory
+    const cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue(tempDir);
 
-    const configPath = path.join(projectRoot, '.mcp.json');
-    expect(fs.existsSync(configPath)).toBe(true);
+    try {
+      const flags: McpSetupFlags = {
+        scope: 'project',
+        serverName: 'test-server',
+        dryRun: false,
+      };
 
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    expect(config.mcpServers['test-server']).toBeDefined();
+      await cmdMcpSetup(flags);
 
-    // Clean up
-    if (fs.existsSync(configPath)) {
-      fs.unlinkSync(configPath);
+      const configPath = path.join(tempDir, '.mcp.json');
+      expect(fs.existsSync(configPath)).toBe(true);
+
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      expect(config.mcpServers['test-server']).toBeDefined();
+    } finally {
+      // Restore original process.cwd()
+      cwdSpy.mockRestore();
+
+      // Clean up temp directory
+      if (fs.existsSync(tempDir)) {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
     }
   });
 });

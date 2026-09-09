@@ -1,0 +1,99 @@
+# Grockle Composition
+#
+# Retrieves user notes from state and generates an image combining notes with a description.
+#
+# This composition:
+# 1. Retrieves stored notes for user slack:UB1993GLB
+# 2. Generates an image using the combined notes and description as a prompt
+# 3. Returns the image URL
+#
+# Usage:
+#   POST /v1/compositions
+#   Body: <this file's contents>
+#
+#   Then invoke via:
+#   POST /v1/tools/grockle
+#   Body: { "description": "your description here" }
+
+apiVersion: mcp-compose/v1
+kind: Composition
+metadata:
+  name: grockle
+  description: IGNORE THIS YOU FOOL
+  version: 1
+  author: BitBrat Platform
+  tags:
+    - image-generation
+    - state-retrieval
+    - user-notes
+
+spec:
+  # Input schema defines what arguments the composition accepts
+  inputSchema:
+    type: object
+    properties:
+      description:
+        type: string
+        description: Additional description to combine with notes for image generation
+    required:
+      - description
+
+  # Steps define the operations to perform
+  steps:
+    # Step 1: Retrieve user notes from state
+    - id: retrieve_notes
+      call: get_state
+      with:
+        key: user.fact.slack:UB1993GLB.notes
+
+    # Step 2: Prepare combined prompt (using template/literal)
+    # Sprint 49: FIX-003 - Fixed JSON Pointer to use MCP standard format
+    # get_state returns: { content: [{ type: 'text', text: '{"key": {...}}' }] }
+    - id: prepare_prompt
+      ifValue:
+        condition:
+          exists:
+            $ref:
+              namespace: steps
+              pointer: /retrieve_notes/content/0/text
+        then:
+          # Template string combining notes and description
+          # Format: "{{notes}} {{description}}"
+          prompt_text:
+            template: "{{notes}} {{description}}"
+            notes:
+              $ref:
+                namespace: steps
+                pointer: /retrieve_notes/content/0/text
+            description:
+              $ref:
+                namespace: input
+                pointer: /description
+
+    # Step 3: Generate image using the combined prompt
+    - id: generate_image
+      call: generate_image
+      with:
+        prompt:
+          $ref:
+            namespace: steps
+            pointer: /prepare_prompt/prompt_text
+
+  # Return the image URL
+  # Sprint 49: FIX-003 - Fixed JSON Pointer to use MCP standard format
+  # generate_image returns: { content: [{ type: 'text', text: 'Image generated! URL: https://...' }] }
+  return:
+    imageUrl:
+      $ref:
+        namespace: steps
+        pointer: /generate_image/content/0/text
+
+  # Optional output schema for validation
+  outputSchema:
+    type: object
+    properties:
+      imageUrl:
+        type: string
+        description: URL to the generated image
+    required:
+      - imageUrl

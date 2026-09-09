@@ -1,0 +1,10 @@
+id: sprint-49-sukph3
+title: Platform Cleanup & Bug Fixes
+goal: Fix .mcp.json test deletion, composition immediate visibility after
+  deploy, and grockle composition execution error
+owner: christophernavta
+createdAt: 2026-09-09T14:06:35.889Z
+status: in-progress
+links:
+  branch: feature/sprint-49-sukph3-platform-cleanup-bug-fixes
+notes: Sprint initialized via MCP start-sprint tool

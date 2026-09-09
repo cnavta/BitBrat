@@ -174,7 +174,18 @@ export class CompositionWatcher {
       }
     };
 
-    // Set up polling interval
+    // Sprint 49: FIX-002 - Execute immediate poll on start
+    // This ensures compositions are visible to llm-bot within seconds of deployment
+    // instead of waiting for the first 30-second interval
+    poll().catch((error) => {
+      this.logger.error('composition_watcher.initial_poll_error', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      // Fail-open: Initial poll errors don't prevent watcher from starting
+    });
+
+    // Set up polling interval (starts after initial poll completes)
     const intervalId = setInterval(poll, pollInterval);
 
     // Create unsubscribe function
