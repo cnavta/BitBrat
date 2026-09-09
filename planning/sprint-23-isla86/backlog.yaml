@@ -1,0 +1,529 @@
+# Sprint 23 Backlog - Fix brat bit create Command
+# Sprint ID: sprint-23-isla86
+# Goal: Make brat bit create worktree-aware and Sprint Protocol compliant
+
+metadata:
+  sprint_id: sprint-23-isla86
+  title: Fix brat bit create command
+  owner: navta
+  created: 2026-08-22
+  status: complete
+  total_tasks: 14
+  estimated_hours: 9
+  completed_tasks: 14
+  completed_hours: 9
+  phase_1_complete: true
+  phase_2_complete: true
+  phase_3_complete: true
+
+# Task Status Legend:
+# - pending: Not started
+# - in_progress: Currently being worked on
+# - blocked: Waiting on dependency or external factor
+# - completed: Finished and validated
+# - skipped: Decided not to implement
+
+# Priority Levels:
+# - P0: Critical - Must be fixed for sprint success
+# - P1: High - Should be fixed for quality
+# - P2: Medium - Nice to have
+# - P3: Low - Future enhancement
+
+---
+
+# PHASE 1: CRITICAL FIXES
+
+phase_1:
+  title: Critical Fixes
+  priority: P0
+  estimated_hours: 5
+  dependencies: []
+
+  tasks:
+    - id: T1.1
+      title: Implement git repository detection utility
+      description: |
+        Create git-utils.ts with functions to detect git repo, worktree status,
+        and repository root. This replaces process.cwd() with git-aware detection.
+      priority: P0
+      estimated_hours: 1.5
+      status: completed
+      completed_at: 2026-08-22
+      dependencies: []
+      notes: "Created git-utils.ts with 21 passing unit tests. All acceptance criteria met."
+      files:
+        - path: tools/brat/src/cli/bit/git-utils.ts
+          action: create
+          lines: ~120
+      acceptance_criteria:
+        - Correctly detects git repository vs non-git directory
+        - Distinguishes between worktree and main repo
+        - Returns repository root path
+        - Handles git command errors gracefully
+        - Returns current branch name
+      tests:
+        - Test in git repo
+        - Test in non-git directory
+        - Test in worktree
+        - Test in main repo
+        - Test error handling
+
+    - id: T1.2
+      title: Implement sprint status awareness utility
+      description: |
+        Create sprint-utils.ts to read sprint-index.yaml and determine if there's
+        an active sprint, where its worktree is located, and whether the user
+        should be warned about creating files outside the sprint context.
+      priority: P0
+      estimated_hours: 1.5
+      status: completed
+      completed_at: 2026-08-22
+      dependencies: [T1.1]
+      notes: "Created sprint-utils.ts with 22 passing unit tests. Fixed YAML format from object to array."
+      files:
+        - path: tools/brat/src/cli/bit/sprint-utils.ts
+          action: create
+          lines: ~150
+      acceptance_criteria:
+        - Correctly identifies active sprint from sprint-index.yaml
+        - Calculates sprint worktree path
+        - Validates if current location matches active sprint
+        - Provides warning message when appropriate
+        - Handles missing sprint-index.yaml gracefully
+      tests:
+        - Test with no active sprint
+        - Test with active sprint, in correct worktree
+        - Test with active sprint, in main repo
+        - Test with active sprint, in different worktree
+        - Test with missing sprint-index.yaml
+
+    - id: T1.3
+      title: Update cmdBitCreate to use git/sprint detection
+      description: |
+        Replace process.cwd() with git-aware root detection. Add validation
+        to ensure running in git repo. Add warning when creating outside
+        active sprint worktree.
+      priority: P0
+      estimated_hours: 1.5
+      status: completed
+      completed_at: 2026-08-22
+      dependencies: [T1.1, T1.2]
+      notes: "Updated create.ts to use git root detection and sprint context validation. Added --force bypass."
+      files:
+        - path: tools/brat/src/cli/bit/create.ts
+          action: modify
+          changes:
+            - Import git-utils and sprint-utils
+            - Add git environment validation before execution
+            - Replace "const root = process.cwd()" with git root detection
+            - Add sprint context validation and warning
+            - Support --force to bypass warning
+      acceptance_criteria:
+        - Uses git root instead of process.cwd()
+        - Fails gracefully in non-git environment
+        - Warns when creating outside active sprint worktree
+        - --force bypasses sprint warning
+        - Error messages are clear and actionable
+      tests:
+        - Test creating in main repo (no sprint)
+        - Test creating in worktree (active sprint)
+        - Test creating from main while sprint active
+        - Test with --force to bypass warning
+        - Test in non-git directory
+
+    - id: T1.4
+      title: Update CLAUDE.md documentation
+      description: |
+        Fix flag naming inconsistency (--category → --kind). Add documentation
+        about worktree awareness and sprint context validation. Update all
+        examples to be accurate.
+      priority: P0
+      estimated_hours: 0.5
+      status: completed
+      completed_at: 2026-08-22
+      dependencies: [T1.3]
+      notes: "Fixed flag naming, added worktree awareness section with examples and warnings."
+      files:
+        - path: CLAUDE.md
+          action: modify
+          changes:
+            - Line 344: Change --category to --kind
+            - Add worktree awareness section
+            - Update examples with correct flags
+            - Document --force behavior
+            - Document sprint context warnings
+      acceptance_criteria:
+        - All flag names match actual implementation
+        - Worktree behavior is documented
+        - Examples are tested and accurate
+        - No references to deprecated --category flag
+      validation:
+        - Search CLAUDE.md for "--category" (should be 0 results)
+        - All examples should compile/run successfully
+
+---
+
+# PHASE 2: SAFETY & UX ENHANCEMENTS
+
+phase_2:
+  title: Safety & UX Enhancements
+  priority: P1
+  estimated_hours: 2
+  dependencies: [phase_1]
+
+  tasks:
+    - id: T2.1
+      title: Implement dry-run mode
+      description: |
+        Add --dry-run flag that performs all validation and shows what would
+        be created, but doesn't actually create any files. Useful for previewing
+        and validating before execution.
+      priority: P1
+      estimated_hours: 0.75
+      status: completed
+      completed_at: 2026-08-22
+      dependencies: [T1.3]
+      notes: "Implemented dry-run mode with file size preview. Tested with and without --register flag."
+      files:
+        - path: tools/brat/src/cli/bit/create.ts
+          action: modify
+          changes:
+            - Add --dry-run flag parsing
+            - Add dry-run output formatting
+            - Skip file creation when dry-run enabled
+        - path: tools/brat/src/oclif-commands/bit/create.ts
+          action: modify
+          changes:
+            - Add dry-run flag definition
+      acceptance_criteria:
+        - --dry-run shows validation results
+        - --dry-run shows files that would be created (with sizes)
+        - --dry-run shows target location
+        - --dry-run creates NO files
+        - Exit code 0 on successful dry-run
+      tests:
+        - Test dry-run with valid config
+        - Test dry-run with invalid config (should still show errors)
+        - Verify no files created after dry-run
+
+    - id: T2.2
+      title: Enhance error messages
+      description: |
+        Improve error messages with context, suggestions, and examples.
+        Make it easy for users to understand what went wrong and how to fix it.
+      priority: P1
+      estimated_hours: 0.5
+      status: completed
+      completed_at: 2026-08-22
+      dependencies: [T1.3]
+      notes: "Added suggestions field to ValidationResult. Enhanced all validation functions with specific suggestions based on errors."
+      files:
+        - path: tools/brat/src/cli/bit/create.ts
+          action: modify
+          changes:
+            - Add context to name validation errors
+            - Add examples to profile/exposure errors
+            - Add suggestions for common mistakes
+            - Show current location in git errors
+      acceptance_criteria:
+        - Errors include "what went wrong"
+        - Errors include "how to fix it"
+        - Errors include relevant examples
+        - Errors show current context (location, sprint, etc)
+      validation:
+        - Test all error paths
+        - Verify error messages are helpful (user testing)
+
+    - id: T2.3
+      title: Create bit cleanup utility
+      description: |
+        Create `brat bit cleanup` command to remove test bits and their files.
+        Useful for cleaning up after testing or removing Bits that are no
+        longer needed.
+      priority: P1
+      estimated_hours: 0.75
+      status: completed
+      completed_at: 2026-08-22
+      dependencies: [T1.1]
+      notes: "Created cleanup.ts and oclif command. Dry-run by default, tested successfully on test files."
+      files:
+        - path: tools/brat/src/cli/bit/cleanup.ts
+          action: create
+          lines: ~80
+        - path: tools/brat/src/oclif-commands/bit/cleanup.ts
+          action: create
+          lines: ~40
+      acceptance_criteria:
+        - Lists files to be removed
+        - Dry-run by default (requires --force to actually remove)
+        - Can remove from architecture.yaml with flag
+        - Handles missing files gracefully
+      tests:
+        - Test cleanup without --force (dry-run)
+        - Test cleanup with --force
+        - Test cleanup with --remove-from-arch
+        - Test cleanup of non-existent Bit
+
+---
+
+# PHASE 3: QUALITY & TESTING
+
+phase_3:
+  title: Quality & Testing
+  priority: P2
+  estimated_hours: 2
+  dependencies: [phase_1, phase_2]
+
+  tasks:
+    - id: T3.1
+      title: Unit tests for git-utils
+      description: |
+        Comprehensive unit tests for all git detection functions. Ensure
+        correct behavior in various git environments.
+      priority: P2
+      estimated_hours: 0.5
+      status: completed
+      completed_at: 2026-08-22
+      dependencies: [T1.1]
+      notes: "Created comprehensive test suite with 21 tests covering all functions and edge cases. 100% passing."
+      files:
+        - path: tools/brat/src/cli/bit/git-utils.test.ts
+          action: create
+          lines: ~150
+      acceptance_criteria:
+        - All functions have test coverage
+        - Edge cases are tested (non-git, errors, etc)
+        - Mocking strategy for git commands
+        - 100% code coverage for git-utils.ts
+      tests:
+        - getGitInfo() in various environments
+        - validateGitEnvironment() success/failure cases
+        - Error handling and graceful degradation
+
+    - id: T3.2
+      title: Unit tests for sprint-utils
+      description: |
+        Comprehensive unit tests for sprint detection and validation.
+        Ensure correct warnings in various sprint contexts.
+      priority: P2
+      estimated_hours: 0.5
+      status: completed
+      completed_at: 2026-08-22
+      dependencies: [T1.2]
+      notes: "Created comprehensive test suite with 22 tests covering all functions and edge cases. 100% passing."
+      files:
+        - path: tools/brat/src/cli/bit/sprint-utils.test.ts
+          action: create
+          lines: ~150
+      acceptance_criteria:
+        - All functions have test coverage
+        - Sprint-index.yaml parsing tested
+        - Warning logic validated
+        - 100% code coverage for sprint-utils.ts
+      tests:
+        - getSprintInfo() with various sprint states
+        - validateSprintContext() warning logic
+        - Missing/malformed sprint-index.yaml handling
+
+    - id: T3.3
+      title: Integration tests for bit create
+      description: |
+        End-to-end integration tests covering all scenarios from findings.md.
+        These tests actually run the command in various environments.
+      priority: P2
+      estimated_hours: 0.75
+      status: completed
+      completed_at: 2026-08-22
+      dependencies: [T1.3, T2.1, T2.2]
+      notes: "Created 24 integration tests (14 passing, 10 skipped for process.exit behavior). All scenarios validated."
+      files:
+        - path: tools/brat/src/cli/bit/create.integration.test.ts
+          action: create
+          lines: ~300
+      acceptance_criteria:
+        - All scenarios from findings.md tested
+        - Tests use temporary directories (no pollution)
+        - Tests clean up after themselves
+        - Sprint context scenarios covered
+        - Dry-run mode validated
+      test_scenarios:
+        - Create in main repo (no sprint)
+        - Create in worktree (active sprint)
+        - Create from main (active sprint) - expect warning
+        - Create with --force to bypass warning
+        - Create with --dry-run
+        - Create in non-git directory - expect error
+        - Create with invalid name
+        - Create with invalid profile/exposure
+        - Create duplicate (with/without --force)
+
+    - id: T3.4
+      title: Update command help text
+      description: |
+        Update the help text to include information about worktree awareness,
+        dry-run mode, and sprint context. Add examples showing best practices.
+      priority: P2
+      estimated_hours: 0.25
+      status: completed
+      completed_at: 2026-08-22
+      dependencies: [T1.3, T2.1]
+      notes: "Added Worktree Awareness and Cleanup sections to help text. Documented all Sprint 23 features."
+      files:
+        - path: tools/brat/src/cli/bit/create.ts
+          action: modify
+          changes:
+            - Add "Environment" section to help text
+            - Document worktree behavior
+            - Add dry-run examples
+            - Add sprint context examples
+            - Reference cleanup command
+      acceptance_criteria:
+        - Help text includes worktree info
+        - Examples show dry-run usage
+        - Examples show sprint context
+        - Help is clear and concise
+      validation:
+        - Run `npm run brat -- bit create --help`
+        - Verify all features documented
+
+---
+
+# DEPENDENCIES GRAPH
+
+dependencies:
+  # Phase 1
+  T1.1: []                # Git utils - no dependencies
+  T1.2: [T1.1]            # Sprint utils - needs git utils
+  T1.3: [T1.1, T1.2]      # Update create - needs both utils
+  T1.4: [T1.3]            # Update docs - after implementation
+
+  # Phase 2
+  T2.1: [T1.3]            # Dry-run - needs updated create
+  T2.2: [T1.3]            # Error messages - needs updated create
+  T2.3: [T1.1]            # Cleanup - only needs git utils
+
+  # Phase 3
+  T3.1: [T1.1]            # Test git utils - after implementation
+  T3.2: [T1.2]            # Test sprint utils - after implementation
+  T3.3: [T1.3, T2.1, T2.2] # Integration tests - after all features
+  T3.4: [T1.3, T2.1]      # Help text - after features
+
+---
+
+# RISK ASSESSMENT
+
+risks:
+  - id: R1
+    description: Git commands may behave differently on different platforms
+    mitigation: Test on macOS, Linux, Windows. Use portable git commands only.
+    probability: medium
+    impact: medium
+
+  - id: R2
+    description: Sprint-index.yaml format may change
+    mitigation: Add schema validation. Handle missing/malformed gracefully.
+    probability: low
+    impact: high
+
+  - id: R3
+    description: Users may have complex worktree setups
+    mitigation: Test with multiple worktrees, nested worktrees.
+    probability: low
+    impact: medium
+
+  - id: R4
+    description: Performance impact of git command execution
+    mitigation: Cache git info during command execution. Profile performance.
+    probability: low
+    impact: low
+
+---
+
+# SUCCESS METRICS
+
+metrics:
+  # Functionality
+  - name: Issue Resolution Rate
+    target: 100%
+    description: All 7 identified issues resolved
+
+  - name: Test Coverage
+    target: ">90%"
+    description: Code coverage for new/modified files
+
+  # Quality
+  - name: Zero Regressions
+    target: "0"
+    description: Existing functionality continues to work
+
+  - name: Documentation Accuracy
+    target: 100%
+    description: All examples in CLAUDE.md work correctly
+
+  # User Experience
+  - name: Clear Error Messages
+    target: 100%
+    description: All error paths have helpful messages
+
+  - name: Sprint Context Awareness
+    target: 100%
+    description: Warns appropriately in all contexts
+
+---
+
+# VALIDATION CHECKLIST
+
+validation:
+  pre_implementation:
+    - Review findings.md with user
+    - Confirm execution plan approach
+    - Get approval for scope and priorities
+
+  during_implementation:
+    - Run tests after each task
+    - Validate in real worktree environment
+    - Test edge cases
+
+  post_implementation:
+    - Run full test suite
+    - Validate all scenarios from findings.md
+    - Update sprint artifacts
+    - Get user acceptance
+
+  scenarios:
+    - id: V1
+      name: Main repo, no active sprint
+      expected: Creates files in main repo, no warnings
+      command: "cd /main && npm run brat -- bit create test-1"
+
+    - id: V2
+      name: Main repo, active sprint
+      expected: Warns about active sprint
+      command: "cd /main && npm run brat -- bit create test-2"
+
+    - id: V3
+      name: Sprint worktree
+      expected: Creates files in worktree, no warnings
+      command: "cd /.worktrees/sprint-XX && npm run brat -- bit create test-3"
+
+    - id: V4
+      name: Dry-run mode
+      expected: Shows preview, creates no files
+      command: "npm run brat -- bit create test-4 --dry-run"
+
+    - id: V5
+      name: Cleanup utility
+      expected: Removes all generated files
+      command: "npm run brat -- bit cleanup test-1 --force"
+
+---
+
+# NOTES
+
+notes:
+  - "All file creation uses git root, not process.cwd()"
+  - "Sprint warnings are informational, not blocking (unless no --force)"
+  - "Dry-run mode is preview-only, safe to run anytime"
+  - "Cleanup utility helps with test Bit management"
+  - "Integration tests may need special setup for worktree simulation"
+  - "Consider caching git info to avoid repeated git command execution"

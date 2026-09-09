@@ -45,7 +45,7 @@ export class RegistryWatcher {
         const name = config.name;
         const status = config.status || 'active';
 
-        this.logger.debug('mcp.registry_watcher.config', {
+        this.logger.trace?.('mcp.registry_watcher.config', {
           name,
           status,
           hasCommand: !!config.command,
@@ -84,7 +84,7 @@ export class RegistryWatcher {
         const configChanged = !previous || JSON.stringify(previous) !== JSON.stringify(config);
 
         if (configChanged) {
-          this.logger.debug('mcp.registry_watcher.config_changed', { name, isNew: !previous });
+          this.logger.trace?.('mcp.registry_watcher.config_changed', { name, isNew: !previous });
           this.options.onServerActive(config).catch(error => {
             this.logger.error('mcp.registry_watcher.active_handler_error', { name, error });
           });

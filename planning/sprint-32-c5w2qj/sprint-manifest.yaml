@@ -1,0 +1,14 @@
+id: sprint-32-c5w2qj
+title: Test Infrastructure Phase 3 - Complete Remediation
+goal: Fix remaining 7 failing test suites from Sprint 31, achieve 0 failing
+  tests and 100% pass rate. Complete the 3-sprint test remediation journey
+  (Sprint 30→31→32) from 48 failures to 0 failures.
+owner: "@bitbrat"
+createdAt: 2026-08-30T21:53:56.453Z
+status: complete
+links:
+  branch: feature/sprint-32-c5w2qj-test-infrastructure-phase-3-co
+  pr: https://github.com/cnavta/BitBrat/pull/343
+notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-08-30T22:43:41.940Z
+completionMode: normal

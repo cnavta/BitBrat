@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # Example: Slack Notification
 # Hook Type: post-deploy

@@ -190,6 +190,7 @@ export class ComposeMerger {
       // Sprint 378: Also merge additional services and top-level volumes
       this.mergeAdditionalServices(baseCompose, serviceCompose, serviceName);
       this.mergeTopLevelVolumes(baseCompose, serviceCompose);
+      this.mergeTopLevelNetworks(baseCompose, serviceCompose);
 
       // Convert back to YAML
       const mergedYaml = yaml.dump(baseCompose, {
@@ -261,6 +262,14 @@ export class ComposeMerger {
 
     // Sprint 375: Merge top-level volumes from service override file
     this.mergeTopLevelVolumes(baseCompose, serviceCompose);
+
+    // Sprint 27: Merge top-level networks from base file (preserve network aliases)
+    this.mergeTopLevelNetworks(baseCompose, serviceCompose);
+
+    // DEBUG: Log network configuration before dump
+    if (baseCompose.networks) {
+      console.log(`[compose-merger] Networks before dump:`, JSON.stringify(baseCompose.networks, null, 2));
+    }
 
     // Convert back to YAML
     const mergedYaml = yaml.dump(baseCompose, {
@@ -385,6 +394,44 @@ export class ComposeMerger {
       // Only add if not already in base (base takes precedence)
       if (!baseVolumes[volumeName]) {
         baseVolumes[volumeName] = volumeConfig;
+      }
+    }
+  }
+
+  /**
+   * Merge top-level networks from base and service compose files.
+   *
+   * **Sprint 27:** Preserves network aliases from context-specific compose files
+   * (e.g., docker-compose.staging.yaml with `name: bitbrat-staging-network`).
+   *
+   * Service-specific compose files may reference networks but should NOT override
+   * the base file's network definitions (driver, name, external, etc.).
+   *
+   * **Precedence:** Base file network definitions always take precedence.
+   * Service file networks are only added if not already defined in base.
+   *
+   * @param baseCompose - Base compose file to modify
+   * @param serviceCompose - Service override file with potential network references
+   */
+  private mergeTopLevelNetworks(baseCompose: ComposeFile, serviceCompose: ComposeFile): void {
+    // Skip if service file has no top-level networks
+    if (!serviceCompose.networks || typeof serviceCompose.networks !== 'object') {
+      return;
+    }
+
+    // Initialize networks section in base if missing
+    if (!baseCompose.networks) {
+      baseCompose.networks = {};
+    }
+
+    // Merge networks from service file into base
+    const baseNetworks = baseCompose.networks as Record<string, unknown>;
+    const serviceNetworks = serviceCompose.networks as Record<string, unknown>;
+
+    for (const [networkName, networkConfig] of Object.entries(serviceNetworks)) {
+      // Only add if not already in base (base takes precedence)
+      if (!baseNetworks[networkName]) {
+        baseNetworks[networkName] = networkConfig;
       }
     }
   }

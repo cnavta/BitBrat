@@ -8,13 +8,8 @@
  * This solves the startup race condition where llm-bot connects before tool-gateway
  * has discovered all Bits.
  */
-
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import {
-  ToolListChangedNotificationSchema,
-  ResourceListChangedNotificationSchema,
-  PromptListChangedNotificationSchema
-} from '@modelcontextprotocol/sdk/types.js';
+import { ToolListChangedNotificationSchema, ResourceListChangedNotificationSchema, PromptListChangedNotificationSchema } from "@modelcontextprotocol/core";
+import { Client } from "@modelcontextprotocol/client";
 import { McpClientManager } from '../client-manager';
 import { ToolRegistry } from '../../../services/llm-bot/tools/registry';
 
@@ -91,15 +86,15 @@ describe('McpClientManager Notification Handling', () => {
       // Verify handlers were registered
       expect(mockClient.setNotificationHandler).toHaveBeenCalledTimes(3);
       expect(mockClient.setNotificationHandler).toHaveBeenCalledWith(
-        ToolListChangedNotificationSchema,
+        'notifications/tools/list_changed',
         expect.any(Function)
       );
       expect(mockClient.setNotificationHandler).toHaveBeenCalledWith(
-        ResourceListChangedNotificationSchema,
+        'notifications/resources/list_changed',
         expect.any(Function)
       );
       expect(mockClient.setNotificationHandler).toHaveBeenCalledWith(
-        PromptListChangedNotificationSchema,
+        'notifications/prompts/list_changed',
         expect.any(Function)
       );
     });
@@ -175,7 +170,7 @@ describe('McpClientManager Notification Handling', () => {
 
       // Get the handler that was registered
       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
-        (call: any) => call[0] === ToolListChangedNotificationSchema
+        (call: any) => call[0] === 'notifications/tools/list_changed'
       )[1];
 
       // Spy on discoverTools
@@ -216,7 +211,7 @@ describe('McpClientManager Notification Handling', () => {
       (manager as any).setupNotificationHandlers(mockClient, config.name, []);
 
       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
-        (call: any) => call[0] === ToolListChangedNotificationSchema
+        (call: any) => call[0] === 'notifications/tools/list_changed'
       )[1];
 
       const discoverToolsSpy = jest.spyOn(manager as any, 'discoverTools').mockResolvedValue(undefined);
@@ -257,7 +252,7 @@ describe('McpClientManager Notification Handling', () => {
       (manager as any).setupNotificationHandlers(mockClient, config.name, []);
 
       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
-        (call: any) => call[0] === ToolListChangedNotificationSchema
+        (call: any) => call[0] === 'notifications/tools/list_changed'
       )[1];
 
       const discoverToolsSpy = jest.spyOn(manager as any, 'discoverTools').mockResolvedValue(undefined);
@@ -295,7 +290,7 @@ describe('McpClientManager Notification Handling', () => {
       (manager as any).setupNotificationHandlers(mockClient, config.name, []);
 
       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
-        (call: any) => call[0] === ToolListChangedNotificationSchema
+        (call: any) => call[0] === 'notifications/tools/list_changed'
       )[1];
 
       const discoverToolsSpy = jest.spyOn(manager as any, 'discoverTools').mockResolvedValue(undefined);
@@ -342,7 +337,7 @@ describe('McpClientManager Notification Handling', () => {
       (manager as any).setupNotificationHandlers(mockClient, config.name, []);
 
       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
-        (call: any) => call[0] === ToolListChangedNotificationSchema
+        (call: any) => call[0] === 'notifications/tools/list_changed'
       )[1];
 
       jest.spyOn(manager as any, 'discoverTools').mockResolvedValue(undefined);
@@ -405,7 +400,7 @@ describe('McpClientManager Notification Handling', () => {
       (manager as any).setupNotificationHandlers(mockClient, config.name, []);
 
       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
-        (call: any) => call[0] === ToolListChangedNotificationSchema
+        (call: any) => call[0] === 'notifications/tools/list_changed'
       )[1];
 
       // Make discoverTools throw an error
@@ -453,7 +448,7 @@ describe('McpClientManager Notification Handling', () => {
       (manager as any).setupNotificationHandlers(mockClient, config.name, []);
 
       const toolsHandler = mockClient.setNotificationHandler.mock.calls.find(
-        (call: any) => call[0] === ToolListChangedNotificationSchema
+        (call: any) => call[0] === 'notifications/tools/list_changed'
       )[1];
 
       const discoverToolsSpy = jest.spyOn(manager as any, 'discoverTools').mockResolvedValue(undefined);

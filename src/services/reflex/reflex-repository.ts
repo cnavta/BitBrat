@@ -70,7 +70,7 @@ export class ReflexRepository implements IReflexRepository {
    */
   async getAll(): Promise<Reflex[]> {
     try {
-      logger.debug('reflex.repository.fetch_all');
+      logger.trace('reflex.repository.fetch_all');
 
       const snapshot = await this.db
         .collection(this.collection)
@@ -80,7 +80,7 @@ export class ReflexRepository implements IReflexRepository {
 
       const reflexes = snapshot.docs.map(doc => this.documentToReflex(doc.id, doc.data()));
 
-      logger.info('reflex.repository.fetched', {
+      logger.trace('reflex.repository.fetched', {
         count: reflexes.length,
       });
 
@@ -419,7 +419,7 @@ export class DocumentStoreReflexRepository implements IReflexRepository {
 
   async getAll(): Promise<Reflex[]> {
     try {
-      logger.debug('reflex.repository.fetch_all', { backend: 'postgres' });
+      logger.trace('reflex.repository.fetch_all', { backend: 'postgres' });
 
       const results = await this.store.query(this.tableName, {
         filters: [
@@ -432,7 +432,7 @@ export class DocumentStoreReflexRepository implements IReflexRepository {
         .map((doc: any) => this.documentToReflex(doc))
         .sort((a: Reflex, b: Reflex) => a.priority - b.priority);
 
-      logger.info('reflex.repository.fetched', {
+      logger.trace('reflex.repository.fetched', {
         count: reflexes.length,
         backend: 'postgres'
       });

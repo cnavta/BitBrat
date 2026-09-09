@@ -245,7 +245,144 @@ export class SentimentAnalyzer extends Bit {
 
 ---
 
-### 2. Integrating Chat Platforms: IngressConnector + WebhookConnector
+### 2. Implementing Long-Running Operations with Progress Feedback
+
+**Pattern for operations that take >5 seconds and need proactive user updates (Sprint 36).**
+
+When implementing operations that might take significant time (LLM inference, image generation, database queries), use the dual-phase lifecycle pattern to provide proactive progress messages DURING execution, not AFTER.
+
+```typescript
+// src/apps/image-generator.ts
+import { Bit } from '../common/base-server';
+import { InternalEventV2 } from '../types/events';
+import { randomUUID } from 'crypto';
+
+export class ImageGenerator extends Bit {
+  async setup(): Promise<void> {
+    await this.onMessage<InternalEventV2>(
+      'internal.reaction.v1',
+      async (event, attrs, ctx) => {
+        // 1. ADD ANNOTATION: Mark operation as long-running
+        event.annotations.push({
+          kind: 'operation_context',
+          value: {
+            operation: 'image_generation',
+            estimatedDurationMs: 30000,  // Helps middleware tune timers
+            startedAt: new Date().toISOString(),
+          },
+          source: this.name,
+          id: randomUUID(),
+          createdAt: new Date().toISOString(),
+        });
+
+        // 2. START TRACKING: Notify feedback middleware BEFORE processing
+        const feedbackMiddleware = this.getResource<any>('feedbackMiddleware');
+        if (feedbackMiddleware?.startTracking) {
+          try {
+            await feedbackMiddleware.startTracking(event);
+            this.logger.debug('progress_tracking_started', {
+              correlationId: event.correlationId,
+            });
+          } catch (err) {
+            // Fail-open: Progress failures never block operation
+            this.logger.warn('progress_tracking_failed', {
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+        }
+
+        // 3. PERFORM OPERATION: Do the actual work
+        try {
+          const imageUrl = await this.generateImage(event.message?.text || '');
+
+          event.candidates = [{
+            text: `Generated image: ${imageUrl}`,
+            metadata: { imageUrl },
+          }];
+        } catch (err) {
+          this.logger.error('image_generation_failed', { error: err });
+          event.candidates = [{
+            text: 'Sorry, image generation failed.',
+            metadata: { error: true },
+          }];
+        }
+
+        // 4. COMPLETE: Middleware auto-cleans up when next() is called
+        await this.next(event);
+        await ctx.ack();
+      }
+    );
+  }
+
+  private async generateImage(prompt: string): Promise<string> {
+    // Long-running operation (20-40 seconds)
+    // Middleware will send progress messages automatically
+    return await this.dalleClient.generate(prompt);
+  }
+}
+```
+
+**Critical Rules:**
+- ALWAYS add `operation_context` annotation BEFORE calling `startTracking()`
+- ALWAYS call `startTracking()` AFTER annotation, BEFORE processing
+- NEVER call `completeOperation()` manually (automatic on `next()`/`complete()`)
+- ALWAYS fail-open on progress errors (try/catch with warn-level logging)
+- OPTIONAL: Set `estimatedDurationMs` to tune timer intervals
+
+**Annotation Schema:**
+```typescript
+{
+  kind: 'operation_context',
+  value: {
+    operation: string,              // Operation name (for logging)
+    estimatedDurationMs?: number,   // Optional: helps tune timers
+    startedAt: string,              // ISO 8601 timestamp
+  },
+  source: string,                   // Service name
+  id: string,                       // Unique annotation ID
+  createdAt: string,                // ISO 8601 timestamp
+}
+```
+
+**Timeline (35-second operation):**
+```
+T+0s:   Service adds operation_context annotation
+T+0s:   Service calls feedbackMiddleware.startTracking(event)
+T+0s:   Service begins long operation (image generation)
+T+5s:   Middleware sends: "Still working on this..."
+T+15s:  Middleware sends: "This is taking longer than usual..."
+T+30s:  Middleware sends: "Still processing, almost there..."
+T+35s:  Operation completes
+T+35s:  Service calls next(event)
+T+35s:  Middleware auto-calls completeOperation() and stops timers
+T+35s:  User receives final response
+```
+
+**Configuration (architecture.yaml):**
+```yaml
+feedback-middleware:
+  profile: core
+  env:
+    - FEEDBACK_ENABLED=true
+    - FEEDBACK_INITIAL_THRESHOLD_MS=5000    # First progress at 5s
+    - FEEDBACK_UPDATE_INTERVAL_MS=10000     # Updates every 10s
+    - FEEDBACK_TIMEOUT_THRESHOLD_MS=30000   # Escalation at 30s
+```
+
+**When to Use:**
+- ✅ LLM inference (10-60 seconds)
+- ✅ Image generation (20-120 seconds)
+- ✅ Video processing (30-300 seconds)
+- ✅ Complex database queries (5-30 seconds)
+- ❌ Simple enrichment (<2 seconds) - overhead not worth it
+
+**Examples**: `llm-bot` (src/apps/llm-bot-service.ts:216), `image-gen-mcp` (Sprint 36 validation)
+
+**Documentation**: [Feedback Middleware Lifecycle](./documentation/concepts/feedback-middleware-lifecycle.md), [Progress Message Architecture](./planning/sprint-36-9bfh0j/technical-architecture.md)
+
+---
+
+### 3. Integrating Chat Platforms: IngressConnector + WebhookConnector
 
 **Pattern for external chat platforms (Twilio, Slack, Discord).**
 
@@ -305,7 +442,7 @@ export class PlatformConnectorAdapter implements IngressConnector, WebhookConnec
 
 ---
 
-### 3. Building oclif Commands for brat CLI
+### 4. Building oclif Commands for brat CLI
 
 **All new brat commands extend BratCommand (Sprint 359+).**
 
@@ -360,12 +497,12 @@ export default class Doctor extends BratCommand {
 
 ---
 
-### 4. Creating a New Bit (Service)
+### 5. Creating a New Bit (Service)
 
 ```bash
 npm run brat -- bit create <name> \
   --profile <core|gateway|llm|mcp-server> \
-  --category <platform|domain> \
+  --kind <pipeline-service|gateway|mcp-server> \
   --exposure <platform-only|platform+domain|none> \
   --register --active
 ```
@@ -377,6 +514,31 @@ npm run brat -- bit create <name> \
 - `mcp-server` → platform+domain (required)
 
 **Generated files**: `src/apps/<name>-service.ts`, test file, Dockerfile, docker-compose service
+
+**Worktree Awareness** (Sprint 23):
+- During active sprint: Command detects sprint worktree and validates location
+- Creates files in git repository root (not current working directory)
+- Warns if running from main repo while active sprint exists
+- Use `--force` to bypass sprint context warnings
+- Files always created in correct location regardless of `pwd`
+
+**Example - Sprint Context Warning**:
+```bash
+# Running from main repo with active sprint
+$ npm run brat -- bit create my-service
+
+⚠️  Active sprint detected: sprint-23-isla86
+   Sprint worktree: .worktrees/sprint-23-isla86
+   Current location: /path/to/main/repo
+
+   Best practice: Create Bits in the sprint worktree during active sprints.
+
+To proceed anyway, use --force to bypass this warning.
+
+# To proceed: either cd to worktree or use --force
+$ cd .worktrees/sprint-23-isla86
+$ npm run brat -- bit create my-service  # No warning
+```
 
 **IMPORTANT - Always validate new services in agent-dev**:
 ```bash
@@ -401,7 +563,7 @@ Common issues caught by agent-dev validation:
 
 ---
 
-### 5. Configuring Twitch EventSub (Sprint 16)
+### 6. Configuring Twitch EventSub (Sprint 16)
 
 **Pattern for adding/configuring Twitch platform events beyond IRC chat.**
 
@@ -459,7 +621,7 @@ twitch.eventsub.subscriptions.status()
 
 ---
 
-### 6. Deploying Secure Files (Sprint 374)
+### 7. Deploying Secure Files (Sprint 374)
 
 **Pattern for credentials/certificates that must NEVER be committed to git.**
 
@@ -496,7 +658,7 @@ services:
 
 ---
 
-### 7. Automatic Port Assignment (Sprint 379)
+### 8. Automatic Port Assignment (Sprint 379)
 
 PortManager auto-assigns unique ports for all deployments. Discovers ports via `docker ps`, assigns next available from 3001.
 
@@ -509,6 +671,208 @@ LLM_BOT_HOST_PORT=5000 npm run brat -- bit deploy llm-bot
 ```
 
 Works with remote Docker via SSH. Gracefully degrades on discovery failures.
+
+---
+
+### 9. Using Claim Check for Event Retrieval (Sprint 24)
+
+**Pattern for retrieving persisted events from outside the routing slip.**
+
+Claim check provides temporary Redis-backed storage for events and blobs with automatic TTL expiration. Use when a service needs access to the source event context (ingress/egress metadata) but doesn't have it in the current message.
+
+**Key use case**: Progress messages (Sprint 22) - LLM sends updates but needs original event's platform/channel info.
+
+```typescript
+// In tool-gateway or any Bit with MCP access
+async function sendProgressUpdate(correlationId: string, message: string) {
+  // Retrieve source event from claim check (Sprint 24: returns StoredSnapshot)
+  const claimTool = this.registry.getTool('claim.event.retrieve');
+
+  if (claimTool && claimTool.execute) {
+    const result = await claimTool.execute(
+      { correlationId },
+      { sessionId, userRoles: [] }
+    );
+
+    if (result && !result.isError) {
+      // Sprint 24: Result includes versioning metadata + event
+      const snapshot = JSON.parse(result.content[0].text);
+      const sourceEvent = snapshot.event; // Extract event from StoredSnapshot
+
+      // Optional: Check snapshot metadata
+      this.logger.debug('Retrieved snapshot', {
+        kind: snapshot.kind,           // 'initial' | 'update' | 'final' | 'deadletter'
+        capturedAt: snapshot.capturedAt,
+        sourceService: snapshot.sourceService
+      });
+
+      // Use ingress/egress from source event
+      await this.next({
+        ...progressEvent,
+        ingress: sourceEvent.ingress,  // Original platform context
+        egress: sourceEvent.egress,     // Original routing destination
+        identity: sourceEvent.identity, // Original user
+      });
+    }
+  }
+}
+```
+
+**Storage**: Events auto-stored by claim-check service on `internal.persistence.snapshot.v1` (ALL snapshot kinds: initial, update, final, deadletter). Timestamp-based versioning handles out-of-order delivery. Default TTL: 300s (5 min).
+
+**Versioning**: Uses `capturedAt` timestamp to determine event version. Newer snapshots overwrite older ones. Stale snapshots rejected. See `documentation/guides/claim-check.md` for out-of-order scenarios.
+
+**MCP Tools** (platform-only, 6 total):
+- `claim.event.retrieve(correlationId)` - Retrieve StoredSnapshot (includes versioning metadata + full event)
+- `claim.event.status(correlationId)` - Get metadata without full event (lightweight)
+- `claim.event.exists(correlationId)` - Check existence (boolean)
+- `claim.blob.store(data, contentType, ttl)` - Store binary data
+- `claim.blob.retrieve(blobId)` - Retrieve binary data
+- `claim.blob.exists(blobId)` - Check blob existence
+
+**Fail-open design**: If Redis unavailable or event expired, gracefully degrades (logs warning, continues execution).
+
+**Configuration**:
+```yaml
+# architecture.yaml
+claim-check:
+  profile: core
+  stage: persist
+  topics:
+    consumes:
+      - internal.persistence.snapshot.v1
+  env:
+    - CLAIM_CHECK_DEFAULT_TTL_SECONDS  # Default: 300
+    - CLAIM_CHECK_MAX_TTL_SECONDS      # Default: 3600
+    - REDIS_URL
+```
+
+**Documentation**: `documentation/guides/claim-check.md`
+
+---
+
+### 10. Testing with Dev MCP Messaging Tools (Sprint 39)
+
+**Pattern for coding agents to test chat flows and verify platform behavior.**
+
+Dev MCP Messaging Tools provide MCP interfaces for sending messages and injecting events into BitBrat execution contexts. Use these tools to test agent flows, emulate platforms, and debug integration issues.
+
+```typescript
+// Pattern 1: Simple chat message testing
+message.send({
+  context: 'local',         // or 'agent-dev-test', 'staging'
+  text: 'Test message',
+  platform: 'api',          // optional: discord, twitch, slack, twilio
+  waitForResponse: true,
+  timeoutMs: 15000
+})
+
+// Pattern 2: Platform emulation (Discord, Twitch, etc.)
+message.send({
+  text: '!help',
+  platform: 'discord',
+  userId: 'test-user-123',
+  waitForResponse: true
+})
+
+// Pattern 3: Full event injection (requires event:inject permission)
+event.send({
+  context: 'local',
+  event: {
+    type: 'chat.message.v1',
+    message: {
+      id: 'msg-1',
+      role: 'user',
+      text: 'Custom test'
+    },
+    ingress: {
+      connector: 'discord',
+      source: 'ingress.discord'
+    },
+    identity: {
+      external: {
+        id: 'user-123',
+        platform: 'discord',
+        displayName: 'Test User'
+      }
+    }
+  },
+  waitForResponse: true
+})
+```
+
+**When to Use:**
+- ✅ Testing new chat commands or features
+- ✅ Verifying platform-specific routing (Discord vs Twitch)
+- ✅ Load testing message handlers
+- ✅ Debugging agent flow issues
+- ✅ Integration testing before deployment
+- ✅ Emulating rare platform events (raids, subscriptions)
+
+**Security Note:**
+- `event.send` requires `event:inject` permission
+- Dev tokens (`brat-dev-mcp:*`, `dev-tools:*`) auto-granted
+- Anonymous users rejected
+- Audit logging captures both real and emulated identity
+
+**Examples**:
+
+Discord command testing:
+```typescript
+message.send({
+  text: '!weather San Francisco',
+  platform: 'discord',
+  userId: 'test-discord-user',
+  waitForResponse: true
+})
+```
+
+Twitch chat emulation:
+```typescript
+message.send({
+  text: '!uptime',
+  platform: 'twitch',
+  userId: 'viewer_name',
+  waitForResponse: true
+})
+```
+
+Custom event with annotations:
+```typescript
+event.send({
+  event: {
+    type: 'custom.test.v1',
+    message: { id: 'msg-1', role: 'user', text: 'test' },
+    annotations: [
+      {
+        kind: 'test-data',
+        value: { key: 'value' },
+        source: 'integration-test',
+        id: 'ann-1',
+        createdAt: new Date().toISOString()
+      }
+    ]
+  }
+})
+```
+
+**Verification workflow:**
+```typescript
+// 1. Send test message
+const result = await message.send({ text: 'Test', waitForResponse: true })
+
+// 2. Extract correlationId from response
+const response = JSON.parse(result.content[0].text)
+const correlationId = response.correlationId
+
+// 3. Trace message through full pipeline
+fleet.trace({ correlationId, context: 'local' })
+
+// 4. Verify logs for expected behavior
+fleet.logs({ bit: 'llm-bot', context: 'local', limit: 20 })
+```
+
+**Documentation**: [Dev MCP Messaging Guide](./documentation/guides/dev-mcp-messaging.md)
 
 ---
 

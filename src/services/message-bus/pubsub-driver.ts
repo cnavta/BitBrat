@@ -291,7 +291,7 @@ export class PubSubSubscriber implements MessageSubscriber {
       const ack = async () => {
         try {
           message.ack();
-          logger.debug('message_consumer.ack', { driver: 'pubsub', subscription: subName, messageId: msgId });
+          logger.trace?.('message_consumer.ack', { driver: 'pubsub', subscription: subName, messageId: msgId });
         } catch (e: any) {
           logger.error('message_consumer.ack.error', { driver: 'pubsub', subscription: subName, messageId: msgId, error: e?.message || String(e) });
         }

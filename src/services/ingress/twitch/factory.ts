@@ -90,12 +90,13 @@ class TranslationEngineEnvelopeBuilder implements IEnvelopeBuilder {
  * @returns Promise resolving to configured TwitchConnectorAdapter
  */
 export const createTwitchConnector: ConnectorFactory = async (config: IConfig, opts) => {
-  const { egressDestinationTopic, publisherFactory, documentStore } = opts;
+  const { egressDestinationTopic, publisherFactory, documentStore, onSnapshotPublished } = opts;
 
   // Create publisher for ingress events
   // IMPORTANT: Always use createTwitchIngressPublisherFromConfig wrapper
   // It wraps MessagePublisher (publishJson) with IngressPublisher interface (publish)
-  const publisher = createTwitchIngressPublisherFromConfig(config, publisherFactory);
+  // Sprint 24: Pass onSnapshotPublished callback for unified persistence flow
+  const publisher = createTwitchIngressPublisherFromConfig(config, publisherFactory, onSnapshotPublished);
 
   // Use persistent credentials from PostgreSQL or Firestore if documentStore is available
   // Falls back to config-based credentials (environment variables) if no persistence available

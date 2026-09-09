@@ -57,12 +57,13 @@ import path from 'path';
  * @returns Promise resolving to configured DiscordConnectorAdapter
  */
 export const createDiscordConnector: ConnectorFactory = async (config: IConfig, opts) => {
-  const { egressDestinationTopic, publisherFactory, documentStore } = opts;
+  const { egressDestinationTopic, publisherFactory, documentStore, onSnapshotPublished } = opts;
 
   // Create publisher for ingress events
   // IMPORTANT: Always use createDiscordIngressPublisherFromConfig wrapper
   // It wraps MessagePublisher (publishJson) with IngressPublisher interface (publish)
-  const publisher = createDiscordIngressPublisherFromConfig(config, publisherFactory);
+  // Sprint 24: Pass onSnapshotPublished callback for unified persistence flow
+  const publisher = createDiscordIngressPublisherFromConfig(config, publisherFactory, onSnapshotPublished);
 
   // Create auth token store for OAuth2 token management
   // Pass documentStore to ensure same persistence backend as service

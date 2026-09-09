@@ -1,9 +1,9 @@
 import { McpClientManager } from '../../../src/common/mcp/client-manager';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+// Sprint 28: MCP SDK 2.0 - Use StreamableHTTPClientTransport
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 
-jest.mock('@modelcontextprotocol/sdk/client/index.js');
-jest.mock('@modelcontextprotocol/sdk/client/sse.js');
+jest.mock('@modelcontextprotocol/client');
+jest.mock('@modelcontextprotocol/client');
 
 describe('McpClientManager auto-reconnect', () => {
   let mockServer: any;

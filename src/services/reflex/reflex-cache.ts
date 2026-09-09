@@ -84,7 +84,7 @@ export class ReflexCache {
 
       // Step 2: Set up real-time subscription
       this.unsubscribe = this.repository.subscribe((updatedReflexes: Reflex[]) => {
-        logger.debug('reflex.cache.update_received', {
+        logger.trace('reflex.cache.update_received', {
           count: updatedReflexes.length,
         });
 
@@ -92,7 +92,7 @@ export class ReflexCache {
         this.stats.updates++;
         this.stats.lastSyncAt = new Date().toISOString();
 
-        logger.info('reflex.cache.synchronized', {
+        logger.trace('reflex.cache.synchronized', {
           size: this.cache.size,
           updates: this.stats.updates,
         });
@@ -166,7 +166,7 @@ export class ReflexCache {
    * cache.refresh(reflexes); // Replaces entire cache
    */
   refresh(reflexes: Reflex[]): void {
-    logger.debug('reflex.cache.refresh_start', {
+    logger.trace('reflex.cache.refresh_start', {
       count: reflexes.length,
     });
 
@@ -185,7 +185,7 @@ export class ReflexCache {
     // Update metrics
     metrics.setCacheSize(this.cache.size);
 
-    logger.debug('reflex.cache.refresh_complete', {
+    logger.trace('reflex.cache.refresh_complete', {
       size: this.stats.size,
     });
   }

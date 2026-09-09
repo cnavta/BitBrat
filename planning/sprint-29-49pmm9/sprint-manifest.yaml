@@ -1,0 +1,34 @@
+id: sprint-29-49pmm9
+title: Bidding System for Utility Service
+goal: Implement bidding functionality in utility-service with hybrid
+  Redis/DocumentStore storage, enabling LLM-driven user predictions and
+  aggregation queries
+owner: christophernavta
+createdAt: 2026-08-29T20:47:29.628Z
+status: complete
+completedAt: 2026-08-29T23:45:00.000Z
+links:
+  branch: feature/sprint-29-49pmm9-bidding-system
+notes: |
+  Sprint successfully completed with production hotfix. All 15 tasks finished with 100% test pass rate.
+
+  **Core Implementation:**
+  - Comprehensive bidding system with hybrid Redis/DocumentStore storage
+  - 8 MCP tools (bid.create, bid.submit, bid.getMax, bid.getMin, bid.getClosest, bid.close, bid.list, bid.results)
+  - 38 passing unit tests (100% coverage)
+  - Complete documentation (user guide, MCP reference, architecture)
+
+  **Production Hotfix (Post-Completion):**
+  - Fixed missing database migrations for counter system (Sprint 27)
+  - Fixed missing database migrations for bidding system (Sprint 29)
+  - Corrected schema from relational to JSONB pattern (PostgresDocumentStore requirement)
+  - Applied corrected migrations to staging (error 42P01 → 42703 → resolved)
+  - Created MIGRATION-HOTFIX.md documenting root cause and lessons learned
+
+  **Migrations Created:**
+  - 021-add-counter-tables.sql (JSONB schema)
+  - 022-add-bidding-tables.sql (JSONB schema)
+
+  **Key Learning:** PostgresDocumentStore requires JSONB schema (data JSONB column), not relational columns.
+
+  Ready for production deployment after migration application.

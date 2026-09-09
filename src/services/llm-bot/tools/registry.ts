@@ -4,20 +4,55 @@ export class ToolRegistry implements IToolRegistry {
   private tools: Map<string, BitBratTool> = new Map();
   private resources: Map<string, BitBratResource> = new Map();
   private prompts: Map<string, BitBratPrompt> = new Map();
+  private logger?: any;
+
+  /**
+   * Set logger for trace-level debugging (Sprint 27: MCP timeout investigation)
+   */
+  setLogger(logger: any): void {
+    this.logger = logger;
+  }
 
   /**
    * Register a new tool in the registry.
    * If a tool with the same ID already exists, it will be overwritten.
    */
   registerTool(tool: BitBratTool): void {
+    const existed = this.tools.has(tool.id);
+    const beforeCount = this.tools.size;
     this.tools.set(tool.id, tool);
+    const afterCount = this.tools.size;
+
+    // Sprint 27: TRACE logging for tool registry mutations
+    this.logger?.trace?.('registry.tool.registered', {
+      toolId: tool.id,
+      originServer: tool.originServer,
+      existed,
+      beforeCount,
+      afterCount,
+      stack: new Error().stack?.split('\n').slice(2, 5).join(' | ')
+    });
   }
 
   /**
    * Remove a tool from the registry.
    */
   unregisterTool(id: string): void {
+    const existed = this.tools.has(id);
+    const beforeCount = this.tools.size;
+    const tool = this.tools.get(id);
     this.tools.delete(id);
+    const afterCount = this.tools.size;
+
+    // Sprint 27: TRACE logging for tool registry mutations
+    this.logger?.trace?.('registry.tool.unregistered', {
+      toolId: id,
+      originServer: tool?.originServer,
+      existed,
+      beforeCount,
+      afterCount,
+      stack: new Error().stack?.split('\n').slice(2, 5).join(' | ')
+    });
   }
 
   /**

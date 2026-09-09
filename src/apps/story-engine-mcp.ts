@@ -281,7 +281,7 @@ export class StoryEngineMcpServer extends Bit {
         userId: z.string().describe('The unique ID of the user.'),
         scene: z.string().describe('The narrative text of the scene.'),
         choices: z.array(z.string()).describe('Available choices for the user.'),
-        worldStateMutation: z.record(z.any()).optional().describe('Optional updates to the world state.'),
+        worldStateMutation: z.record(z.string(), z.any()).optional().describe('Optional updates to the world state.'),
       }),
       async (args) => {
         const { userId, scene, choices, worldStateMutation } = args;
@@ -345,7 +345,7 @@ export class StoryEngineMcpServer extends Bit {
       'Manually updates specific world state variables (health, inventory, etc.).',
       z.object({
         userId: z.string().describe('The unique ID of the user.'),
-        mutation: z.record(z.any()).describe('A map of state variables to update.'),
+        mutation: z.record(z.string(), z.any()).describe('A map of state variables to update.'),
       }),
       async (args) => {
         const { userId, mutation } = args;

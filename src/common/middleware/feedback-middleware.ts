@@ -54,6 +54,13 @@ export interface FeedbackMiddlewareConfig {
   timeoutThresholdMs?: number;
 
   /**
+   * Maximum operation lifetime (ms) before automatic cleanup.
+   * Prevents memory leaks from operations that never complete.
+   * Default: 300000ms (5 minutes)
+   */
+  maxOperationLifetimeMs?: number;
+
+  /**
    * Enable progress feedback (feature flag).
    * Default: true
    */
@@ -132,6 +139,21 @@ interface OperationState {
 
   /** Original message text */
   originalMessage: string;
+
+  /** Source event for routing context (ingress/egress/identity) */
+  sourceEvent: InternalEventV2;
+
+  /** Timer for initial progress message */
+  initialTimer?: NodeJS.Timeout;
+
+  /** Timer for periodic update messages */
+  updateTimer?: NodeJS.Timeout;
+
+  /** Timer for timeout warning */
+  timeoutTimer?: NodeJS.Timeout;
+
+  /** Timer for maximum lifetime cleanup (failsafe) */
+  maxLifetimeTimer?: NodeJS.Timeout;
 }
 
 /**
@@ -158,6 +180,7 @@ export class FeedbackMiddleware {
       initialThresholdMs: config?.initialThresholdMs ?? 2000,
       updateIntervalMs: config?.updateIntervalMs ?? 5000,
       timeoutThresholdMs: config?.timeoutThresholdMs ?? 30000,
+      maxOperationLifetimeMs: config?.maxOperationLifetimeMs ?? 300000, // 5 minutes
       enabled: config?.enabled ?? true,
       useCustomMessages: config?.useCustomMessages ?? false,
       promptTemplate: config?.promptTemplate ?? DEFAULT_PROMPT_TEMPLATE,
@@ -169,27 +192,44 @@ export class FeedbackMiddleware {
   }
 
   /**
-   * Process event before it's published via next().
+   * Start tracking an operation immediately when it begins.
    *
-   * Detects operation_context annotation and emits progress if needed.
+   * Call this when operation_context annotation is added, BEFORE processing starts.
+   * Creates tracking state and schedules all progress timers proactively.
    *
-   * @param event - Event being published
+   * **When to call**: Immediately after adding operation_context annotation, BEFORE processing.
+   *
+   * **Effect**: Schedules all progress timers (initial, update, timeout, max lifetime).
+   *
+   * **Idempotency**: Multiple calls for same correlationId are ignored.
+   *
+   * **Fail-open**: Errors logged but don't throw (progress failures don't block operations).
+   *
+   * @example
+   * ```typescript
+   * // In service after adding operation_context annotation
+   * data.annotations.push(operationContextAnnotation);
+   *
+   * const feedbackMiddleware = this.getResource<FeedbackMiddleware>('feedbackMiddleware');
+   * if (feedbackMiddleware) {
+   *   await feedbackMiddleware.startTracking(data);
+   * }
+   *
+   * // Now process event (timers already running)
+   * await processEvent(this, data);
+   * ```
+   *
+   * @param event - Event with operation_context annotation
    */
-  async beforeNext(event: InternalEventV2): Promise<void> {
-    this.logger.debug('FeedbackMiddleware.beforeNext called', {
-      correlationId: event.correlationId,
-      enabled: this.config.enabled,
-    });
-
+  async startTracking(event: InternalEventV2): Promise<void> {
     if (!this.config.enabled) {
       return;
     }
 
-    // Check for operation_context annotation
+    // Extract operation context
     const operationContext = this.extractOperationContext(event);
     if (!operationContext) {
-      // No operation tracking requested
-      this.logger.debug('FeedbackMiddleware.beforeNext: No operation_context annotation found', {
+      this.logger.debug('No operation_context annotation, skipping tracking', {
         correlationId: event.correlationId,
         annotationCount: event.annotations?.length || 0,
         annotationKinds: event.annotations?.map(a => a.kind).join(', ') || 'none',
@@ -197,37 +237,102 @@ export class FeedbackMiddleware {
       return;
     }
 
-    // Track or update operation state
-    const state = this.getOrCreateState(event, operationContext);
-
-    // Calculate elapsed time
-    const elapsedMs = Date.now() - state.startedAt.getTime();
-
-    // Determine if progress message is needed
-    const stage = this.determineStage(state, elapsedMs);
-
-    if (stage) {
-      // Send progress message
-      await this.sendProgressMessage(event, state, stage, elapsedMs);
-
-      // Update state
-      state.stage = stage;
-      state.lastProgressAt = new Date();
+    // Check for duplicate (idempotency)
+    if (this.operationTracking.has(event.correlationId)) {
+      this.logger.debug('Operation already tracked, ignoring duplicate', {
+        correlationId: event.correlationId,
+      });
+      return;
     }
+
+    // Extract startedAt from annotation or use current time
+    let startedAt: Date;
+    if (operationContext.startedAt) {
+      if (typeof operationContext.startedAt === 'number') {
+        startedAt = new Date(operationContext.startedAt);
+      } else if (typeof operationContext.startedAt === 'string') {
+        startedAt = new Date(operationContext.startedAt);
+      } else if (operationContext.startedAt instanceof Date) {
+        startedAt = operationContext.startedAt;
+      } else {
+        startedAt = new Date();
+        this.logger.warn('Invalid startedAt format in operation_context', {
+          correlationId: event.correlationId,
+          startedAtType: typeof operationContext.startedAt,
+        });
+      }
+    } else {
+      startedAt = new Date();
+    }
+
+    // Create tracking state
+    const state: OperationState = {
+      correlationId: event.correlationId,
+      startedAt,
+      stage: 'initial',
+      operationContext,
+      originalMessage: event.message?.text || '',
+      sourceEvent: event,
+    };
+
+    this.operationTracking.set(event.correlationId, state);
+
+    this.logger.debug('Operation tracking started proactively', {
+      correlationId: event.correlationId,
+      operation: operationContext.operation,
+      startedAt: startedAt.toISOString(),
+    });
+
+    // Schedule all timers immediately (operation is fresh)
+    this.scheduleTimers(state);
   }
 
   /**
    * Clean up tracking for completed operation.
    *
-   * Call this after operation completes or times out.
+   * Clears all active timers and removes tracking state.
    *
    * @param correlationId - Operation correlationId
    */
   completeOperation(correlationId: string): void {
-    const deleted = this.operationTracking.delete(correlationId);
-    if (deleted) {
-      this.logger.debug('Operation tracking completed', { correlationId });
+    const state = this.operationTracking.get(correlationId);
+    if (state) {
+      // Clear all active timers
+      if (state.initialTimer) {
+        clearTimeout(state.initialTimer);
+      }
+      if (state.updateTimer) {
+        clearInterval(state.updateTimer);
+      }
+      if (state.timeoutTimer) {
+        clearTimeout(state.timeoutTimer);
+      }
+      if (state.maxLifetimeTimer) {
+        clearTimeout(state.maxLifetimeTimer);
+      }
+
+      // Remove from tracking
+      this.operationTracking.delete(correlationId);
+      this.logger.debug('Operation tracking completed and timers cleared', {
+        correlationId,
+      });
     }
+  }
+
+  /**
+   * Shutdown all progress tracking.
+   *
+   * Clears all operations and timers. Call when service is shutting down.
+   * CRITICAL: Prevents timer leaks on service restart/shutdown.
+   */
+  shutdown(): void {
+    const correlationIds = Array.from(this.operationTracking.keys());
+    for (const correlationId of correlationIds) {
+      this.completeOperation(correlationId);
+    }
+    this.logger.info('FeedbackMiddleware shutdown complete', {
+      clearedOperations: correlationIds.length,
+    });
   }
 
   /**
@@ -266,12 +371,50 @@ export class FeedbackMiddleware {
       return existing;
     }
 
+    // Extract startedAt from operation_context annotation (Sprint 21 fix)
+    // Services like llm-bot provide the actual operation start time in the annotation
+    let startedAt: Date;
+    let startedAtSource: string;
+
+    if (operationContext.startedAt) {
+      // Handle number format (milliseconds since epoch)
+      if (typeof operationContext.startedAt === 'number') {
+        startedAt = new Date(operationContext.startedAt);
+        startedAtSource = 'annotation_ms';
+      }
+      // Handle ISO string format
+      else if (typeof operationContext.startedAt === 'string') {
+        startedAt = new Date(operationContext.startedAt);
+        startedAtSource = 'annotation_iso';
+      }
+      // Handle Date object (unlikely but defensive)
+      else if (operationContext.startedAt instanceof Date) {
+        startedAt = operationContext.startedAt;
+        startedAtSource = 'annotation_date';
+      }
+      // Invalid format, fallback to current time
+      else {
+        startedAt = new Date();
+        startedAtSource = 'current_time_invalid_annotation';
+        this.logger.warn('Invalid startedAt format in operation_context', {
+          correlationId: event.correlationId,
+          startedAtType: typeof operationContext.startedAt,
+          startedAtValue: operationContext.startedAt,
+        });
+      }
+    } else {
+      // No startedAt in annotation, use current time
+      startedAt = new Date();
+      startedAtSource = 'current_time_no_annotation';
+    }
+
     const state: OperationState = {
       correlationId: event.correlationId,
-      startedAt: new Date(),
+      startedAt,
       stage: 'initial',
       operationContext,
       originalMessage: event.message?.text || '',
+      sourceEvent: event, // Store for routing context in progress messages
     };
 
     this.operationTracking.set(event.correlationId, state);
@@ -279,39 +422,138 @@ export class FeedbackMiddleware {
     this.logger.debug('Operation tracking started', {
       correlationId: event.correlationId,
       operation: operationContext.operation,
+      startedAt: startedAt.toISOString(),
+      startedAtSource,
     });
+
+    // Start proactive progress tracking with timers
+    this.scheduleTimers(state);
 
     return state;
   }
 
   /**
-   * Determine if progress message should be sent and what stage.
+   * Schedule progress timers for operation.
    *
-   * Returns null if no message needed.
+   * Sets up timers to send progress messages at configured thresholds.
+   * For operations detected "late" (past initial threshold), sends ONE immediate
+   * progress message to avoid complete silence.
+   *
+   * This method will be simplified in IMPL-007 and IMPL-008 to remove Case 2 & 3 logic.
+   *
+   * @param state - Operation state to track
    */
-  private determineStage(
-    state: OperationState,
-    elapsedMs: number
-  ): ProgressStage | null {
-    // Timeout threshold
-    if (elapsedMs >= this.config.timeoutThresholdMs && state.stage !== 'timeout') {
-      return 'timeout';
-    }
+  private scheduleTimers(state: OperationState): void {
+    // Sprint 36: Simplified timer scheduling (no late detection needed)
+    // Operations are always fresh when startTracking() is called
 
-    // Update threshold
-    if (state.lastProgressAt) {
-      const timeSinceLastProgress = Date.now() - state.lastProgressAt.getTime();
-      if (timeSinceLastProgress >= this.config.updateIntervalMs) {
-        return 'update';
+    // Schedule initial progress timer
+    state.initialTimer = setTimeout(async () => {
+      try {
+        await this.sendTimedProgressMessage(state, 'initial');
+
+        // After initial message, start periodic updates
+        // CRITICAL: Only start interval if operation still tracked
+        if (this.operationTracking.has(state.correlationId)) {
+          state.updateTimer = setInterval(async () => {
+            try {
+              await this.sendTimedProgressMessage(state, 'update');
+            } catch (err) {
+              this.logger.error('Failed to send update progress, clearing interval', {
+                correlationId: state.correlationId,
+                error: err instanceof Error ? err.message : String(err),
+              });
+              // CRITICAL: Clear interval on error to prevent infinite failing updates
+              if (state.updateTimer) {
+                clearInterval(state.updateTimer);
+                state.updateTimer = undefined;
+              }
+            }
+          }, this.config.updateIntervalMs);
+        }
+      } catch (err) {
+        this.logger.error('Failed to send initial progress', {
+          correlationId: state.correlationId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        // Initial timer is one-shot, no cleanup needed
       }
+    }, this.config.initialThresholdMs);
+
+    this.logger.debug('Initial progress timer scheduled', {
+      correlationId: state.correlationId,
+      delayMs: this.config.initialThresholdMs,
+    });
+
+    // Schedule timeout timer
+    state.timeoutTimer = setTimeout(async () => {
+      try {
+        await this.sendTimedProgressMessage(state, 'timeout');
+      } catch (err) {
+        this.logger.error('Failed to send timeout progress', {
+          correlationId: state.correlationId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      } finally {
+        // CRITICAL: Clear update interval after timeout (operation likely stuck/failed)
+        if (state.updateTimer) {
+          clearInterval(state.updateTimer);
+          state.updateTimer = undefined;
+        }
+      }
+    }, this.config.timeoutThresholdMs);
+
+    this.logger.debug('Timeout warning timer scheduled', {
+      correlationId: state.correlationId,
+      delayMs: this.config.timeoutThresholdMs,
+    });
+
+    // Schedule maximum lifetime cleanup (failsafe)
+    // CRITICAL: Prevents memory leaks from operations that never call completeOperation()
+    const maxLifetimeDelayMs = this.config.maxOperationLifetimeMs;
+    state.maxLifetimeTimer = setTimeout(() => {
+      this.logger.warn('Operation exceeded maximum lifetime, forcing cleanup', {
+        correlationId: state.correlationId,
+        maxLifetimeMs: this.config.maxOperationLifetimeMs,
+        elapsedMs: Date.now() - state.startedAt.getTime(),
+      });
+      // Force cleanup to prevent memory leak
+      this.completeOperation(state.correlationId);
+    }, maxLifetimeDelayMs);
+
+    this.logger.debug('Max lifetime timer scheduled', {
+      correlationId: state.correlationId,
+      delayMs: maxLifetimeDelayMs,
+    });
+  }
+
+  /**
+   * Send progress message from timer callback.
+   *
+   * Wrapper around sendProgressMessage for timer-triggered progress.
+   *
+   * @param state - Operation state
+   * @param stage - Progress stage
+   */
+  private async sendTimedProgressMessage(
+    state: OperationState,
+    stage: ProgressStage
+  ): Promise<void> {
+    // Check if operation still tracked (might have completed)
+    if (!this.operationTracking.has(state.correlationId)) {
+      this.logger.debug('Operation no longer tracked, skipping progress message', {
+        correlationId: state.correlationId,
+        stage,
+      });
+      return;
     }
 
-    // Initial threshold
-    if (!state.lastProgressAt && elapsedMs >= this.config.initialThresholdMs) {
-      return 'initial';
-    }
+    const elapsedMs = Date.now() - state.startedAt.getTime();
+    await this.sendProgressMessage(state.sourceEvent, state, stage, elapsedMs);
 
-    return null;
+    // Update state
+    state.stage = stage;
+    state.lastProgressAt = new Date();
   }
 
   /**
@@ -351,6 +593,7 @@ export class FeedbackMiddleware {
     elapsedMs: number
   ): Promise<void> {
     const templateMessage = TEMPLATE_MESSAGES[stage];
+    const timestamp = new Date().toISOString();
 
     this.logger.info('Sending template progress message', {
       correlationId: event.correlationId,
@@ -359,21 +602,36 @@ export class FeedbackMiddleware {
       message: templateMessage,
     });
 
-    // Create simple egress event
+    // Create candidate for progress message
+    const candidate: import('../../types/events').CandidateV1 = {
+      id: `progress-${randomUUID()}`,
+      kind: 'text',
+      source: 'feedback-middleware',
+      createdAt: timestamp,
+      status: 'proposed',
+      priority: 0, // Highest priority - progress messages should be immediate
+      confidence: 1.0, // Template-based, deterministic
+      text: templateMessage,
+      format: 'plain',
+      reason: `Progress feedback: ${stage} (${elapsedMs}ms elapsed)`,
+      metadata: {
+        progressStage: stage,
+        elapsedMs,
+        originalCorrelationId: event.correlationId,
+      },
+    };
+
+    // Create chat message event with candidate
     const progressEvent: InternalEventV2 = {
       v: '2',
       correlationId: randomUUID(),
-      type: 'internal.egress.v1',
+      type: 'chat.message.v1', // Correct event type for chat messages
       ingress: event.ingress,
       identity: event.identity,
       egress: event.egress,
-      message: {
-        id: randomUUID(),
-        role: 'assistant',
-        text: templateMessage,
-      },
+      candidates: [candidate], // Use candidates array, not message field
       payload: {
-        type: 'internal.egress.v1',
+        type: 'chat.message.v1',
       },
       routing: {
         stage: 'response',
@@ -390,7 +648,7 @@ export class FeedbackMiddleware {
           }),
           source: 'feedback-middleware',
           id: randomUUID(),
-          createdAt: new Date().toISOString(),
+          createdAt: timestamp,
         },
       ],
     };

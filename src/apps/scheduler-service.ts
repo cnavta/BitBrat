@@ -60,7 +60,7 @@ const EgressSchema = z.object({
   type: z.enum(['chat', 'dm', 'event']).optional(),
   connector: ConnectorTypeSchema.describe("Delivery connector (e.g. 'twitch')"),
   channel: z.string().optional().describe("#channel or room ID"),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 // Ingress overrides (author-settable subset); server always owns ingressAt + source ('scheduler').
@@ -75,10 +75,10 @@ const MessageSchema = z.object({
   role: z.enum(['user', 'assistant', 'system', 'tool']).default('system'),
   text: z.string().optional(),
   language: z.string().optional(),
-  rawPlatformPayload: z.record(z.any()).optional(),
+  rawPlatformPayload: z.record(z.string(), z.any()).optional(),
 });
 
-// AnnotationV1 mirror (src/types/events.ts) — typed, not z.record(z.any()).
+// AnnotationV1 mirror (src/types/events.ts) — typed, not z.record(z.string(), z.any()).
 const AnnotationSchema = z.object({
   id: z.string(),
   kind: z.string(),
@@ -88,7 +88,7 @@ const AnnotationSchema = z.object({
   label: z.string().optional(),
   value: z.string().optional(),
   score: z.number().optional(),
-  payload: z.record(z.any()).optional(),
+  payload: z.record(z.string(), z.any()).optional(),
 });
 
 // CandidateV1 mirror (src/types/events.ts).
@@ -103,7 +103,7 @@ const CandidateSchema = z.object({
   text: z.string().optional(),
   format: z.string().optional(),
   reason: z.string().optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 // QOSV1 mirror (src/types/events.ts).
@@ -120,8 +120,8 @@ const ExternalEventSchema = z.object({
   kind: z.string(),
   version: z.string(),
   createdAt: z.string(),
-  metadata: z.record(z.any()).optional(),
-  rawPayload: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+  rawPayload: z.record(z.string(), z.any()).optional(),
 });
 
 // Full InternalEventV2 authoring shape (sprint-329). The author may set the event type plus the
@@ -134,14 +134,14 @@ const EventDefinitionSchema = z.object({
     "Set { connector: 'twitch', destination: 'twitch', channel: '#<channel>' } to target Twitch."
   ),
   ingress: IngressOverrideSchema.optional().describe("Optional ingress overrides (connector/channel); ingressAt + source are server-owned"),
-  identity: z.record(z.any()).optional().describe("Optional identity (defaults to the scheduler system identity)"),
-  payload: z.record(z.any()).optional().describe("Payload for the InternalEventV2"),
+  identity: z.record(z.string(), z.any()).optional().describe("Optional identity (defaults to the scheduler system identity)"),
+  payload: z.record(z.string(), z.any()).optional().describe("Payload for the InternalEventV2"),
   message: MessageSchema.optional().describe("Optional message (MessageV1)"),
   annotations: z.array(AnnotationSchema).optional().describe("Optional annotations (AnnotationV1[])"),
   candidates: z.array(CandidateSchema).optional().describe("Optional candidates (CandidateV1[])"),
   qos: QosSchema.optional().describe("Optional quality-of-service hints (QOSV1)"),
   externalEvent: ExternalEventSchema.optional().describe("Optional behavioral external event (ExternalEventV1)"),
-  metadata: z.record(z.any()).optional().describe("Optional free-form event metadata"),
+  metadata: z.record(z.string(), z.any()).optional().describe("Optional free-form event metadata"),
 });
 
 // Topic the event is published on. Optional; defaults to internal.ingress.v1. Validated against the

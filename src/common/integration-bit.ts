@@ -58,6 +58,7 @@ export type ConnectorFactory = (
     egressDestinationTopic: string;
     publisherFactory?: (topic: string) => any;
     documentStore?: any;
+    onSnapshotPublished?: (event: InternalEventV2) => Promise<void>;
   }
 ) => Promise<IngressConnector>;
 
@@ -321,6 +322,8 @@ export class IntegrationBit extends Bit {
             return pubRes ? pubRes.create(topic) : undefined;
           },
           documentStore, // Pass documentStore for persistent credentials
+          // Sprint 24: Pass snapshot publishing callback for unified persistence flow
+          onSnapshotPublished: this.publishInitialSnapshot.bind(this),
         });
 
         // Register with ConnectorManager
@@ -925,5 +928,46 @@ export class IntegrationBit extends Bit {
     await super.close();
 
     logger.info('integration-bit.closed');
+  }
+
+  /**
+   * Publishes an 'initial' persistence snapshot for an ingested event.
+   *
+   * Called after successfully publishing an event to internal.ingress.v1.
+   * Enables unified snapshot publishing where ALL events flow through the
+   * persistence snapshot topic (not dual-path via internal.ingress.v1).
+   *
+   * Fail-open pattern: Errors logged as warnings, don't block ingress flow.
+   *
+   * @param event - The InternalEventV2 that was just ingested
+   * @protected
+   * @since Sprint 24
+   */
+  protected async publishInitialSnapshot(event: InternalEventV2): Promise<void> {
+    const logger = this.getLogger();
+
+    try {
+      logger.debug('integration-bit.snapshot.publishing', {
+        correlationId: event.correlationId,
+        kind: 'initial',
+      });
+
+      await this.publishPersistenceSnapshot({
+        kind: 'initial',
+        sourceTopic: 'internal.ingress.v1',
+        event,
+      });
+
+      logger.debug('integration-bit.snapshot.published', {
+        correlationId: event.correlationId,
+        kind: 'initial',
+      });
+    } catch (error) {
+      // Fail-open: Log warning but don't fail ingress
+      logger.warn('integration-bit.snapshot.publish_failed', {
+        correlationId: event.correlationId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 }

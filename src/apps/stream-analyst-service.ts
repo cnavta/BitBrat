@@ -254,7 +254,7 @@ export class StreamAnalystServer extends Bit {
         observer_id: z.string().optional().describe('ID of a StreamObserver to use for configuration'),
         stream_type: z.string().optional().describe('The type of stream to summarize (e.g., "chat", "logs", "errors")'),
         window_minutes: z.number().optional().default(10).describe('Window size in minutes'),
-        filters: z.record(z.any()).optional().describe('Optional filters for the stream (e.g. channel: "#bitbrat")')
+        filters: z.record(z.string(), z.any()).optional().describe('Optional filters for the stream (e.g. channel: "#bitbrat")')
       }),
       async (args) => {
         let request: SummarizationRequest = {

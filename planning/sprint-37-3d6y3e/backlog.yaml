@@ -1,0 +1,548 @@
+# Sprint 37: Fix Dev MCP Tools Registration
+# Trackable Prioritized Backlog
+#
+# Status: planning
+# Owner: @bitbrat
+# Created: 2026-09-01
+
+metadata:
+  sprint: sprint-37-3d6y3e
+  goal: "Restore Dev MCP tools registration with Claude so bitbrat-dev MCP tools are accessible"
+  phases: 4
+  totalTasks: 24
+  estimatedDays: 4
+
+# =============================================================================
+# PHASE 1: CORE CONFIGURATION FIX (P0 - CRITICAL)
+# =============================================================================
+# Goal: Make MCP server discoverable and connectable in Claude Code
+# Must Complete: All tasks
+# Blocks: All other phases
+# =============================================================================
+
+phase1_core_fix:
+  priority: P0
+  status: pending
+  estimatedDuration: "4 hours"
+  mustComplete: true
+
+  tasks:
+    - id: P1-T1
+      title: "Auto-detect npm absolute path"
+      description: |
+        Modify mcp-setup.ts to detect npm path from environment.
+        Use `which npm` or check common nvm locations.
+      priority: P0
+      status: pending
+      files:
+        - tools/brat/src/cli/mcp-setup.ts
+      acceptance:
+        - "Setup command detects /Users/christophernavta/.nvm/versions/node/v24.11.0/bin/npm"
+        - "Falls back to `npm` if nvm not found"
+        - "Logs detected path at debug level"
+      estimatedTime: "1 hour"
+
+    - id: P1-T2
+      title: "Auto-detect BitBratPlatform root directory"
+      description: |
+        Add logic to find repo root by walking up from cwd looking for architecture.yaml.
+        Use same logic as dev-mcp server (findRootDir function).
+      priority: P0
+      status: pending
+      files:
+        - tools/brat/src/cli/mcp-setup.ts
+      dependencies:
+        - P1-T1
+      acceptance:
+        - "Detects /Users/christophernavta/IdeaProjects/BitBratPlatform from any subdirectory"
+        - "Errors clearly if architecture.yaml not found"
+        - "Works from sprint worktrees"
+      estimatedTime: "30 minutes"
+
+    - id: P1-T3
+      title: "Add cwd field to MCP server config"
+      description: |
+        Update buildServerConfig() to include cwd field pointing to repo root.
+        This ensures npm run brat executes from correct directory.
+      priority: P0
+      status: pending
+      files:
+        - tools/brat/src/cli/mcp-setup.ts
+      dependencies:
+        - P1-T2
+      acceptance:
+        - "Generated config includes cwd field"
+        - "cwd points to detected repo root"
+        - "Config validates against MCP server schema"
+      estimatedTime: "15 minutes"
+
+    - id: P1-T4
+      title: "Change default context to local"
+      description: |
+        Update default context from 'staging' to 'local' for safer defaults.
+        Document that context can be overridden with --context flag.
+      priority: P0
+      status: pending
+      files:
+        - tools/brat/src/cli/mcp-setup.ts
+        - tools/brat/src/oclif-commands/mcp/setup.ts
+      dependencies:
+        - P1-T3
+      acceptance:
+        - "Default context is 'local'"
+        - "--context flag still works"
+        - "Documentation updated"
+      estimatedTime: "15 minutes"
+
+    - id: P1-T5
+      title: "Use absolute npm path in generated config"
+      description: |
+        Update buildServerConfig() to use detected absolute npm path
+        instead of relying on PATH.
+      priority: P0
+      status: pending
+      files:
+        - tools/brat/src/cli/mcp-setup.ts
+      dependencies:
+        - P1-T1
+        - P1-T3
+      acceptance:
+        - "Generated config uses /full/path/to/npm"
+        - "Config works even if PATH doesn't include npm"
+      estimatedTime: "15 minutes"
+
+    - id: P1-T6
+      title: "Regenerate ~/.claude.json with fixed config"
+      description: |
+        Run updated brat mcp setup to regenerate configuration.
+        Backup existing config first.
+      priority: P0
+      status: pending
+      files:
+        - ~/.claude.json
+      dependencies:
+        - P1-T1
+        - P1-T2
+        - P1-T3
+        - P1-T4
+        - P1-T5
+      acceptance:
+        - "Backup created at ~/.claude.json.backup"
+        - "New config includes cwd, absolute npm path, local context"
+        - "Existing mcpServers preserved"
+      estimatedTime: "15 minutes"
+
+    - id: P1-T7
+      title: "Test MCP server in Claude Code session"
+      description: |
+        Start fresh Claude Code session and verify bitbrat-dev appears.
+        Test basic tool call to verify connectivity.
+      priority: P0
+      status: pending
+      dependencies:
+        - P1-T6
+      acceptance:
+        - "/mcp list shows bitbrat-dev"
+        - "config.show() tool call succeeds"
+        - "Returns architecture.yaml content"
+      estimatedTime: "30 minutes"
+
+    - id: P1-T8
+      title: "Verify all 15 tools are callable"
+      description: |
+        Test one tool from each category to verify full registration.
+      priority: P0
+      status: pending
+      dependencies:
+        - P1-T7
+      testCases:
+        - "config.show() - Config tools"
+        - "db.collections() - Persistence tools"
+        - "fleet.list() - Fleet tools"
+        - "agent_dev.provision({name: 'test'}) - Agent-dev tools"
+      acceptance:
+        - "All 4 tool categories work"
+        - "No authentication errors"
+        - "Audit log captures calls"
+      estimatedTime: "1 hour"
+
+# =============================================================================
+# PHASE 2: VALIDATION & DEBUGGING (P1 - HIGH)
+# =============================================================================
+# Goal: Make MCP failures visible and debuggable
+# Blocks: None (can run in parallel with Phase 3)
+# =============================================================================
+
+phase2_validation:
+  priority: P1
+  status: pending
+  estimatedDuration: "6 hours"
+  dependsOn:
+    - phase1_core_fix
+
+  tasks:
+    - id: P2-T1
+      title: "Create brat mcp validate command"
+      description: |
+        New oclif command to test MCP server connectivity without Claude Code.
+        Spawns server, simulates MCP handshake, lists tools.
+      priority: P1
+      status: pending
+      files:
+        - tools/brat/src/oclif-commands/mcp/validate.ts
+        - tools/brat/src/cli/mcp-validate.ts
+      acceptance:
+        - "Command spawns dev-mcp server"
+        - "Performs MCP initialize handshake"
+        - "Lists all registered tools"
+        - "Reports errors with actionable messages"
+      estimatedTime: "3 hours"
+
+    - id: P2-T2
+      title: "Add --debug flag to brat mcp setup"
+      description: |
+        Enable verbose logging for troubleshooting setup issues.
+        Logs npm path detection, cwd detection, config generation.
+      priority: P1
+      status: pending
+      files:
+        - tools/brat/src/oclif-commands/mcp/setup.ts
+        - tools/brat/src/cli/mcp-setup.ts
+      dependencies:
+        - P2-T1
+      acceptance:
+        - "--debug flag shows detailed logs"
+        - "Logs include: npm path, cwd, generated config"
+        - "Errors include context for debugging"
+      estimatedTime: "1 hour"
+
+    - id: P2-T3
+      title: "Document MCP troubleshooting guide"
+      description: |
+        Add comprehensive troubleshooting section to mcp-setup.md.
+        Cover common failure modes and fixes.
+      priority: P1
+      status: pending
+      files:
+        - documentation/guides/mcp-setup.md
+      dependencies:
+        - P2-T1
+        - P2-T2
+      sections:
+        - "Server not appearing in /mcp list"
+        - "Tools not callable (auth errors)"
+        - "npm command not found"
+        - "Working directory errors"
+        - "Using brat mcp validate to diagnose"
+      acceptance:
+        - "Troubleshooting section added"
+        - "Decision tree for common errors"
+        - "Examples using brat mcp validate"
+      estimatedTime: "1.5 hours"
+
+    - id: P2-T4
+      title: "Create MCP client test harness"
+      description: |
+        Reusable test utility for spawning dev-mcp server and testing tool calls.
+        Used by validate command and integration tests.
+      priority: P1
+      status: pending
+      files:
+        - tools/brat/src/dev-mcp/__tests__/mcp-client-harness.ts
+      dependencies:
+        - P2-T1
+      acceptance:
+        - "Can spawn server programmatically"
+        - "Can perform MCP handshake"
+        - "Can call tools and get responses"
+        - "Handles server errors gracefully"
+      estimatedTime: "30 minutes"
+
+# =============================================================================
+# PHASE 3: UX IMPROVEMENTS (P2 - MEDIUM)
+# =============================================================================
+# Goal: Make setup foolproof and self-diagnosing
+# Blocks: None
+# =============================================================================
+
+phase3_ux:
+  priority: P2
+  status: pending
+  estimatedDuration: "4 hours"
+  dependsOn:
+    - phase1_core_fix
+
+  tasks:
+    - id: P3-T1
+      title: "Add --verify flag to brat mcp setup"
+      description: |
+        After writing config, immediately test it using validate logic.
+        Gives instant feedback on configuration quality.
+      priority: P2
+      status: pending
+      files:
+        - tools/brat/src/oclif-commands/mcp/setup.ts
+        - tools/brat/src/cli/mcp-setup.ts
+      dependencies:
+        - P2-T1
+      acceptance:
+        - "--verify flag tests config after writing"
+        - "Reports success/failure immediately"
+        - "Suggests fixes for common errors"
+      estimatedTime: "1.5 hours"
+
+    - id: P3-T2
+      title: "Validate configuration before writing"
+      description: |
+        Check that npm path exists, cwd exists, architecture.yaml present.
+        Fail fast with clear error before writing bad config.
+      priority: P2
+      status: pending
+      files:
+        - tools/brat/src/cli/mcp-setup.ts
+      dependencies:
+        - P3-T1
+      validations:
+        - "npm path is executable"
+        - "cwd directory exists"
+        - "architecture.yaml exists in cwd"
+        - "~/.claude.json is writable"
+      acceptance:
+        - "Pre-flight checks run before writing"
+        - "Clear errors for each validation failure"
+        - "Suggests fixes (e.g., 'Run from BitBratPlatform repo')"
+      estimatedTime: "1 hour"
+
+    - id: P3-T3
+      title: "Add setup success output with next steps"
+      description: |
+        After successful setup, show user what to do next.
+        Include example tool calls to try.
+      priority: P2
+      status: pending
+      files:
+        - tools/brat/src/cli/mcp-setup.ts
+      dependencies:
+        - P3-T2
+      outputFormat: |
+        ✅ MCP server 'bitbrat-dev' configured successfully
+
+        Configuration:
+          - Location: ~/.claude.json
+          - Working directory: /Users/christophernavta/IdeaProjects/BitBratPlatform
+          - Context: local
+          - Tools: 15
+
+        Next steps:
+          1. Start a Claude Code session
+          2. Run: /mcp list
+          3. Verify 'bitbrat-dev' appears
+          4. Try a tool: config.show()
+
+        Troubleshooting:
+          - Run: npm run brat -- mcp validate
+          - See: documentation/guides/mcp-setup.md
+      acceptance:
+        - "Success message includes all key info"
+        - "Next steps are actionable"
+        - "Troubleshooting pointer included"
+      estimatedTime: "30 minutes"
+
+    - id: P3-T4
+      title: "Handle edge cases in path detection"
+      description: |
+        Test and fix path detection on various setups:
+        - Multiple node versions
+        - Non-nvm npm installs
+        - Symlinked directories
+        - Network mounts
+      priority: P2
+      status: pending
+      files:
+        - tools/brat/src/cli/mcp-setup.ts
+      dependencies:
+        - P3-T2
+      testCases:
+        - "nvm with multiple node versions"
+        - "System npm (no nvm)"
+        - "npm installed via homebrew"
+        - "Worktree as cwd"
+        - "Symlinked repo directory"
+      acceptance:
+        - "Handles all test cases gracefully"
+        - "Falls back to PATH npm if needed"
+        - "Resolves symlinks to real paths"
+      estimatedTime: "1 hour"
+
+# =============================================================================
+# PHASE 4: DOCUMENTATION & POLISH (P3 - LOW)
+# =============================================================================
+# Goal: Prevent future issues, improve discoverability
+# Blocks: None
+# =============================================================================
+
+phase4_docs:
+  priority: P3
+  status: pending
+  estimatedDuration: "3 hours"
+  dependsOn:
+    - phase2_validation
+    - phase3_ux
+
+  tasks:
+    - id: P4-T1
+      title: "Document tool naming convention"
+      description: |
+        Clarify how tools appear in Claude Code sessions.
+        Test if namespace prefix is used (bitbrat-dev.config.show vs config.show).
+      priority: P3
+      status: pending
+      files:
+        - documentation/guides/mcp-dev-tools-reference.md
+      research:
+        - "Call config.show() and check exact tool name in logs"
+        - "Determine if Claude uses server name as prefix"
+        - "Document actual tool names for all 15 tools"
+      acceptance:
+        - "Tool naming documented with examples"
+        - "Namespace behavior explained"
+        - "All 15 tools listed with correct names"
+      estimatedTime: "45 minutes"
+
+    - id: P4-T2
+      title: "Add example workflows using dev MCP tools"
+      description: |
+        Document common development workflows using MCP tools.
+        E.g., deploy validation, debugging, data inspection.
+      priority: P3
+      status: pending
+      files:
+        - documentation/guides/mcp-setup.md
+      workflows:
+        - "Pre-deployment validation (config.validate, fleet.list)"
+        - "Debugging service issues (fleet.info, fleet.logs, db.query)"
+        - "Agent-dev testing (agent_dev.provision, deploy, verify, destroy)"
+        - "Database inspection (db.collections, db.get, db.query)"
+      acceptance:
+        - "4+ workflows documented"
+        - "Each includes example tool calls"
+        - "Expected outputs shown"
+      estimatedTime: "1 hour"
+
+    - id: P4-T3
+      title: "Create troubleshooting decision tree"
+      description: |
+        Visual flowchart for diagnosing MCP issues.
+        Guides user from symptom to fix.
+      priority: P3
+      status: pending
+      files:
+        - documentation/guides/mcp-troubleshooting.md
+      sections:
+        - "Server not appearing → Check ~/.claude.json, run validate"
+        - "Auth errors → Check MCP_DEV_TOKEN, verify fail-closed"
+        - "Tool errors → Check context, verify services running"
+        - "Performance issues → Check network, database connectivity"
+      acceptance:
+        - "Decision tree covers common issues"
+        - "Each path leads to concrete fix"
+        - "Includes brat mcp validate in flow"
+      estimatedTime: "45 minutes"
+
+    - id: P4-T4
+      title: "Add MCP server health check to brat doctor"
+      description: |
+        Integrate MCP validation into brat doctor command.
+        Checks server configuration and connectivity.
+      priority: P3
+      status: pending
+      files:
+        - tools/brat/src/oclif-commands/doctor.ts
+      dependencies:
+        - P2-T1
+      checks:
+        - "MCP server configured in ~/.claude.json"
+        - "Configuration is valid (cwd, npm path exist)"
+        - "Server can start"
+        - "Tools register correctly"
+      acceptance:
+        - "brat doctor includes MCP section"
+        - "Reports server status (healthy/degraded/missing)"
+        - "Suggests brat mcp setup if not configured"
+      estimatedTime: "30 minutes"
+
+# =============================================================================
+# SPRINT METRICS
+# =============================================================================
+
+metrics:
+  totalTasks: 24
+  p0Tasks: 8
+  p1Tasks: 4
+  p2Tasks: 4
+  p3Tasks: 4
+
+  estimatedHours:
+    phase1: 4
+    phase2: 6
+    phase3: 4
+    phase4: 3
+    total: 17
+
+  riskLevel: low
+  dependencies:
+    external:
+      - Claude Code (installed)
+      - Node.js/npm via nvm
+      - BitBratPlatform repository
+    internal:
+      - dev-mcp server (working)
+      - mcp-setup.ts (needs updates)
+
+  successCriteria:
+    mustHave:
+      - "MCP server appears in /mcp list"
+      - "All 15 tools callable from Claude sessions"
+      - "brat mcp setup creates working config"
+      - "brat mcp validate catches errors"
+    shouldHave:
+      - "Zero-config setup (auto-detect paths)"
+      - "Clear error messages"
+      - "Comprehensive docs"
+    niceToHave:
+      - "Auto-restart on code changes"
+      - "Per-project instances"
+      - "Usage analytics"
+
+# =============================================================================
+# COMPLETION CHECKLIST
+# =============================================================================
+
+completion:
+  phase1:
+    - "All P0 tasks completed"
+    - "MCP server discoverable in Claude Code"
+    - "Basic tool calls work"
+
+  phase2:
+    - "Validate command implemented"
+    - "Troubleshooting docs complete"
+    - "Test harness working"
+
+  phase3:
+    - "--verify flag implemented"
+    - "Path detection robust"
+    - "Success output polished"
+
+  phase4:
+    - "Tool naming documented"
+    - "Example workflows added"
+    - "Decision tree created"
+    - "brat doctor integrated"
+
+  sprint:
+    - "All phases complete"
+    - "Manual testing passed"
+    - "Agent-dev validation passed"
+    - "Documentation updated"
+    - "PR created and merged"

@@ -55,6 +55,9 @@ export interface ToolExecutionConfig {
 
   /** Service name / role to use for RBAC (defaults to SERVICE_NAME env var) */
   serviceName?: string;
+
+  /** User roles for RBAC (defaults to USER_ROLES env var or empty array) */
+  userRoles?: string[];
 }
 
 /**
@@ -92,6 +95,7 @@ export async function executeTool(
     timeout = 5000,
     correlationId,
     serviceName = process.env.SERVICE_NAME || 'reflex',
+    userRoles = process.env.USER_ROLES?.split(',').map(r => r.trim()).filter(Boolean) || [],
   } = config;
 
   if (!authToken) {
@@ -133,7 +137,8 @@ export async function executeTool(
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${authToken}`,
-          'X-Roles': serviceName, // Send service name as role for RBAC
+          'X-Roles': userRoles.join(','), // Send user roles for RBAC
+          'X-Agent-Name': serviceName, // Send service name for agent identification
           ...(correlationId && { 'X-Correlation-ID': correlationId }),
         },
         body: JSON.stringify(body),

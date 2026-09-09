@@ -1,5 +1,5 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { CallToolResult, CallToolResultSchema, ReadResourceResult, ReadResourceResultSchema, GetPromptResult, GetPromptResultSchema } from '@modelcontextprotocol/sdk/types.js';
+import { ReadResourceResultSchema, GetPromptResultSchema } from "@modelcontextprotocol/core";
+import { Client, CallToolResult, ReadResourceResult, GetPromptResult } from "@modelcontextprotocol/client";
 import { ToolExecutionContext } from '../../types/tools';
 import { McpObservability } from './observability';
 
@@ -11,12 +11,12 @@ export interface ProxyInvokerOptions {
   timeoutMs?: number;
   /**
    * Number of consecutive failures before opening the circuit for a server.
-   * Default: 2
+   * Default: 5
    */
   failureThreshold?: number;
   /**
    * Time (in ms) to wait after opening a circuit before attempting to half-open.
-   * Default: 120000 (120 seconds)
+   * Default: 30000 (30 seconds)
    */
   resetTimeoutMs?: number;
   /**
@@ -41,8 +41,8 @@ export class ProxyInvoker {
 
   constructor(private options: ProxyInvokerOptions = {}) {
     this.options.timeoutMs = this.options.timeoutMs || 60000;
-    this.options.failureThreshold = this.options.failureThreshold || 2;
-    this.options.resetTimeoutMs = this.options.resetTimeoutMs || 120000;
+    this.options.failureThreshold = this.options.failureThreshold || 5;
+    this.options.resetTimeoutMs = this.options.resetTimeoutMs || 30000;
   }
 
   /**
@@ -56,7 +56,7 @@ export class ProxyInvoker {
           name: toolName, 
           arguments: args,
           _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
-        } as any, CallToolResultSchema),
+        } as any),
         optionsOverride,
         context
       );

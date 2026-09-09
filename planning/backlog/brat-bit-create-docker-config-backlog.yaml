@@ -1,0 +1,367 @@
+# Brat Bit Create Docker Compose Config Generation - Prioritized Backlog
+# Created: 2026-08-23
+# Related: Sprint 24 (Claim Check Bit) - Docker deployment configuration issues
+# Status: Provisional
+
+metadata:
+  epic: "Fix brat bit create Docker Compose Generation"
+  priority: medium
+  estimated_total_effort: "2-3 hours"
+  estimated_duration: "0.5 days"
+  dependencies:
+    - "Sprint 375 (Base Image Strategy) completed"
+  context: "Post-Sprint 24 follow-up work"
+  impact: |
+    When creating new Bits via `brat bit create`, the generated docker-compose
+    configuration uses outdated patterns (custom Dockerfiles, wrong build context).
+    This causes deployment failures and requires manual fixes.
+
+# Tasks organized by phase and priority
+tasks:
+  # ========================================
+  # PHASE 1: CODE FIXES (Priority: High)
+  # ========================================
+
+  - id: DOCKER-GEN-001
+    title: "Update docker-compose template generation in bit create"
+    priority: high
+    phase: 1
+    estimated_effort: "1.5 hours"
+    dependencies: []
+
+    description: |
+      Update the `brat bit create` command to generate docker-compose configuration
+      that follows the Sprint 375 pattern:
+      - Use Dockerfile.service (not custom Dockerfiles)
+      - Set build context to ../.. (repository root)
+      - Add proper build args (BASE_IMAGE, SERVICE_NAME, SERVICE_ENTRY, SERVICE_PORT)
+      - Add network aliases (servicename.bitbrat.local)
+
+    files:
+      - path: "tools/brat/src/commands/bit/create.ts"
+        function: "generateDockerComposeFile() or similar"
+        line_range: "TBD - need to find template generation code"
+
+    current_behavior: |
+      Generated docker-compose.yaml:
+      ```yaml
+      services:
+        new-service:
+          build:
+            context: .
+            dockerfile: Dockerfile.new-service
+          ports:
+            - "${NEW_SERVICE_HOST_PORT:-3XXX}:3XXX"
+          networks:
+            - bitbrat-network
+      ```
+
+    expected_behavior: |
+      Generated docker-compose.yaml:
+      ```yaml
+      services:
+        new-service:
+          env_file:
+            - .env.brat
+          build:
+            context: ../..  # Sprint 375: Repository root
+            dockerfile: Dockerfile.service
+            args:
+              BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}
+              SERVICE_NAME: new-service
+              SERVICE_ENTRY: dist/apps/new-service-service.js
+              SERVICE_PORT: "3XXX"
+          ports:
+            - "${NEW_SERVICE_HOST_PORT:-3XXX}:3XXX"
+          networks:
+            bitbrat-network:
+              aliases:
+                - new-service.bitbrat.local
+      ```
+
+    acceptance_criteria:
+      - "Generated docker-compose uses Dockerfile.service (not custom)"
+      - "Build context is ../.. (repository root)"
+      - "Build args include BASE_IMAGE, SERVICE_NAME, SERVICE_ENTRY, SERVICE_PORT"
+      - "env_file section includes .env.brat"
+      - "Network section includes alias (servicename.bitbrat.local)"
+      - "No custom Dockerfile.{service} is created"
+
+    testing:
+      unit:
+        - "Test docker-compose template generation with mock service data"
+        - "Verify all required build args are present"
+        - "Verify network alias format is correct"
+      integration:
+        - "Run `brat bit create test-service` and verify generated compose file"
+        - "Deploy generated service via `brat bit deploy test-service`"
+        - "Verify service builds successfully with shared base image"
+
+    notes: |
+      - Reference llm-bot.compose.yaml as the canonical example
+      - Ensure compatibility with Sprint 375 base image strategy
+      - Template should work for all service kinds (pipeline-service, gateway, mcp-server)
+
+  - id: DOCKER-GEN-002
+    title: "Update bit create to not generate custom Dockerfiles"
+    priority: high
+    phase: 1
+    estimated_effort: "30 minutes"
+    dependencies:
+      - DOCKER-GEN-001
+
+    description: |
+      Remove or skip the step in `brat bit create` that generates custom
+      Dockerfile.{service-name} files. All services should use the shared
+      Dockerfile.service with build args.
+
+    files:
+      - path: "tools/brat/src/commands/bit/create.ts"
+        function: "generateDockerfile() or similar"
+        line_range: "TBD"
+
+    changes:
+      - type: "removal"
+        description: "Remove custom Dockerfile generation logic"
+        note: "Services now use shared Dockerfile.service"
+
+    acceptance_criteria:
+      - "`brat bit create` does NOT create Dockerfile.{service-name}"
+      - "No references to custom Dockerfiles in generated files"
+      - "Documentation updated to reflect shared Dockerfile approach"
+
+    testing:
+      integration:
+        - "Run `brat bit create test-service-2`"
+        - "Verify no Dockerfile.test-service-2 is created"
+        - "Verify docker-compose.yaml references Dockerfile.service"
+
+    notes: |
+      - Custom Dockerfiles are legacy pattern from before Sprint 375
+      - All services should use shared base image strategy
+
+  # ========================================
+  # PHASE 2: VALIDATION (Priority: Medium)
+  # ========================================
+
+  - id: DOCKER-GEN-003
+    title: "Audit existing services for outdated docker-compose configs"
+    priority: medium
+    phase: 2
+    estimated_effort: "45 minutes"
+    dependencies:
+      - DOCKER-GEN-001
+      - DOCKER-GEN-002
+
+    description: |
+      Search for and update any services that still use outdated docker-compose
+      patterns (custom Dockerfiles, wrong build context, missing network aliases).
+
+    files:
+      - path: "infrastructure/docker-compose/services/*.compose.yaml"
+        pattern: "Search for dockerfile: Dockerfile.{custom}"
+
+    changes:
+      - type: "audit"
+        description: "Identify services with outdated patterns"
+        commands:
+          - "grep -r 'dockerfile: Dockerfile\\.' infrastructure/docker-compose/services/"
+          - "grep -r 'context: \\.' infrastructure/docker-compose/services/"
+
+    acceptance_criteria:
+      - "All service compose files use Dockerfile.service"
+      - "All service compose files use context: ../.."
+      - "All service compose files include network aliases"
+      - "No orphaned custom Dockerfiles in repository"
+
+    testing:
+      manual:
+        - "Run grep commands to find outdated patterns"
+        - "Update any found services to use standard pattern"
+        - "Test deployment of updated services"
+
+    notes: |
+      - Claim-check was found with this issue in Sprint 24
+      - May be other services created before Sprint 375
+
+  - id: DOCKER-GEN-004
+    title: "Update documentation for bit create Docker patterns"
+    priority: medium
+    phase: 2
+    estimated_effort: "30 minutes"
+    dependencies:
+      - DOCKER-GEN-001
+      - DOCKER-GEN-002
+
+    description: |
+      Update any documentation that references custom Dockerfiles or
+      outdated docker-compose patterns. Document the Sprint 375
+      shared base image strategy.
+
+    files:
+      - path: "documentation/guides/creating-a-new-bit.md" # (if exists)
+      - path: "CLAUDE.md"
+        section: "Creating a New Bit"
+
+    changes:
+      - type: "documentation"
+        description: "Update examples to show Sprint 375 pattern"
+        note: "Show Dockerfile.service with build args"
+
+    acceptance_criteria:
+      - "Documentation shows correct docker-compose template"
+      - "No references to custom Dockerfiles in docs"
+      - "Sprint 375 base image strategy is documented"
+      - "CLAUDE.md section on bit creation is updated"
+
+    testing:
+      manual:
+        - "Review all documentation for Docker references"
+        - "Ensure examples match current implementation"
+
+# ========================================
+# GitHub Issue Template
+# ========================================
+
+github_issue_template: |
+  # Fix `brat bit create` Docker Compose Configuration Generation
+
+  ## Problem Statement
+
+  When creating new Bits via `brat bit create`, the generated docker-compose configuration uses outdated patterns that cause deployment failures:
+
+  - Custom Dockerfiles (`Dockerfile.{service-name}`) instead of shared `Dockerfile.service`
+  - Wrong build context (`.` instead of `../..`)
+  - Missing build args (BASE_IMAGE, SERVICE_NAME, SERVICE_ENTRY, SERVICE_PORT)
+  - Missing network aliases (`servicename.bitbrat.local`)
+
+  ## Impact
+
+  - **Immediate**: New services fail to deploy with "no such file or directory" errors
+  - **Technical Debt**: Manual fixes required for every new service
+  - **Inconsistency**: New services don't follow Sprint 375 base image strategy
+  - **Confusion**: Developers unsure which pattern to follow
+
+  ## Root Cause
+
+  The `brat bit create` command generates docker-compose templates based on pre-Sprint 375 patterns. The template generation code has not been updated to use the shared base image strategy.
+
+  ## Example Failure
+
+  ```
+  #2 [internal] load build definition from Dockerfile.claim-check
+  #2 transferring dockerfile: 2B done
+  #2 DONE 0.0s
+  failed to solve: failed to read dockerfile: open Dockerfile.claim-check: no such file or directory
+  ```
+
+  ## Proposed Solution
+
+  Update `tools/brat/src/commands/bit/create.ts` to generate docker-compose configurations that:
+
+  1. Use `Dockerfile.service` with build args (not custom Dockerfiles)
+  2. Set build context to `../..` (repository root)
+  3. Include all required build args (BASE_IMAGE, SERVICE_NAME, SERVICE_ENTRY, SERVICE_PORT)
+  4. Add network aliases (`servicename.bitbrat.local`)
+  5. Include `env_file: .env.brat` section
+
+  ## Tasks
+
+  See [brat-bit-create-docker-config-backlog.yaml](../backlog/brat-bit-create-docker-config-backlog.yaml) for detailed task breakdown.
+
+  ## Acceptance Criteria
+
+  - [ ] `brat bit create new-service` generates docker-compose with Dockerfile.service
+  - [ ] Generated config includes all Sprint 375 build args
+  - [ ] Generated config includes network alias
+  - [ ] No custom Dockerfile is created
+  - [ ] New service deploys successfully without manual fixes
+
+  ## Estimated Effort
+
+  **2-3 hours** (0.5 days)
+
+  ## Priority
+
+  **Medium** - Affects developer experience but has known workaround (manual fix)
+
+  ## Related
+
+  - Sprint 24: Claim Check Bit (discovered during deployment)
+  - Sprint 375: Base Image Strategy (introduced shared Dockerfile.service pattern)
+
+# ========================================
+# Implementation Notes
+# ========================================
+
+implementation_notes: |
+  ## Finding the Template Code
+
+  The docker-compose template generation is likely in:
+  - tools/brat/src/commands/bit/create.ts
+  - Search for "compose.yaml" or "Dockerfile" generation
+
+  ## Reference Implementation
+
+  Use llm-bot.compose.yaml as the canonical example:
+  - infrastructure/docker-compose/services/llm-bot.compose.yaml
+
+  ## Key Pattern Changes
+
+  ### Before (Legacy Pattern)
+  ```yaml
+  build:
+    context: .
+    dockerfile: Dockerfile.claim-check
+  ```
+
+  ### After (Sprint 375 Pattern)
+  ```yaml
+  build:
+    context: ../..
+    dockerfile: Dockerfile.service
+    args:
+      BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}
+      SERVICE_NAME: claim-check
+      SERVICE_ENTRY: dist/apps/claim-check-service.js
+      SERVICE_PORT: "3008"
+  ```
+
+  ## Testing Approach
+
+  1. Create test service: `brat bit create test-docker-gen`
+  2. Verify generated files match Sprint 375 pattern
+  3. Deploy: `brat bit deploy test-docker-gen`
+  4. Verify successful build and deployment
+  5. Clean up: Remove test service
+
+# ========================================
+# Risk Assessment
+# ========================================
+
+risks:
+  - risk: "Breaking existing manually-created services"
+    mitigation: "Only affects new services created after fix"
+    severity: low
+
+  - risk: "Template generation code is complex/hard to find"
+    mitigation: "Search codebase for 'compose.yaml' generation"
+    severity: low
+
+  - risk: "Different service kinds need different templates"
+    mitigation: "Test with pipeline-service, gateway, and mcp-server"
+    severity: medium
+
+# ========================================
+# Success Metrics
+# ========================================
+
+success_metrics:
+  - metric: "Zero manual fixes needed for new services"
+    target: "100% of new services deploy without modification"
+
+  - metric: "Consistency with Sprint 375 pattern"
+    target: "All generated files match llm-bot.compose.yaml pattern"
+
+  - metric: "Developer onboarding time"
+    target: "New developers can create/deploy services without Docker knowledge"

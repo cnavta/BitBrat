@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # Example: Docker Hub Authentication
 # Hook Type: pre-deploy

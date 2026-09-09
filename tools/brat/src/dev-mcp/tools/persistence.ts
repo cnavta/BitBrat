@@ -217,8 +217,8 @@ export const dbQueryTool: ToolDefinition = {
       field: z.string().describe('Field to order by'),
       direction: z.enum(['asc', 'desc']).optional().describe('Sort direction (default: asc)'),
     }).optional().describe('Ordering specification'),
-    limit: z.number().optional().describe('Maximum number of documents to return'),
-    offset: z.number().optional().describe('Number of documents to skip'),
+    limit: z.coerce.number().optional().describe('Maximum number of documents to return'),
+    offset: z.coerce.number().optional().describe('Number of documents to skip'),
     context: z.string().optional().describe('Execution context (local, staging, prod). Defaults to server startup context.'),
   }),
   handler: async (args, connection: TargetConnection) => {

@@ -1,0 +1,927 @@
+/**
+ * Composition Compiler
+ *
+ * Validates compositions, resolves tool dependencies, detects circular
+ * dependencies, and produces compiled form with content hash.
+ *
+ * @module composition/compiler
+ * @version 1.0.0
+ * @see technical-architecture.md §4.3
+ */
+
+import { createHash } from 'crypto';
+import type { Logger } from '../logging';
+import {
+  CompositionDefinition,
+  CompiledComposition,
+  ValidationReport,
+  ValidationError,
+  ValidationWarning,
+  ToolDependency,
+  CompositionErrorCode,
+  Step,
+  ValueExpression,
+  Reference,
+  TemplateExpression,
+  isReference,
+  isTemplateExpression,
+  isCallStep,
+  isIfValueStep,
+} from './types';
+
+/**
+ * Tool Registry Interface
+ *
+ * Minimal interface for tool resolution during compilation
+ */
+export interface ToolRegistryInterface {
+  /**
+   * Get tool by logical ID
+   */
+  getTool(toolId: string): {
+    id: string;
+    inputSchema?: unknown;
+    source?: string;
+  } | null;
+}
+
+/**
+ * Composition Compiler
+ *
+ * Validates composition definitions and produces compiled form.
+ * Performs:
+ * - Tool dependency resolution
+ * - Circular dependency detection (DFS algorithm)
+ * - Reference validation
+ * - Content hash computation (SHA-256)
+ *
+ * @example
+ * ```typescript
+ * const compiler = new CompositionCompiler(toolRegistry, logger);
+ * const compiled = compiler.compile(definition);
+ * ```
+ */
+export class CompositionCompiler {
+  constructor(
+    private registry: ToolRegistryInterface,
+    private logger: Logger
+  ) {}
+
+  /**
+   * Compile a composition definition
+   *
+   * @param def - Parsed composition definition
+   * @returns Compiled composition with validation metadata
+   * @throws Error if validation fails
+   */
+  compile(def: CompositionDefinition): CompiledComposition {
+    const compositionName = def.metadata.name;
+    const stepCount = def.spec.steps.length;
+
+    this.logger.debug('compilation_started', {
+      composition: compositionName,
+      stepCount,
+      description: def.metadata.description,
+    });
+
+    try {
+      // Validate composition
+      const report = this.validate(def);
+
+      if (!report.valid) {
+        const errorList = report.errors
+          .map((e) => `  ${e.code}: ${e.message}${e.location ? ` (at ${e.location})` : ''}`)
+          .join('\n');
+
+        this.logger.error('compilation_failed_validation', {
+          composition: compositionName,
+          errorCount: report.errors.length,
+          warningCount: report.warnings.length,
+          errors: report.errors.map(e => ({ code: e.code, message: e.message, location: e.location })),
+        });
+
+        throw new Error(
+          `Composition validation failed:\n${errorList}`
+        );
+      }
+
+      // Resolve dependencies
+      const dependencies = this.resolveDependencies(def);
+
+      // Compute content hash
+      const contentHash = this.computeHash(def);
+
+      const compiled: CompiledComposition = {
+        id: '', // Will be assigned by registry
+        metadata: {
+          ...def.metadata,
+          version: def.metadata.version || 1,
+        },
+        spec: def.spec,
+        compiledAt: new Date(),
+        contentHash,
+        dependencies,
+        validationReport: report,
+      };
+
+      this.logger.info('compilation_succeeded', {
+        composition: compositionName,
+        contentHash,
+        dependencyCount: dependencies.length,
+        warningCount: report.warnings.length,
+      });
+
+      return compiled;
+    } catch (err) {
+      // Only log if not already logged (avoid duplicate logging for validation errors)
+      if (!(err instanceof Error && err.message.includes('Composition validation failed'))) {
+        this.logger.error('compilation_failed_unexpected', {
+          composition: compositionName,
+          error: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+        });
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Validate composition
+   *
+   * Performs comprehensive validation:
+   * 1. Tool resolution (all tools exist)
+   * 2. Cycle detection (no circular dependencies)
+   * 3. Reference validation (all step IDs valid)
+   *
+   * @param def - Composition definition to validate
+   * @returns Validation report
+   */
+  validate(def: CompositionDefinition): ValidationReport {
+    const compositionName = def.metadata.name;
+
+    this.logger.debug('validation_started', {
+      composition: compositionName,
+      stepCount: def.spec.steps.length,
+    });
+
+    const errors: ValidationError[] = [];
+    const warnings: ValidationWarning[] = [];
+
+    // 1. Validate tool dependencies
+    this.logger.trace('validation_step_tools_started', {
+      composition: compositionName,
+    });
+
+    const toolIds = this.extractToolIds(def);
+    this.logger.debug('validation_tools_extracted', {
+      composition: compositionName,
+      toolCount: toolIds.length,
+      tools: toolIds,
+    });
+
+    for (const toolId of toolIds) {
+      // Sprint 41: Use findTool() to handle both canonical and MCP-prefixed lookups
+      const tool = this.findTool(toolId);
+      if (!tool) {
+        // Sprint 41: Enhanced error messages with actionable suggestions
+        let message = `Tool not found: ${toolId}`;
+
+        // Check if tool ID has mcp_ prefix (common mistake)
+        if (toolId.startsWith('mcp_')) {
+          const canonicalId = toolId.slice(4);
+          const canonicalTool = this.findTool(canonicalId);
+          if (canonicalTool) {
+            message = `Tool not found: ${toolId} (found as '${canonicalId}'). Use canonical tool ID without 'mcp_' prefix.`;
+          } else {
+            message = `Tool not found: ${toolId}. Remove 'mcp_' prefix and use 'composition.list_tools' to discover available tools.`;
+          }
+        } else {
+          message = `Tool not found: ${toolId}. Use 'composition.list_tools' to see all available tools.`;
+        }
+
+        this.logger.warn('validation_tool_not_found', {
+          composition: compositionName,
+          toolId,
+          suggestion: message,
+        });
+
+        errors.push({
+          code: CompositionErrorCode.TOOL_NOT_FOUND,
+          message,
+          location: `steps[?].call`,
+        });
+      }
+
+      // Sprint 41: Warn about mcp_ prefix even if tool exists (shouldn't happen, but defensive)
+      if (toolId.startsWith('mcp_') && tool) {
+        this.logger.debug('validation_tool_prefix_warning', {
+          composition: compositionName,
+          toolId,
+        });
+
+        warnings.push({
+          code: 'COMPOSE-WARN-001',
+          message: `Tool ID '${toolId}' uses 'mcp_' prefix. Consider using canonical ID without prefix for consistency.`,
+          location: `steps[?].call`,
+        });
+      }
+    }
+
+    // 2. Detect circular dependencies
+    this.logger.trace('validation_step_cycles_started', {
+      composition: compositionName,
+    });
+
+    const cycles = this.detectCycles(def);
+    if (cycles.length > 0) {
+      this.logger.warn('validation_circular_dependency_detected', {
+        composition: compositionName,
+        cycle: cycles.join(' → '),
+      });
+
+      errors.push({
+        code: CompositionErrorCode.CIRCULAR_DEPENDENCY,
+        message: `Circular dependency detected: ${cycles.join(' → ')}`,
+      });
+    }
+
+    // 3. Validate references
+    this.logger.trace('validation_step_references_started', {
+      composition: compositionName,
+    });
+
+    const refErrors = this.validateReferences(def);
+    if (refErrors.length > 0) {
+      this.logger.debug('validation_reference_errors', {
+        composition: compositionName,
+        errorCount: refErrors.length,
+        errors: refErrors.map(e => ({ code: e.code, message: e.message, location: e.location })),
+      });
+    }
+    errors.push(...refErrors);
+
+    // 4. Validate template expressions
+    this.logger.trace('validation_step_templates_started', {
+      composition: compositionName,
+    });
+
+    const { errors: templateErrors, warnings: templateWarnings } = this.validateTemplates(def);
+    if (templateErrors.length > 0 || templateWarnings.length > 0) {
+      this.logger.debug('validation_template_issues', {
+        composition: compositionName,
+        errorCount: templateErrors.length,
+        warningCount: templateWarnings.length,
+      });
+    }
+    errors.push(...templateErrors);
+    warnings.push(...templateWarnings);
+
+    const report = {
+      valid: errors.length === 0,
+      errors,
+      warnings,
+    };
+
+    this.logger.debug('validation_completed', {
+      composition: compositionName,
+      valid: report.valid,
+      errorCount: errors.length,
+      warningCount: warnings.length,
+    });
+
+    return report;
+  }
+
+  /**
+   * Normalize tool lookup to handle both canonical and MCP-prefixed names
+   *
+   * Sprint 41: Compositions use canonical IDs (get_state), but registry may have
+   * MCP-prefixed names (mcp_get_state, mcp:get_state). Try all variations.
+   *
+   * @param toolId - Canonical or prefixed tool ID
+   * @returns Tool if found, null otherwise
+   */
+  private findTool(toolId: string): { id: string; inputSchema?: unknown; source?: string } | null {
+    // 1. Try exact match (canonical or already prefixed)
+    let tool = this.registry.getTool(toolId);
+    if (tool) return tool;
+
+    // 2. If canonical ID, try with mcp_ prefix
+    if (!toolId.startsWith('mcp_') && !toolId.startsWith('mcp:')) {
+      tool = this.registry.getTool(`mcp_${toolId}`);
+      if (tool) return tool;
+
+      // 3. Try with mcp: prefix
+      tool = this.registry.getTool(`mcp:${toolId}`);
+      if (tool) return tool;
+    }
+
+    // 4. If starts with mcp_, try removing it (defensive)
+    if (toolId.startsWith('mcp_')) {
+      const canonical = toolId.slice(4);
+      tool = this.registry.getTool(canonical);
+      if (tool) return tool;
+    }
+
+    // 5. If starts with mcp:, try removing it (defensive)
+    if (toolId.startsWith('mcp:')) {
+      const canonical = toolId.slice(4);
+      tool = this.registry.getTool(canonical);
+      if (tool) return tool;
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract all tool IDs from composition
+   */
+  private extractToolIds(def: CompositionDefinition): string[] {
+    const toolIds: string[] = [];
+
+    for (const step of def.spec.steps) {
+      if (isCallStep(step)) {
+        toolIds.push(step.call);
+      }
+    }
+
+    return toolIds;
+  }
+
+  /**
+   * Detect circular dependencies using DFS
+   *
+   * Builds a dependency graph and uses depth-first search to detect cycles.
+   * A cycle exists if a composition calls itself directly or indirectly.
+   *
+   * @returns Array representing cycle path, or empty if no cycle
+   */
+  private detectCycles(def: CompositionDefinition): string[] {
+    const compositionName = def.metadata.name;
+
+    this.logger.trace('cycle_detection_started', {
+      composition: compositionName,
+    });
+
+    // Build dependency graph
+    const graph: Map<string, string[]> = new Map();
+    graph.set(def.metadata.name, []);
+
+    let compositionCallCount = 0;
+    for (const step of def.spec.steps) {
+      if (isCallStep(step)) {
+        // Sprint 41: Use findTool() to handle canonical IDs
+        const tool = this.findTool(step.call);
+
+        // If tool is a composition, add edge
+        if (tool && tool.source === 'composition') {
+          const deps = graph.get(def.metadata.name) || [];
+          deps.push(step.call);
+          graph.set(def.metadata.name, deps);
+          compositionCallCount++;
+
+          this.logger.trace('cycle_detection_composition_edge', {
+            composition: compositionName,
+            callsComposition: step.call,
+            stepId: step.id,
+          });
+        }
+      }
+    }
+
+    this.logger.debug('cycle_detection_graph_built', {
+      composition: compositionName,
+      compositionCallCount,
+      graphSize: graph.size,
+    });
+
+    // DFS cycle detection
+    const visited = new Set<string>();
+    const recursionStack = new Set<string>();
+    const cyclePath: string[] = [];
+
+    const dfs = (node: string): boolean => {
+      // Cycle detected
+      if (recursionStack.has(node)) {
+        cyclePath.push(node);
+
+        this.logger.warn('cycle_detection_cycle_found', {
+          composition: compositionName,
+          cycleNode: node,
+          recursionStack: Array.from(recursionStack),
+        });
+
+        return true;
+      }
+
+      // Already visited (no cycle from this node)
+      if (visited.has(node)) {
+        return false;
+      }
+
+      visited.add(node);
+      recursionStack.add(node);
+
+      const neighbors = graph.get(node) || [];
+      for (const neighbor of neighbors) {
+        if (dfs(neighbor)) {
+          cyclePath.push(node);
+          return true;
+        }
+      }
+
+      recursionStack.delete(node);
+      return false;
+    };
+
+    if (dfs(def.metadata.name)) {
+      cyclePath.reverse();
+
+      this.logger.error('cycle_detection_circular_dependency', {
+        composition: compositionName,
+        cyclePath,
+        cycleString: cyclePath.join(' → '),
+      });
+
+      return cyclePath;
+    }
+
+    this.logger.debug('cycle_detection_no_cycles', {
+      composition: compositionName,
+      nodesVisited: visited.size,
+    });
+
+    return [];
+  }
+
+  /**
+   * Validate all references in composition
+   *
+   * Ensures:
+   * - All $steps references point to valid step IDs
+   * - No forward references (step references step defined later)
+   * - All references use valid namespaces
+   */
+  private validateReferences(def: CompositionDefinition): ValidationError[] {
+    const errors: ValidationError[] = [];
+    const stepIds = new Set(def.spec.steps.map((s) => s.id));
+
+    // Check for duplicate step IDs
+    const seenIds = new Set<string>();
+    for (const step of def.spec.steps) {
+      if (seenIds.has(step.id)) {
+        errors.push({
+          code: CompositionErrorCode.UNDEFINED_REFERENCE,
+          message: `Duplicate step ID: ${step.id}`,
+          location: `steps`,
+        });
+      }
+      seenIds.add(step.id);
+    }
+
+    // Validate references in steps
+    for (let i = 0; i < def.spec.steps.length; i++) {
+      const step = def.spec.steps[i];
+      const availableSteps = new Set(
+        def.spec.steps.slice(0, i).map((s) => s.id)
+      );
+
+      const stepErrors = this.validateStepReferences(
+        step,
+        availableSteps,
+        `steps[${i}]`
+      );
+      errors.push(...stepErrors);
+    }
+
+    // Validate references in return expression
+    const returnErrors = this.validateValueReferences(
+      def.spec.return,
+      stepIds,
+      'return'
+    );
+    errors.push(...returnErrors);
+
+    return errors;
+  }
+
+  /**
+   * Validate references within a step
+   */
+  private validateStepReferences(
+    step: Step,
+    availableSteps: Set<string>,
+    location: string
+  ): ValidationError[] {
+    const errors: ValidationError[] = [];
+
+    if (isCallStep(step)) {
+      // Validate references in 'with' arguments
+      if (step.with) {
+        for (const [key, value] of Object.entries(step.with)) {
+          const valueErrors = this.validateValueReferences(
+            value,
+            availableSteps,
+            `${location}.with.${key}`
+          );
+          errors.push(...valueErrors);
+        }
+      }
+
+      // Validate references in 'when' condition
+      if (step.when) {
+        const whenErrors = this.validateConditionReferences(
+          step.when,
+          availableSteps,
+          `${location}.when`
+        );
+        errors.push(...whenErrors);
+      }
+    } else {
+      // IfValueStep
+      const condErrors = this.validateConditionReferences(
+        step.if.condition,
+        availableSteps,
+        `${location}.if.condition`
+      );
+      errors.push(...condErrors);
+
+      const thenErrors = this.validateValueReferences(
+        step.if.then,
+        availableSteps,
+        `${location}.if.then`
+      );
+      errors.push(...thenErrors);
+
+      const elseErrors = this.validateValueReferences(
+        step.if.else,
+        availableSteps,
+        `${location}.if.else`
+      );
+      errors.push(...elseErrors);
+    }
+
+    return errors;
+  }
+
+  /**
+   * Validate references in a value expression
+   */
+  private validateValueReferences(
+    value: ValueExpression,
+    availableSteps: Set<string>,
+    location: string
+  ): ValidationError[] {
+    const errors: ValidationError[] = [];
+
+    if (isReference(value)) {
+      // Validate $steps references
+      if (value.$ref.namespace === 'steps') {
+        const stepId = value.$ref.pointer.split('/')[1]; // "/stepId/..." → "stepId"
+        if (stepId && !availableSteps.has(stepId)) {
+          errors.push({
+            code: CompositionErrorCode.UNDEFINED_REFERENCE,
+            message: `Reference to undefined or forward step: ${stepId}`,
+            location,
+          });
+        }
+      }
+    } else if (Array.isArray(value)) {
+      // Validate array elements
+      value.forEach((item, index) => {
+        const itemErrors = this.validateValueReferences(
+          item,
+          availableSteps,
+          `${location}[${index}]`
+        );
+        errors.push(...itemErrors);
+      });
+    } else if (value && typeof value === 'object') {
+      // Validate object values
+      for (const [key, val] of Object.entries(value)) {
+        const valErrors = this.validateValueReferences(
+          val,
+          availableSteps,
+          `${location}.${key}`
+        );
+        errors.push(...valErrors);
+      }
+    }
+
+    return errors;
+  }
+
+  /**
+   * Validate references in a condition
+   */
+  private validateConditionReferences(
+    condition: unknown,
+    availableSteps: Set<string>,
+    location: string
+  ): ValidationError[] {
+    const errors: ValidationError[] = [];
+    const cond = condition as Record<string, unknown>;
+
+    if (cond.exists) {
+      const existsErrors = this.validateValueReferences(
+        cond.exists as ValueExpression,
+        availableSteps,
+        `${location}.exists`
+      );
+      errors.push(...existsErrors);
+    }
+
+    if (cond.equals && Array.isArray(cond.equals)) {
+      cond.equals.forEach((val, index) => {
+        const valErrors = this.validateValueReferences(
+          val as ValueExpression,
+          availableSteps,
+          `${location}.equals[${index}]`
+        );
+        errors.push(...valErrors);
+      });
+    }
+
+    if (cond.greaterThan && Array.isArray(cond.greaterThan)) {
+      cond.greaterThan.forEach((val, index) => {
+        const valErrors = this.validateValueReferences(
+          val as ValueExpression,
+          availableSteps,
+          `${location}.greaterThan[${index}]`
+        );
+        errors.push(...valErrors);
+      });
+    }
+
+    if (cond.lessThan && Array.isArray(cond.lessThan)) {
+      cond.lessThan.forEach((val, index) => {
+        const valErrors = this.validateValueReferences(
+          val as ValueExpression,
+          availableSteps,
+          `${location}.lessThan[${index}]`
+        );
+        errors.push(...valErrors);
+      });
+    }
+
+    if (cond.greaterThanOrEqual && Array.isArray(cond.greaterThanOrEqual)) {
+      cond.greaterThanOrEqual.forEach((val, index) => {
+        const valErrors = this.validateValueReferences(
+          val as ValueExpression,
+          availableSteps,
+          `${location}.greaterThanOrEqual[${index}]`
+        );
+        errors.push(...valErrors);
+      });
+    }
+
+    if (cond.lessThanOrEqual && Array.isArray(cond.lessThanOrEqual)) {
+      cond.lessThanOrEqual.forEach((val, index) => {
+        const valErrors = this.validateValueReferences(
+          val as ValueExpression,
+          availableSteps,
+          `${location}.lessThanOrEqual[${index}]`
+        );
+        errors.push(...valErrors);
+      });
+    }
+
+    if (cond.all && Array.isArray(cond.all)) {
+      cond.all.forEach((subCond, index) => {
+        const subErrors = this.validateConditionReferences(
+          subCond,
+          availableSteps,
+          `${location}.all[${index}]`
+        );
+        errors.push(...subErrors);
+      });
+    }
+
+    if (cond.any && Array.isArray(cond.any)) {
+      cond.any.forEach((subCond, index) => {
+        const subErrors = this.validateConditionReferences(
+          subCond,
+          availableSteps,
+          `${location}.any[${index}]`
+        );
+        errors.push(...subErrors);
+      });
+    }
+
+    if (cond.not) {
+      const notErrors = this.validateConditionReferences(
+        cond.not,
+        availableSteps,
+        `${location}.not`
+      );
+      errors.push(...notErrors);
+    }
+
+    return errors;
+  }
+
+  /**
+   * Validate template expressions
+   *
+   * Checks for:
+   * - Undefined variables (used in template but not defined) → error
+   * - Unused variables (defined but not used in template) → warning
+   * - Syntax errors (mismatched braces) → error
+   */
+  private validateTemplates(
+    def: CompositionDefinition
+  ): { errors: ValidationError[]; warnings: ValidationWarning[] } {
+    const errors: ValidationError[] = [];
+    const warnings: ValidationWarning[] = [];
+
+    // Helper to validate a single template expression
+    const validateTemplate = (
+      template: TemplateExpression,
+      location: string
+    ): void => {
+      const templateString = template.template;
+
+      // Extract variable names used in template string
+      const usedVariables = new Set<string>();
+      const variableMatches = templateString.matchAll(/\{\{(\w+)\}\}/g);
+      for (const match of variableMatches) {
+        usedVariables.add(match[1]);
+      }
+
+      // Extract defined variables (all properties except 'template')
+      const definedVariables = new Set<string>();
+      for (const key of Object.keys(template)) {
+        if (key !== 'template') {
+          definedVariables.add(key);
+        }
+      }
+
+      // Check for undefined variables
+      for (const varName of usedVariables) {
+        if (!definedVariables.has(varName)) {
+          errors.push({
+            code: CompositionErrorCode.VALIDATION_ERROR,
+            message: `Template variable '${varName}' is used but not defined`,
+            location: `${location}.template`,
+          });
+        }
+      }
+
+      // Check for unused variables
+      for (const varName of definedVariables) {
+        if (!usedVariables.has(varName)) {
+          warnings.push({
+            code: 'COMPOSE-TEMPLATE-002',
+            message: `Template variable '${varName}' is defined but not used`,
+            location: `${location}.${varName}`,
+          });
+        }
+      }
+
+      // Validate brace matching
+      const openBraces = (templateString.match(/\{\{/g) || []).length;
+      const closeBraces = (templateString.match(/\}\}/g) || []).length;
+      if (openBraces !== closeBraces) {
+        errors.push({
+          code: CompositionErrorCode.VALIDATION_ERROR,
+          message: `Template has mismatched braces: ${openBraces} opening '{{', ${closeBraces} closing '}}'`,
+          location: `${location}.template`,
+        });
+      }
+    };
+
+    // Recursive helper to walk through value expressions
+    const walkValue = (value: ValueExpression, location: string): void => {
+      if (isTemplateExpression(value)) {
+        validateTemplate(value, location);
+        // Recursively validate nested expressions in variable definitions
+        for (const [key, nestedValue] of Object.entries(value)) {
+          if (key !== 'template') {
+            walkValue(nestedValue, `${location}.${key}`);
+          }
+        }
+      } else if (Array.isArray(value)) {
+        value.forEach((item, index) => walkValue(item, `${location}[${index}]`));
+      } else if (typeof value === 'object' && value !== null && !isReference(value)) {
+        // Plain object - walk nested properties
+        for (const [key, nestedValue] of Object.entries(value)) {
+          walkValue(nestedValue, `${location}.${key}`);
+        }
+      }
+    };
+
+    // Validate templates in steps
+    def.spec.steps.forEach((step, index) => {
+      if (isCallStep(step) && step.with) {
+        for (const [key, value] of Object.entries(step.with)) {
+          walkValue(value, `steps[${index}].with.${key}`);
+        }
+      } else if (isIfValueStep(step)) {
+        walkValue(step.if.then, `steps[${index}].if.then`);
+        walkValue(step.if.else, `steps[${index}].if.else`);
+      }
+    });
+
+    // Validate templates in return expression
+    walkValue(def.spec.return, 'return');
+
+    return { errors, warnings };
+  }
+
+  /**
+   * Resolve tool dependencies
+   *
+   * Builds list of ToolDependency records with schema fingerprints
+   */
+  private resolveDependencies(def: CompositionDefinition): ToolDependency[] {
+    const compositionName = def.metadata.name;
+
+    this.logger.trace('dependency_resolution_started', {
+      composition: compositionName,
+    });
+
+    const toolIds = this.extractToolIds(def);
+    const dependencies: ToolDependency[] = [];
+
+    this.logger.debug('dependency_resolution_tools', {
+      composition: compositionName,
+      toolCount: toolIds.length,
+      tools: toolIds,
+    });
+
+    for (const toolId of toolIds) {
+      // Sprint 41: Use findTool() to handle canonical IDs
+      const tool = this.findTool(toolId);
+      if (tool) {
+        const schemaFingerprint = this.hashSchema(tool.inputSchema || {});
+
+        this.logger.trace('dependency_resolved', {
+          composition: compositionName,
+          toolId,
+          schemaFingerprint,
+          hasInputSchema: !!tool.inputSchema,
+        });
+
+        dependencies.push({
+          toolId,
+          schemaFingerprint,
+        });
+      } else {
+        // Tool not found - should have been caught in validation
+        this.logger.warn('dependency_resolution_tool_missing', {
+          composition: compositionName,
+          toolId,
+          note: 'Tool not found during dependency resolution (should have been caught in validation)',
+        });
+      }
+    }
+
+    this.logger.debug('dependency_resolution_completed', {
+      composition: compositionName,
+      dependencyCount: dependencies.length,
+    });
+
+    return dependencies;
+  }
+
+  /**
+   * Compute content hash for composition
+   *
+   * Uses SHA-256 of canonical JSON for content-addressable storage
+   *
+   * @returns Hex-encoded SHA-256 hash
+   */
+  private computeHash(def: CompositionDefinition): string {
+    // Create canonical representation (deterministic JSON with sorted keys)
+    const canonical = this.canonicalStringify(def);
+    return createHash('sha256').update(canonical).digest('hex');
+  }
+
+  /**
+   * Compute schema fingerprint
+   *
+   * @returns Hex-encoded SHA-256 hash of schema
+   */
+  private hashSchema(schema: unknown): string {
+    const canonical = this.canonicalStringify(schema);
+    return createHash('sha256').update(canonical).digest('hex');
+  }
+
+  /**
+   * Create canonical JSON string with sorted keys (recursively)
+   */
+  private canonicalStringify(obj: unknown): string {
+    return JSON.stringify(obj, (key, value) => {
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        // Sort object keys
+        const sortedKeys = Object.keys(value).sort();
+        const sorted: Record<string, unknown> = {};
+        for (const k of sortedKeys) {
+          sorted[k] = (value as Record<string, unknown>)[k];
+        }
+        return sorted;
+      }
+      return value;
+    });
+  }
+}

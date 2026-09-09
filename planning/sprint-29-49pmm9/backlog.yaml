@@ -1,0 +1,687 @@
+# Sprint 29 Backlog: Bidding System Implementation
+# Lead Implementor: Claude
+# Sprint: sprint-29-49pmm9
+# Date: 2026-08-29
+
+metadata:
+  sprint_id: sprint-29-49pmm9
+  title: "Bidding System for Utility Service"
+  goal: "Implement bidding functionality in utility-service with hybrid Redis/DocumentStore storage"
+  owner: christophernavta
+  architecture: architecture.md
+  execution_plan: execution-plan.md
+
+phases:
+  - id: phase-1
+    name: "Core Bidding Infrastructure"
+    status: pending
+    priority: P0
+    target_sprint: sprint-29-49pmm9
+    estimated_hours: 8-10
+    description: "Implement BidManager class and 8 MCP tools"
+
+  - id: phase-2
+    name: "Documentation & Validation"
+    status: pending
+    priority: P0
+    target_sprint: sprint-29-49pmm9
+    estimated_hours: 2-4
+    description: "Complete user docs and agent-dev validation"
+
+# ============================================================================
+# PHASE 1: CORE BIDDING INFRASTRUCTURE
+# ============================================================================
+
+tasks:
+  # -------------------------------------------------------------------------
+  # 1. BIDMANAGER IMPLEMENTATION
+  # -------------------------------------------------------------------------
+  - id: P1-T01
+    name: "Create BidManager skeleton"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 0.5
+    depends_on: []
+    assignee: Claude
+
+    description: |
+      Create BidManager class with all method signatures and dependencies.
+      Follow CounterManager pattern from Phase 1.
+
+    acceptance_criteria:
+      - BidManager class created in src/services/utility/bid-manager.ts
+      - Constructor takes IDocumentStore, RedisClientType, ScopeResolver, Logger
+      - All 8 public methods defined with placeholder implementations
+      - TypeScript compiles without errors
+      - Exports all necessary types
+
+    files:
+      - path: src/services/utility/bid-manager.ts
+        action: create
+        lines: ~500
+
+    verification:
+      - npm run build succeeds
+      - TypeScript strict mode passes
+      - No imports from deprecated/
+
+  - id: P1-T02
+    name: "Add TypeScript interfaces for bidding"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 0.5
+    depends_on: [P1-T01]
+    assignee: Claude
+
+    description: |
+      Add all bidding-related interfaces to types.ts.
+      Includes BidSession, BidEntry, BidResult, params, and result types.
+
+    acceptance_criteria:
+      - BidSession interface defined
+      - BidEntry interface defined
+      - BidResult interface defined
+      - All params interfaces (Create, Submit, Close, etc.)
+      - All result interfaces
+      - All types exported
+      - TypeScript compiles
+
+    files:
+      - path: src/services/utility/types.ts
+        action: modify
+        lines_added: ~200
+
+    verification:
+      - TypeScript compilation succeeds
+      - All interfaces properly exported
+      - Matches architecture specification
+
+  - id: P1-T03
+    name: "Implement create() method"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 0.75
+    depends_on: [P1-T02]
+    assignee: Claude
+
+    description: |
+      Implement session creation with hybrid storage.
+      DocumentStore for metadata, Redis Hash for active bids.
+
+    acceptance_criteria:
+      - Uses scopeResolver.resolve() for scope inference
+      - Creates BidSession document in DocumentStore (bid_sessions)
+      - Initializes Redis Hash with _metadata field
+      - Sets TTL via Redis EXPIRE if specified
+      - Returns sessionId and hashKey
+      - Handles errors gracefully (fail-open)
+      - Logs session creation with context
+
+    implementation_notes:
+      - Hash key pattern: bid:session:{session_id}
+      - Store targetValue and createdAt in _metadata field
+      - Compute expiresAt from ttlSeconds
+
+    verification:
+      - Method compiles without errors
+      - Returns correct result type
+      - Error handling tested
+
+  - id: P1-T04
+    name: "Implement submit() method"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 0.5
+    depends_on: [P1-T03]
+    assignee: Claude
+
+    description: |
+      Implement atomic bid submission/update using Redis HSET.
+
+    acceptance_criteria:
+      - Uses Redis HSET for atomic upsert
+      - Hash field pattern: user:{userId}
+      - Retrieves previous value before update
+      - Returns previous and new values
+      - Handles Redis errors gracefully
+      - Logs submission with user/value context
+
+    implementation_notes:
+      - HSET automatically handles upsert (new or update)
+      - Use HGET to check for previous value
+      - Store value as string representation
+
+    verification:
+      - Method compiles
+      - Returns SubmitBidResult format
+      - Handles null Redis client
+
+  - id: P1-T05
+    name: "Implement aggregation methods (getMax, getMin, getClosest)"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 1.5
+    depends_on: [P1-T04]
+    assignee: Claude
+
+    description: |
+      Implement 3 aggregation queries using client-side sorting.
+      All use Redis HGETALL to retrieve full hash.
+
+    acceptance_criteria:
+      - getMax() returns highest bid
+      - getMin() returns lowest bid
+      - getClosest() returns bid nearest to target
+      - All throw error if no bids exist
+      - getClosest() uses session targetValue if not specified
+      - Helper method parseHashEntries() filters user:* fields
+      - Helper method toBidEntry() formats result
+      - Client-side sorting implementation
+
+    implementation_notes:
+      - Filter out _metadata field when parsing entries
+      - Sort algorithm: O(n log n) acceptable for <1000 users
+      - For getClosest: sort by Math.abs(value - target)
+
+    verification:
+      - All 3 methods compile
+      - Return BidEntry format
+      - Handle empty sessions
+
+  - id: P1-T06
+    name: "Implement close() method"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 1.0
+    depends_on: [P1-T05]
+    assignee: Claude
+
+    description: |
+      Implement session closure with statistics computation and DocumentStore snapshot.
+
+    acceptance_criteria:
+      - Retrieves all bids via HGETALL
+      - Computes statistics (max, min, mean, median)
+      - Determines winner if targetValue exists
+      - Snapshots to DocumentStore (bid_results collection)
+      - Updates session status to 'closed' in DocumentStore
+      - Optionally deletes Redis hash
+      - Returns statistics and winner
+      - Logs closure with entry count
+
+    implementation_notes:
+      - Result document ID: {session_id}:{timestamp}
+      - Include all entries in snapshot for analytics
+      - Median computation: sort values, take middle
+      - Winner: entry with smallest difference to target
+
+    verification:
+      - Method compiles
+      - Returns CloseBidSessionResult format
+      - DocumentStore operations called correctly
+
+  - id: P1-T07
+    name: "Implement list() and getResults() methods"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 0.5
+    depends_on: [P1-T06]
+    assignee: Claude
+
+    description: |
+      Implement DocumentStore query methods for sessions and results.
+
+    acceptance_criteria:
+      - list() queries bid_sessions collection with filters
+      - getResults() queries bid_results collection
+      - Both support optional scope filtering
+      - Default limit: 50
+      - getResults() ordered by closedAt descending
+      - Return arrays of BidSession/BidResult
+
+    implementation_notes:
+      - Use docStore.query() with filters array
+      - Support scopeType, scopeValue, status filters
+
+    verification:
+      - Both methods compile
+      - Return correct types
+      - Query structure matches IDocumentStore API
+
+  # -------------------------------------------------------------------------
+  # 2. MCP TOOLS REGISTRATION
+  # -------------------------------------------------------------------------
+  - id: P1-T08
+    name: "Register all 8 bid MCP tools"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 2.0
+    depends_on: [P1-T07]
+    assignee: Claude
+
+    description: |
+      Register 8 MCP tools in utility-service with Zod schemas.
+      Follow counter tools pattern from Phase 1.
+
+    acceptance_criteria:
+      - bid.create tool registered with CreateBidSessionSchema
+      - bid.submit tool registered with SubmitBidSchema
+      - bid.getMax tool registered with GetMaxBidSchema
+      - bid.getMin tool registered with GetMinBidSchema
+      - bid.getClosest tool registered with GetClosestBidSchema
+      - bid.close tool registered with CloseBidSessionSchema
+      - bid.list tool registered with ListBidSessionsSchema
+      - bid.results tool registered with GetBidResultsSchema
+      - All tools have descriptive help text
+      - All tools use platform-only exposure
+      - Tool handlers call BidManager methods
+      - Error responses follow MCP format
+      - Lazy initialization pattern for BidManager
+
+    implementation_notes:
+      - Create registerBidTools() method
+      - Call from setup() after registerCounterTools()
+      - Use getBidManager() lazy initializer
+      - Return JSON.stringify(result, null, 2)
+
+    files:
+      - path: src/apps/utility-service.ts
+        action: modify
+        lines_added: ~250
+
+    verification:
+      - Service compiles and starts
+      - All 8 tools appear in bit.info output
+      - Zod schemas validate correct inputs
+      - Zod schemas reject invalid inputs
+
+  # -------------------------------------------------------------------------
+  # 3. UNIT TESTS
+  # -------------------------------------------------------------------------
+  - id: P1-T09
+    name: "Write comprehensive BidManager unit tests"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 3.0
+    depends_on: [P1-T08]
+    assignee: Claude
+
+    description: |
+      Create comprehensive unit tests for BidManager with mocked dependencies.
+      Target: 100% code coverage.
+
+    acceptance_criteria:
+      - Test create() with/without TTL
+      - Test create() with scope inference
+      - Test submit() new bid
+      - Test submit() update existing bid (upsert)
+      - Test submit() error handling
+      - Test getMax() with multiple bids
+      - Test getMax() empty session (error)
+      - Test getMin() with multiple bids
+      - Test getClosest() with target from session
+      - Test getClosest() with explicit target
+      - Test getClosest() no target (error)
+      - Test close() statistics computation
+      - Test close() winner computation
+      - Test close() DocumentStore snapshot
+      - Test close() session status update
+      - Test close() Redis hash deletion
+      - Test list() with filters
+      - Test getResults() query
+      - Mock IDocumentStore (in-memory)
+      - Mock RedisClientType (in-memory hash)
+      - 25+ test cases total
+      - 100% code coverage
+
+    files:
+      - path: src/services/utility/bid-manager.test.ts
+        action: create
+        lines: ~600
+
+    verification:
+      - npm test passes all cases
+      - Coverage report shows 100% for bid-manager.ts
+      - Tests run in isolation (no shared state)
+      - All edge cases covered
+
+  # -------------------------------------------------------------------------
+  # 4. INTEGRATION TESTS
+  # -------------------------------------------------------------------------
+  - id: P1-T10
+    name: "Create agent-dev validation script"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 1.0
+    depends_on: [P1-T09]
+    assignee: Claude
+
+    description: |
+      Create automated validation script for agent-dev deployment testing.
+      Tests all 8 MCP tools with realistic scenarios.
+
+    acceptance_criteria:
+      - Script checks utility-service health
+      - Verifies 8 bid tools registered
+      - Creates test session
+      - Submits multiple bids from different users
+      - Queries max/min/closest
+      - Closes session
+      - Verifies DocumentStore snapshot
+      - Lists sessions
+      - Queries results
+      - Exits 0 on success
+      - Exits 1 on any failure
+
+    files:
+      - path: planning/sprint-29-49pmm9/validate_bidding.sh
+        action: create
+        lines: ~150
+
+    verification:
+      - Script executes without errors
+      - All validation steps documented
+      - Clear success/failure output
+
+  - id: P1-T11
+    name: "Execute agent-dev validation"
+    phase: phase-1
+    priority: P0
+    status: done
+    estimated_hours: 1.0
+    depends_on: [P1-T10]
+    assignee: Claude
+
+    description: |
+      Run full integration test in agent-dev environment.
+      Proactive validation before marking sprint complete.
+
+    acceptance_criteria:
+      - Agent-dev context provisions successfully
+      - Utility-service deploys without errors
+      - Service connects to NATS, Redis, PostgreSQL
+      - All 8 bid MCP tools callable
+      - Multi-user bid submission works
+      - Aggregation queries return correct results
+      - Session close creates DocumentStore snapshot
+      - No errors in fleet.logs for 5 minutes
+      - Agent-dev context destroys cleanly
+
+    verification_steps:
+      - provision: agent_dev.provision({ name: "agent-dev-bidding-test" })
+      - deploy: bit deploy utility --context agent-dev-bidding-test
+      - health: fleet.health({ bit: "utility", context: "agent-dev-bidding-test" })
+      - logs: fleet.logs({ bit: "utility", context: "agent-dev-bidding-test", limit: 50 })
+      - test: bash planning/sprint-29-49pmm9/validate_bidding.sh
+      - cleanup: agent_dev.destroy({ name: "agent-dev-bidding-test", confirm: true })
+
+    verification:
+      - All verification steps complete
+      - Validation script exits 0
+      - No error-level logs
+
+# ============================================================================
+# PHASE 2: DOCUMENTATION & VALIDATION
+# ============================================================================
+
+  # -------------------------------------------------------------------------
+  # 5. DOCUMENTATION
+  # -------------------------------------------------------------------------
+  - id: P2-T01
+    name: "Write user guide for bidding"
+    phase: phase-2
+    priority: P1
+    status: done
+    estimated_hours: 1.0
+    depends_on: [P1-T11]
+    assignee: Claude
+
+    description: |
+      Create comprehensive user guide for bidding functionality.
+
+    acceptance_criteria:
+      - Explains bidding concepts (sessions, target values, TTL)
+      - Provides common use cases (predictions, polls)
+      - Shows LLM tool usage examples
+      - Documents best practices (scope selection, TTL values)
+      - Includes troubleshooting section
+      - Follows platform documentation standards
+
+    files:
+      - path: documentation/guides/utility-bidding.md
+        action: create
+        lines: ~400
+
+    verification:
+      - Markdown renders correctly
+      - Code examples accurate
+      - No broken links
+
+  - id: P2-T02
+    name: "Update MCP tool reference"
+    phase: phase-2
+    priority: P1
+    status: done
+    estimated_hours: 1.0
+    depends_on: [P2-T01]
+    assignee: Claude
+
+    description: |
+      Update utility tools reference with bidding section.
+
+    acceptance_criteria:
+      - Documents all 8 bid tools
+      - Shows tool signatures with Zod schemas
+      - Describes all parameters and return values
+      - Lists error codes and meanings
+      - Provides usage examples for each tool
+      - Integrates with existing counter tools docs
+
+    files:
+      - path: documentation/reference/utility-tools.md
+        action: modify
+        lines_added: ~300
+
+    verification:
+      - Markdown renders correctly
+      - Tool signatures match implementation
+      - Examples are accurate
+
+  - id: P2-T03
+    name: "Update technical architecture doc"
+    phase: phase-2
+    priority: P2
+    status: done
+    estimated_hours: 0.5
+    depends_on: [P2-T02]
+    assignee: Claude
+
+    description: |
+      Update utility-service technical architecture with bidding section.
+
+    acceptance_criteria:
+      - Documents hybrid storage strategy for bidding
+      - Explains DocumentStore collections (bid_sessions, bid_results)
+      - Documents Redis Hash patterns
+      - Includes sequence diagrams for key operations
+      - Justifies design decisions
+      - References architecture.md
+
+    files:
+      - path: documentation/architecture/utility-service.md
+        action: modify
+        lines_added: ~200
+
+    verification:
+      - Markdown renders correctly
+      - Diagrams display properly
+      - No technical inaccuracies
+
+  - id: P2-T04
+    name: "Create sprint completion artifacts"
+    phase: phase-2
+    priority: P1
+    status: done
+    estimated_hours: 0.5
+    depends_on: [P2-T03]
+    assignee: Claude
+
+    description: |
+      Create final sprint artifacts for retrospective and knowledge transfer.
+
+    acceptance_criteria:
+      - Implementation log complete
+      - Verification report created
+      - Key learnings documented
+      - Retrospective notes prepared
+      - Sprint manifest updated
+
+    files:
+      - path: planning/sprint-29-49pmm9/implementation-log.md
+        action: create
+      - path: planning/sprint-29-49pmm9/verification-report.md
+        action: create
+      - path: planning/sprint-29-49pmm9/retrospective.md
+        action: create
+
+    verification:
+      - All artifacts created
+      - Accurate reflection of work done
+      - Lessons captured
+
+# ============================================================================
+# SUCCESS CRITERIA
+# ============================================================================
+
+success_criteria:
+  phase_1:
+    - all_tasks_complete: "All P1 tasks (P1-T01 through P1-T11) status = done"
+    - build_passes: "npm run build completes without errors"
+    - tests_pass: "npm test passes all unit tests (25+ tests, 100% coverage)"
+    - integration_passes: "Agent-dev validation script exits 0"
+    - service_healthy: "fleet.health reports healthy for 5 minutes"
+    - no_errors: "No error-level logs in fleet.logs"
+    - all_tools_registered: "8 bid tools appear in bit.info"
+    - tools_functional: "All tools callable and return correct results"
+
+  phase_2:
+    - documentation_complete: "All 3 documentation files created/updated"
+    - examples_accurate: "Code examples compile and execute correctly"
+    - sprint_artifacts: "All completion artifacts created"
+
+# ============================================================================
+# RISK REGISTER
+# ============================================================================
+
+risks:
+  - id: RISK-01
+    description: "Redis Hash client-side sorting performance with large sessions"
+    severity: low
+    probability: medium
+    mitigation: "Benchmark with 1000 users, verify p99 <100ms. Consider Redis Sorted Sets for future if needed."
+    status: accepted
+
+  - id: RISK-02
+    description: "Session ID collisions"
+    severity: low
+    probability: low
+    mitigation: "Append timestamp suffix on duplicate. Document in error handling."
+    status: mitigated
+
+  - id: RISK-03
+    description: "TTL desync between Redis and DocumentStore"
+    severity: low
+    probability: medium
+    mitigation: "DocumentStore stores expiresAt timestamp. Future cleanup job for orphans."
+    status: accepted
+
+  - id: RISK-04
+    description: "Missing target value in getClosest() query"
+    severity: medium
+    probability: low
+    mitigation: "Throw clear error with suggestion to specify target explicitly"
+    status: mitigated
+
+# ============================================================================
+# DEPENDENCIES
+# ============================================================================
+
+dependencies:
+  external:
+    - name: redis
+      version: "^4.0.0"
+      status: installed
+
+    - name: zod
+      version: "^3.22.0"
+      status: installed
+
+  platform:
+    - name: IDocumentStore
+      location: src/common/persistence/interfaces.ts
+      status: available
+
+    - name: RedisManager
+      location: src/common/resources/redis-manager.ts
+      status: available
+
+    - name: ScopeResolver
+      location: src/services/utility/scope-resolver.ts
+      status: available (Phase 1)
+
+    - name: Bit base class
+      location: src/common/base-server.ts
+      status: available
+
+  phase_1_deliverables:
+    - name: CounterManager
+      location: src/services/utility/counter-manager.ts
+      status: complete
+
+    - name: utility-service
+      location: src/apps/utility-service.ts
+      status: deployed (staging)
+
+# ============================================================================
+# NOTES
+# ============================================================================
+
+notes:
+  - "Extends Phase 1 (Counters) with Phase 2 (Bidding) functionality"
+  - "Reuses ScopeResolver from Phase 1 (no changes needed)"
+  - "Follows hybrid storage pattern from architecture research"
+  - "Use agent-dev proactively for validation (don't wait for user request)"
+  - "Client-side sorting acceptable for <1000 users per session"
+  - "DocumentStore is platform-agnostic (PostgreSQL default, Firestore legacy)"
+  - "Redis Hashes chosen over Sorted Sets for simpler upsert logic"
+  - "All tools platform-only exposure (LLM + platform bits)"
+  - "Based on Sprint 27 research and architecture decisions"
+
+# ============================================================================
+# ESTIMATES
+# ============================================================================
+
+estimates:
+  total_hours: 10-14
+  total_tasks: 15
+  p0_tasks: 11
+  p1_tasks: 3
+  p2_tasks: 1
+
+  breakdown:
+    bidmanager_implementation: 4.0
+    mcp_tools_registration: 2.0
+    unit_tests: 3.0
+    integration_tests: 2.0
+    documentation: 2.5
+    sprint_artifacts: 0.5

@@ -1,8 +1,7 @@
 import { z } from 'zod';
+import { ReadResourceResult, GetPromptResult } from "@modelcontextprotocol/server";
 
-import { ReadResourceResult, GetPromptResult } from '@modelcontextprotocol/sdk/types.js';
-
-export type ToolSource = 'internal' | 'mcp' | 'firestore';
+export type ToolSource = 'internal' | 'mcp' | 'firestore' | 'composition';
 
 /**
  * Context provided during tool execution
@@ -18,6 +17,8 @@ export interface ToolExecutionContext {
   correlationId?: string;
   /** Optional abort signal to cancel execution */
   signal?: AbortSignal;
+  /** Optional session ID for stateful tool invocations (Sprint 22) */
+  sessionId?: string;
 }
 
 /**

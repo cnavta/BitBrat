@@ -42,7 +42,7 @@ import type { IConfig } from '../../../types';
  * @returns Promise resolving to configured TwilioConnectorAdapter
  */
 export const createTwilioConnector: ConnectorFactory = async (config: IConfig, opts) => {
-  const { egressDestinationTopic, publisherFactory } = opts;
+  const { egressDestinationTopic, publisherFactory, onSnapshotPublished } = opts;
 
   // Create envelope builder for Twilio events
   const envelopeBuilder = new TwilioEnvelopeBuilder();
@@ -50,7 +50,8 @@ export const createTwilioConnector: ConnectorFactory = async (config: IConfig, o
   // Create publisher for ingress events
   // IMPORTANT: Always use createTwilioIngressPublisherFromConfig wrapper
   // It wraps MessagePublisher (publishJson) with IngressPublisher interface (publish)
-  const publisher = createTwilioIngressPublisherFromConfig(config, publisherFactory);
+  // Sprint 24: Pass onSnapshotPublished callback for unified persistence flow
+  const publisher = createTwilioIngressPublisherFromConfig(config, publisherFactory, onSnapshotPublished);
 
   // Create token provider for Twilio API authentication
   const tokenProvider = new TwilioTokenProvider(config);

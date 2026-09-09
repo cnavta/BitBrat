@@ -1,17 +1,5 @@
-/**
- * Dev MCP Server - Main server implementation
- *
- * Provides MCP server functionality for development tooling access.
- * Supports stdio transport for agent integration.
- */
-
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
-
+import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
+import { Server } from "@modelcontextprotocol/server";
 import { DevMcpServerOptions } from './types.js';
 import { TargetConnectionManager } from './target-manager.js';
 import { ToolRouter } from './tool-router.js';
@@ -21,6 +9,7 @@ import { configTools } from './tools/config.js';
 import { persistenceTools } from './tools/persistence.js';
 import { fleetTools } from './tools/fleet.js';
 import { agentDevTools } from './tools/agent-dev.js';
+import { messagingTools } from './tools/messaging.js';
 import { existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -147,12 +136,18 @@ export class DevMcpServer {
       this.toolRouter.registerTool(tool);
     }
 
-    const totalTools = configTools.length + persistenceTools.length + fleetTools.length + agentDevTools.length;
+    // Register messaging tools (Sprint 39)
+    for (const tool of messagingTools) {
+      this.toolRouter.registerTool(tool);
+    }
+
+    const totalTools = configTools.length + persistenceTools.length + fleetTools.length + agentDevTools.length + messagingTools.length;
     this.logger.info({
       config: configTools.length,
       persistence: persistenceTools.length,
       fleet: fleetTools.length,
       agentDev: agentDevTools.length,
+      messaging: messagingTools.length,
       total: totalTools,
     }, 'Registered dev tools');
   }
@@ -162,14 +157,14 @@ export class DevMcpServer {
    */
   private registerHandlers(): void {
     // Handle tools/list
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+    this.server.setRequestHandler('tools/list', async () => {
       const tools = this.toolRouter.listTools();
       this.logger.debug({ count: tools.length }, 'Listed tools');
       return { tools };
     });
 
     // Handle tools/call
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    this.server.setRequestHandler('tools/call', async (request) => {
       const startTime = Date.now();
       const { name, arguments: args = {} } = request.params;
 

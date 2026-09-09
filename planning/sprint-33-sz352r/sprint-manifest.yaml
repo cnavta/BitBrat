@@ -1,0 +1,14 @@
+id: sprint-33-sz352r
+title: Test Infrastructure Phase 4 - Remaining Failures Remediation
+goal: Reduce failing test suites from 5 to ≤3 through strategic fixes and test
+  stability analysis. Complete the 4-sprint test remediation journey (Sprint
+  30→31→32→33) from 48 failures to ≤3 failures.
+owner: "@bitbrat"
+createdAt: 2026-08-31T01:12:40.480Z
+status: complete
+links:
+  branch: feature/sprint-33-sz352r-test-infrastructure-phase-4-re
+  pr: https://github.com/cnavta/BitBrat/pull/344
+notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-08-31T01:32:38.744Z
+completionMode: normal

@@ -418,7 +418,7 @@ describe('Fleet Tools', () => {
         level: ['error', 'warn'],
         since: undefined,
         until: undefined,
-        limit: 100,
+        limit: undefined, // Sprint 46: No default limit (platform-specific defaults applied in LogRetriever)
         correlationId: undefined
       });
     });
@@ -447,7 +447,7 @@ describe('Fleet Tools', () => {
         level: undefined,
         since: '1h',
         until: '2026-07-10T12:00:00Z',
-        limit: 100,
+        limit: undefined, // Sprint 46: No default limit (platform-specific defaults applied in LogRetriever)
         correlationId: undefined
       });
     });
@@ -478,7 +478,7 @@ describe('Fleet Tools', () => {
         level: undefined,
         since: undefined,
         until: undefined,
-        limit: 100,
+        limit: undefined, // Sprint 46: No default limit (platform-specific defaults applied in LogRetriever)
         correlationId: 'evt-123'
       });
     });
@@ -511,15 +511,137 @@ describe('Fleet Tools', () => {
       expect(c0.text).toContain('"level": "info"');
     });
 
-    it('should handle Zod validation errors', async () => {
-      const result = await fleetLogsTool.handler({ level: 'invalid-level' }, mockConnection);
+    // NOTE: Zod validation errors are tested in tool-router.test.ts
+    // The handler assumes arguments are already validated by ToolRouter
 
-      expect(result.isError).toBe(true);
-      const c0 = result.content[0];
-      if (c0.type !== 'text') throw new Error('Expected text');
-      const parsedResult = JSON.parse(c0.text);
-      expect(parsedResult.error).toBe('Fleet logs query failed');
-      expect(parsedResult.message).toContain('');  // Zod error message
+    // Tests for level parameter handling (Sprint 44/46)
+    // NOTE: These tests call the handler directly with preprocessed arguments.
+    // JSON string preprocessing and validation are tested in tool-router.test.ts
+    describe('level parameter handling', () => {
+      it('should accept level as preprocessed array', async () => {
+        const mockLogs = [
+          { timestamp: '2026-07-10T12:00:00Z', level: 'error' as const, service: 'llm-bot', message: 'Test error' }
+        ];
+
+        const mockGetLogs = jest.fn().mockResolvedValue({
+          logs: mockLogs,
+          count: 1,
+          deploymentType: 'docker'
+        });
+
+        (LogRetriever as jest.Mock).mockImplementation(() => ({
+          getLogs: mockGetLogs
+        }));
+
+        // Handler expects preprocessed arguments (ToolRouter does preprocessing)
+        const result = await fleetLogsTool.handler({
+          bit: 'llm-bot',
+          level: ['error', 'warn'],  // Already preprocessed
+          limit: 10
+        }, mockConnection);
+
+        // Should succeed (not error)
+        expect(result.isError).toBeFalsy();
+
+        // Verify it was passed to LogRetriever
+        expect(mockGetLogs).toHaveBeenCalledWith(expect.objectContaining({
+          level: ['error', 'warn']
+        }));
+      });
+
+      it('should accept level as native array (existing behavior)', async () => {
+        const mockLogs = [
+          { timestamp: '2026-07-10T12:00:00Z', level: 'error' as const, service: 'llm-bot', message: 'Test error' }
+        ];
+
+        const mockGetLogs = jest.fn().mockResolvedValue({
+          logs: mockLogs,
+          count: 1,
+          deploymentType: 'docker'
+        });
+
+        (LogRetriever as jest.Mock).mockImplementation(() => ({
+          getLogs: mockGetLogs
+        }));
+
+        // Pass level as native array (programmatic usage)
+        const result = await fleetLogsTool.handler({
+          bit: 'llm-bot',
+          level: ['error', 'warn'],  // Native array
+          limit: 10
+        }, mockConnection);
+
+        // Should succeed
+        expect(result.isError).toBeFalsy();
+
+        // Verify it was passed as-is
+        expect(mockGetLogs).toHaveBeenCalledWith(expect.objectContaining({
+          level: ['error', 'warn']
+        }));
+      });
+
+
+      it('should work with empty level array', async () => {
+        const mockLogs = [
+          { timestamp: '2026-07-10T12:00:00Z', level: 'info' as const, service: 'llm-bot', message: 'Test log' }
+        ];
+
+        const mockGetLogs = jest.fn().mockResolvedValue({
+          logs: mockLogs,
+          count: 1,
+          deploymentType: 'docker'
+        });
+
+        (LogRetriever as jest.Mock).mockImplementation(() => ({
+          getLogs: mockGetLogs
+        }));
+
+        // Empty array should work (no filtering)
+        const result = await fleetLogsTool.handler({
+          bit: 'llm-bot',
+          level: [],  // Preprocessed empty array
+          limit: 10
+        }, mockConnection);
+
+        // Should succeed
+        expect(result.isError).toBeFalsy();
+
+        // Verify empty array was passed
+        expect(mockGetLogs).toHaveBeenCalledWith(expect.objectContaining({
+          level: []
+        }));
+      });
+
+      it('should work with single level in array', async () => {
+        const mockLogs = [
+          { timestamp: '2026-07-10T12:00:00Z', level: 'error' as const, service: 'llm-bot', message: 'Test error' }
+        ];
+
+        const mockGetLogs = jest.fn().mockResolvedValue({
+          logs: mockLogs,
+          count: 1,
+          deploymentType: 'docker'
+        });
+
+        (LogRetriever as jest.Mock).mockImplementation(() => ({
+          getLogs: mockGetLogs
+        }));
+
+        // Single level in array
+        const result = await fleetLogsTool.handler({
+          bit: 'llm-bot',
+          level: ['error'],  // Preprocessed single element array
+          limit: 10
+        }, mockConnection);
+
+        // Should succeed
+        expect(result.isError).toBeFalsy();
+
+        // Verify single-element array
+        expect(mockGetLogs).toHaveBeenCalledWith(expect.objectContaining({
+          level: ['error']
+        }));
+      });
     });
   });
 

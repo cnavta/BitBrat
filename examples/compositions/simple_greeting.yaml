@@ -1,0 +1,65 @@
+# Simple Greeting Composition
+#
+# Demonstrates: Basic composition with input/output, literal values
+#
+# This composition takes a username as input and returns a personalized greeting.
+# It's the simplest possible composition - no tool calls, just data transformation.
+#
+# Usage:
+#   POST /v1/compositions
+#   Body: <this file's contents>
+#
+#   Then invoke via:
+#   POST /v1/tools/simple_greeting
+#   Body: { "username": "Alice" }
+
+apiVersion: mcp-compose/v1
+kind: Composition
+metadata:
+  name: simple_greeting
+  description: Returns a personalized greeting for a user
+  version: 1
+  author: BitBrat Platform
+  tags:
+    - example
+    - beginner
+    - greeting
+
+spec:
+  # Input schema defines what arguments the composition accepts
+  inputSchema:
+    type: object
+    properties:
+      username:
+        type: string
+        description: Name of the user to greet
+    required:
+      - username
+
+  # Steps define the operations to perform
+  # This example has no steps - it just returns a literal value with interpolated input
+  steps: []
+
+  # Return expression defines the composition's output
+  # This uses a reference to access the input username
+  return:
+    greeting: Hello from BitBrat!
+    user:
+      $ref:
+        namespace: input
+        pointer: /username
+    timestamp:
+      $ref:
+        namespace: context
+        pointer: /timestamp
+
+  # Optional output schema for validation
+  outputSchema:
+    type: object
+    properties:
+      greeting:
+        type: string
+      user:
+        type: string
+      timestamp:
+        type: string

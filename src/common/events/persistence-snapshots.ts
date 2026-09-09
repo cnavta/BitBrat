@@ -111,7 +111,7 @@ export function resolvePersistenceSnapshotPolicy(config?: Record<string, any>): 
 
 export function shouldPublishSnapshot(policy: PersistenceSnapshotPolicy, kind: PersistenceSnapshotEventV1['kind']): boolean {
   if (policy.mode === 'off') return false;
-  if (kind === 'final' || kind === 'deadletter') return true;
+  if (kind === 'initial' || kind === 'final' || kind === 'deadletter') return true;
   return policy.mode === 'all' || policy.mode === 'significant';
 }
 

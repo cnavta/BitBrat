@@ -19,6 +19,7 @@ import type {
   ResolvedContext,
   ResolvedGateway,
   ResolvedPersistence,
+  ResolvedLoki,
   BratrcConfig,
 } from './types';
 import { discoverGatewayPort, extractHostFromSSH } from './gateway-discovery';
@@ -246,6 +247,7 @@ export class ContextResolver {
       runtime: {
         gateway: await this.resolveGateway(context, name),
         persistence: await this.resolvePersistence(context, name),
+        loki: this.resolveLoki(context, name),
         envVars: await this.resolveEnvironmentVars(context, name),
       },
       tags: context.tags,
@@ -346,6 +348,38 @@ export class ContextResolver {
       `Unknown persistence driver for context '${name}': ${persistence.driver}`,
       name
     );
+  }
+
+  /**
+   * Resolve Loki configuration
+   * Sprint 46: Added for fleet.logs Loki integration
+   */
+  private resolveLoki(context: ExecutionContext, name: string): ResolvedLoki | undefined {
+    const lokiConfig = (context.runtime as any).loki;
+
+    // No loki config in architecture.yaml
+    if (!lokiConfig) {
+      return undefined;
+    }
+
+    // Direct URL (highest priority)
+    if (lokiConfig.url) {
+      return {
+        url: lokiConfig.url,
+      };
+    }
+
+    // Tunnel configuration
+    if (lokiConfig.tunnel) {
+      return {
+        tunnel: {
+          localPort: lokiConfig.tunnel.localPort,
+          remotePort: lokiConfig.tunnel.remotePort,
+        },
+      };
+    }
+
+    return undefined;
   }
 
   /**

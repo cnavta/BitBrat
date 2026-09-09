@@ -1,0 +1,906 @@
+# Sprint 39 Backlog: Dev MCP Messaging Tools
+# Sprint ID: sprint-39-62r0fc
+# Architecture: planning/sprint-39-62r0fc/technical-architecture.md
+# Implementation Plan: planning/sprint-39-62r0fc/implementation-plan.md
+
+metadata:
+  sprint: sprint-39-62r0fc
+  title: Dev MCP Messaging Tools
+  owner: christophernavta
+  created: 2026-09-02
+  status: planning
+  estimatedDays: 5
+  priority: high
+  securityCritical: true
+
+phases:
+  - id: phase-1
+    name: Core Infrastructure
+    description: Build ApiGatewayClient WebSocket client
+    estimatedDays: 2
+    dependencies: []
+
+  - id: phase-2
+    name: Messaging Tools
+    description: Implement MCP tools for message sending
+    estimatedDays: 1
+    dependencies: [phase-1]
+
+  - id: phase-3
+    name: Security & IngressManager
+    description: Permission-gated event.inject.v2 implementation
+    estimatedDays: 1.5
+    dependencies: [phase-1, phase-2]
+
+  - id: phase-4
+    name: Integration & Documentation
+    description: End-to-end validation and documentation
+    estimatedDays: 0.5
+    dependencies: [phase-3]
+
+tasks:
+  # ============================================================================
+  # PHASE 1: Core Infrastructure (ApiGatewayClient)
+  # ============================================================================
+
+  - id: task-1.1
+    title: Create ApiGatewayClient class skeleton
+    phase: phase-1
+    priority: critical
+    estimatedHours: 2
+    dependencies: []
+    status: completed
+    assignee: implementor
+    description: |
+      Create ApiGatewayClient class with constructor, connect/disconnect methods,
+      and connection state tracking.
+    files:
+      - tools/brat/src/dev-mcp/api-gateway-client.ts (NEW)
+    acceptanceCriteria:
+      - Class compiles without errors
+      - Constructor accepts ApiGatewayClientOptions
+      - connect() and disconnect() methods defined
+      - Connection state tracked (connected/connecting/disconnected)
+    testingRequired: false
+
+  - id: task-1.2
+    title: Implement WebSocket connection logic
+    phase: phase-1
+    priority: critical
+    estimatedHours: 3
+    dependencies: [task-1.1]
+    status: completed
+    assignee: implementor
+    description: |
+      Implement WebSocket connection with Bearer token authentication,
+      connection state management, and event handlers.
+    files:
+      - tools/brat/src/dev-mcp/api-gateway-client.ts (UPDATE)
+    acceptanceCriteria:
+      - WebSocket connects to /ws/v1 endpoint
+      - Bearer token sent in Authorization header
+      - Connection state updated on open/close
+      - Event handlers registered (open, message, error, close)
+    testingRequired: true
+    tests:
+      - Connection succeeds with valid URL
+      - Bearer token included in headers
+      - Connection state updates correctly
+
+  - id: task-1.3
+    title: Implement message sending (sendMessage)
+    phase: phase-1
+    priority: critical
+    estimatedHours: 2
+    dependencies: [task-1.2]
+    status: completed
+    assignee: implementor
+    description: |
+      Implement sendMessage() method to serialize and send InboundFrame
+      messages via WebSocket.
+    files:
+      - tools/brat/src/dev-mcp/api-gateway-client.ts (UPDATE)
+    acceptanceCriteria:
+      - sendMessage() accepts SendMessageOptions
+      - InboundFrame serialized to JSON correctly
+      - correlationId auto-generated if not provided
+      - Message sent via WebSocket
+      - Returns correlationId
+    testingRequired: true
+    tests:
+      - Message serialization correct
+      - correlationId auto-generated
+      - Error thrown if not connected
+
+  - id: task-1.4
+    title: Implement response listening and correlation
+    phase: phase-1
+    priority: critical
+    estimatedHours: 4
+    dependencies: [task-1.3]
+    status: completed
+    assignee: implementor
+    description: |
+      Implement response correlation by matching incoming messages to
+      pending requests via correlationId. Include timeout handling.
+    files:
+      - tools/brat/src/dev-mcp/api-gateway-client.ts (UPDATE)
+    acceptanceCriteria:
+      - Incoming messages parsed from WebSocket
+      - Messages matched to pending requests by correlationId
+      - Promise resolved when response received
+      - Timeout rejects promise after configurable duration
+      - Pending requests cleaned up on disconnect
+    testingRequired: true
+    tests:
+      - Response correlation works
+      - Timeout triggers rejection
+      - Multiple concurrent requests supported
+      - Cleanup on disconnect
+
+  - id: task-1.5
+    title: Add request/response wrapper with timeout
+    phase: phase-1
+    priority: high
+    estimatedHours: 2
+    dependencies: [task-1.4]
+    status: completed
+    assignee: implementor
+    description: |
+      Enhance sendMessage() to optionally wait for response with
+      configurable timeout.
+    files:
+      - tools/brat/src/dev-mcp/api-gateway-client.ts (UPDATE)
+    acceptanceCriteria:
+      - waitForResponse parameter works
+      - timeoutMs configurable (default 10000)
+      - Returns null for fire-and-forget (waitForResponse: false)
+      - Returns InternalEventV2 when response received
+    testingRequired: true
+    tests:
+      - Wait for response works
+      - Fire-and-forget returns null
+      - Timeout configurable
+
+  - id: task-1.6
+    title: Update type definitions for ApiGatewayClient
+    phase: phase-1
+    priority: high
+    estimatedHours: 1
+    dependencies: [task-1.1]
+    status: completed
+    assignee: implementor
+    description: |
+      Add TypeScript interfaces for ApiGatewayClient options and parameters.
+    files:
+      - tools/brat/src/dev-mcp/types.ts (UPDATE)
+    acceptanceCriteria:
+      - ApiGatewayClientOptions interface defined
+      - SendMessageOptions interface defined
+      - SendEventOptions interface defined
+      - InboundFrame interface defined (if not exists)
+      - All interfaces exported
+    testingRequired: false
+
+  - id: task-1.7
+    title: Write unit tests for ApiGatewayClient
+    phase: phase-1
+    priority: critical
+    estimatedHours: 4
+    dependencies: [task-1.5]
+    status: completed
+    assignee: implementor
+    description: |
+      Comprehensive unit tests for ApiGatewayClient covering all methods
+      and error scenarios.
+    files:
+      - tools/brat/src/dev-mcp/__tests__/api-gateway-client.test.ts (NEW)
+    acceptanceCriteria:
+      - 15+ tests passing
+      - Connection management tested (3 tests)
+      - Message sending tested (3 tests)
+      - Response correlation tested (3 tests)
+      - Timeout handling tested (2 tests)
+      - Error handling tested (2 tests)
+      - Cleanup tested (2 tests)
+      - Mock WebSocket used
+    testingRequired: true
+    tests:
+      - All unit tests pass
+      - Code coverage >90%
+
+  - id: task-1.8
+    title: Integration test ApiGatewayClient with real api-gateway
+    phase: phase-1
+    priority: high
+    estimatedHours: 2
+    dependencies: [task-1.7]
+    status: completed
+    assignee: implementor
+    description: |
+      Integration test connecting to real api-gateway in agent-dev context
+      and sending/receiving messages.
+    files:
+      - tools/brat/src/dev-mcp/__tests__/api-gateway-client-integration.test.ts (NEW)
+    acceptanceCriteria:
+      - Connects to agent-dev api-gateway
+      - Sends chat.message.v1
+      - Receives response within 5 seconds
+      - Disconnects cleanly
+    testingRequired: true
+    tests:
+      - Integration test passes
+      - No errors in logs
+
+  # ============================================================================
+  # PHASE 2: Messaging Tools
+  # ============================================================================
+
+  - id: task-2.1
+    title: Create messaging tools module skeleton
+    phase: phase-2
+    priority: critical
+    estimatedHours: 1
+    dependencies: [task-1.8]
+    status: completed
+    assignee: implementor
+    description: |
+      Create messaging.ts module with tool definitions array and imports.
+    files:
+      - tools/brat/src/dev-mcp/tools/messaging.ts (NEW)
+    acceptanceCriteria:
+      - File created with proper imports
+      - messagingTools array exported
+      - Helper functions section stubbed
+      - Compiles without errors
+    testingRequired: false
+
+  - id: task-2.2
+    title: Implement platform emulation presets
+    phase: phase-2
+    priority: high
+    estimatedHours: 2
+    dependencies: [task-2.1]
+    status: completed
+    assignee: implementor
+    description: |
+      Implement buildPlatformPreset() helper function with Discord, Twitch,
+      Slack, Twilio presets.
+    files:
+      - tools/brat/src/dev-mcp/tools/messaging.ts (UPDATE)
+    acceptanceCriteria:
+      - buildPlatformPreset() function implemented
+      - Discord preset correct (connector, identity, egress)
+      - Twitch preset correct
+      - Slack preset correct
+      - Twilio preset correct
+      - API preset (default) correct
+    testingRequired: true
+    tests:
+      - Each preset generates correct metadata
+      - Identity fields properly merged
+
+  - id: task-2.3
+    title: Implement token acquisition logic
+    phase: phase-2
+    priority: critical
+    estimatedHours: 3
+    dependencies: [task-2.1]
+    status: completed
+    assignee: implementor
+    description: |
+      Implement acquireAuthToken() to query PostgreSQL for existing token
+      or create new token with event:inject permission.
+    files:
+      - tools/brat/src/dev-mcp/tools/messaging.ts (UPDATE)
+    acceptanceCriteria:
+      - Checks connection.gateway.authToken first
+      - Queries PostgreSQL for existing token
+      - Creates new token if not found
+      - Token has event:inject permission
+      - Token cached in connection object
+      - Uses crypto.randomBytes for secure token
+    testingRequired: true
+    tests:
+      - Existing token reused
+      - New token created with permission
+      - Token cached correctly
+
+  - id: task-2.4
+    title: Implement message.send tool
+    phase: phase-2
+    priority: critical
+    estimatedHours: 3
+    dependencies: [task-2.2, task-2.3]
+    status: completed
+    assignee: implementor
+    description: |
+      Implement message.send MCP tool with Zod schema and handler.
+    files:
+      - tools/brat/src/dev-mcp/tools/messaging.ts (UPDATE)
+    acceptanceCriteria:
+      - Zod schema defined (messageSendSchema)
+      - Handler function implemented
+      - Platform emulation applied
+      - Response formatted correctly
+      - Tool added to messagingTools array
+    testingRequired: true
+    tests:
+      - Schema validation works
+      - Platform preset applied
+      - Response formatted correctly
+
+  - id: task-2.5
+    title: Implement event.send tool
+    phase: phase-2
+    priority: critical
+    estimatedHours: 3
+    dependencies: [task-2.2, task-2.3]
+    status: completed
+    assignee: implementor
+    description: |
+      Implement event.send MCP tool with full InternalEventV2 control.
+    files:
+      - tools/brat/src/dev-mcp/tools/messaging.ts (UPDATE)
+    acceptanceCriteria:
+      - Zod schema defined (eventSendSchema)
+      - Handler function implemented
+      - Builds event.inject.v2 frame
+      - Full event structure preserved
+      - Tool added to messagingTools array
+    testingRequired: true
+    tests:
+      - Complex event structure validated
+      - Platform emulation preserved
+
+  - id: task-2.6
+    title: Implement getOrCreateClient helper
+    phase: phase-2
+    priority: high
+    estimatedHours: 2
+    dependencies: [task-2.3]
+    status: completed
+    assignee: implementor
+    description: |
+      Implement helper to get or create ApiGatewayClient for a connection,
+      including gateway URL discovery and token acquisition.
+    files:
+      - tools/brat/src/dev-mcp/tools/messaging.ts (UPDATE)
+    acceptanceCriteria:
+      - Checks connection.gateway.client cache
+      - Discovers gateway URL if not cached
+      - Acquires auth token
+      - Creates ApiGatewayClient
+      - Connects to WebSocket
+      - Caches client in connection
+    testingRequired: true
+    tests:
+      - Client cached after first use
+      - Gateway URL discovered correctly
+
+  - id: task-2.7
+    title: Register messaging tools in dev-mcp server
+    phase: phase-2
+    priority: critical
+    estimatedHours: 1
+    dependencies: [task-2.4, task-2.5]
+    status: completed
+    assignee: implementor
+    description: |
+      Import and register messaging tools in DevMcpServer.
+    files:
+      - tools/brat/src/dev-mcp/server.ts (UPDATE)
+    acceptanceCriteria:
+      - messagingTools imported
+      - Tools registered in registerTools()
+      - Tool count logging updated
+    testingRequired: true
+    tests:
+      - Tools appear in tools/list
+      - Tools callable via MCP
+
+  - id: task-2.8
+    title: Write unit tests for messaging tools
+    phase: phase-2
+    priority: critical
+    estimatedHours: 4
+    dependencies: [task-2.7]
+    status: completed
+    assignee: implementor
+    description: |
+      Comprehensive unit tests for messaging tools and helpers.
+    files:
+      - tools/brat/src/dev-mcp/__tests__/tools/messaging.test.ts (NEW)
+    acceptanceCriteria:
+      - 20+ tests passing
+      - Schema validation tested (4 tests)
+      - Platform presets tested (6 tests)
+      - Token acquisition tested (4 tests)
+      - Handler logic tested (4 tests)
+      - Error handling tested (2 tests)
+    testingRequired: true
+    tests:
+      - All unit tests pass
+      - Code coverage >85%
+
+  # ============================================================================
+  # PHASE 3: Security & IngressManager Enhancement
+  # ============================================================================
+
+  - id: task-3.1
+    title: Create database migration for permissions column
+    phase: phase-3
+    priority: critical
+    estimatedHours: 1
+    dependencies: []
+    status: completed
+    assignee: implementor
+    description: |
+      Create SQL migration to add permissions JSONB column to
+      api_gateway_tokens table.
+    files:
+      - src/services/api-gateway/migrations/add-permissions-column.sql (NEW)
+    acceptanceCriteria:
+      - SQL migration file created
+      - Adds permissions column (JSONB, default '[]')
+      - Creates GIN index on permissions
+      - Includes IF NOT EXISTS for idempotency
+      - Includes column comment
+    testingRequired: true
+    tests:
+      - Migration runs successfully
+      - Column added with correct type
+      - Index created
+
+  - id: task-3.2
+    title: Implement AuthService.getUserPermissions()
+    phase: phase-3
+    priority: critical
+    estimatedHours: 2
+    dependencies: [task-3.1]
+    status: completed
+    assignee: implementor
+    description: |
+      Add getUserPermissions() method to AuthService to query permissions
+      from database and auto-grant event:inject for dev tokens.
+    files:
+      - src/services/api-gateway/auth.ts (UPDATE)
+    acceptanceCriteria:
+      - getUserPermissions(userId) method added
+      - Queries api_gateway_tokens.permissions
+      - Auto-grants event:inject for brat-dev-mcp:* users
+      - Auto-grants event:inject for dev-tools:* users
+      - Returns empty array for unknown users
+      - Handles database errors gracefully
+    testingRequired: true
+    tests:
+      - Returns permissions from database
+      - Auto-grants for dev tokens
+      - Returns empty array for unknown
+      - Handles errors gracefully
+
+  - id: task-3.3
+    title: Update WebSocket handler to load and pass permissions
+    phase: phase-3
+    priority: critical
+    estimatedHours: 2
+    dependencies: [task-3.2]
+    status: completed
+    assignee: implementor
+    description: |
+      Update api-gateway WebSocket connection handler to load permissions
+      and pass to IngressManager.
+    files:
+      - src/apps/api-gateway.ts (UPDATE)
+    acceptanceCriteria:
+      - Permissions loaded after token validation
+      - Auto-grant applied for dev tokens
+      - Permissions passed to IngressManager.handleMessage()
+      - Permission errors caught and sent to client
+      - Logged with permissions array
+    testingRequired: true
+    tests:
+      - Permissions loaded on connection
+      - Permission errors sent to client
+      - Dev tokens auto-granted
+
+  - id: task-3.4
+    title: Implement handleEventInject with permission checks
+    phase: phase-3
+    priority: critical
+    estimatedHours: 4
+    dependencies: [task-3.3]
+    status: completed
+    assignee: implementor
+    securityCritical: true
+    description: |
+      Implement handleEventInject() method in IngressManager with strict
+      permission checks and audit logging.
+    files:
+      - src/services/api-gateway/ingress.ts (UPDATE)
+    acceptanceCriteria:
+      - handleEventInject() method added
+      - Checks permissions includes 'event:inject'
+      - Rejects anonymous users (userId === 'anonymous')
+      - Validates event structure
+      - Prevents routing slip manipulation
+      - Merges event with defaults (ingress, identity, egress)
+      - Publishes to internal.ingress.v1
+      - Audit logs with dual identity (real + emulated)
+    testingRequired: true
+    tests:
+      - Permission check enforced
+      - Anonymous rejected
+      - Malicious routing slip rejected
+      - Valid event accepted
+      - Audit logging correct
+
+  - id: task-3.5
+    title: Add event.inject.v2 frame type routing
+    phase: phase-3
+    priority: critical
+    estimatedHours: 1
+    dependencies: [task-3.4]
+    status: completed
+    assignee: implementor
+    description: |
+      Update IngressManager.handleMessage() to route event.inject.v2
+      frame type to handleEventInject().
+    files:
+      - src/services/api-gateway/ingress.ts (UPDATE)
+    acceptanceCriteria:
+      - handleMessage() signature updated with permissions parameter
+      - Routes event.inject.v2 to handleEventInject()
+      - Existing chat.message.v1 logic unchanged
+      - Backward compatible
+    testingRequired: true
+    tests:
+      - event.inject.v2 routed correctly
+      - chat.message.v1 still works
+
+  - id: task-3.6
+    title: Update ApiGatewayClient for event.inject.v2
+    phase: phase-3
+    priority: high
+    estimatedHours: 2
+    dependencies: [task-3.5]
+    status: completed
+    assignee: implementor
+    description: |
+      Add sendEvent() method to ApiGatewayClient to send event.inject.v2 frames.
+    files:
+      - tools/brat/src/dev-mcp/api-gateway-client.ts (UPDATE)
+    acceptanceCriteria:
+      - sendEvent() method implemented
+      - Builds event.inject.v2 frame
+      - Sends via WebSocket
+      - Optionally waits for response
+      - Returns InternalEventV2 or null
+    testingRequired: true
+    tests:
+      - Frame built correctly
+      - Sends successfully
+      - Response correlation works
+
+  - id: task-3.7
+    title: Write security unit tests for IngressManager
+    phase: phase-3
+    priority: critical
+    estimatedHours: 4
+    dependencies: [task-3.5]
+    status: completed
+    assignee: implementor
+    securityCritical: true
+    description: |
+      Comprehensive security tests for event.inject.v2 permission checks
+      and validation.
+    files:
+      - src/services/api-gateway/__tests__/ingress-security.test.ts (NEW)
+    acceptanceCriteria:
+      - 8+ security tests passing
+      - Anonymous user rejection tested
+      - User without permission rejection tested
+      - User with permission acceptance tested
+      - Dev token auto-grant tested
+      - Audit logging tested (dual identity)
+      - Malicious routing slip rejection tested
+      - Invalid connector rejection tested
+      - Backward compatibility tested (chat.message.v1)
+    testingRequired: true
+    tests:
+      - All security tests pass
+      - No permission bypass possible
+
+  - id: task-3.8
+    title: Integration test platform emulation end-to-end
+    phase: phase-3
+    priority: high
+    estimatedHours: 3
+    dependencies: [task-3.7]
+    status: completed
+    assignee: implementor
+    description: |
+      Integration test full platform emulation (Discord, Twitch) with
+      correct metadata preservation.
+    files:
+      - tools/brat/src/dev-mcp/__tests__/platform-emulation-integration.test.ts (NEW)
+    acceptanceCriteria:
+      - Discord emulation works
+      - Twitch emulation works
+      - Events have correct ingress.connector
+      - Events have correct identity metadata
+      - Audit logs capture emulation
+    testingRequired: true
+    tests:
+      - Platform emulation integration tests pass
+      - Metadata correct
+
+  # ============================================================================
+  # PHASE 4: Integration & Documentation
+  # ============================================================================
+
+  - id: task-4.1
+    title: Write end-to-end integration tests
+    phase: phase-4
+    priority: critical
+    estimatedHours: 4
+    dependencies: [task-3.8]
+    status: completed
+    assignee: implementor
+    description: |
+      Comprehensive end-to-end integration tests covering full agent-dev
+      workflow with messaging tools.
+    files:
+      - tools/brat/src/dev-mcp/__tests__/messaging-integration.test.ts (NEW)
+    acceptanceCriteria:
+      - 3+ integration scenarios passing
+      - Simple chat message test
+      - Platform emulation test (Discord)
+      - Full event injection test
+      - Tests run in real agent-dev context
+      - Cleanup after tests
+    testingRequired: true
+    tests:
+      - All integration tests pass
+      - Response times <5 seconds
+
+  - id: task-4.2
+    title: Write user guide documentation
+    phase: phase-4
+    priority: high
+    estimatedHours: 3
+    dependencies: [task-4.1]
+    status: completed
+    assignee: implementor
+    description: |
+      Create comprehensive user guide for dev-mcp messaging tools.
+    files:
+      - documentation/guides/dev-mcp-messaging.md (NEW)
+    acceptanceCriteria:
+      - Overview & use cases section
+      - Quick start (3-step example)
+      - Tool reference (message.send, event.send)
+      - Platform emulation guide
+      - Authentication & permissions section
+      - Troubleshooting section
+      - Examples (Discord, Twitch, debugging)
+      - All examples validated (run successfully)
+    testingRequired: false
+
+  - id: task-4.3
+    title: Add CLAUDE.md pattern section
+    phase: phase-4
+    priority: high
+    estimatedHours: 1
+    dependencies: [task-4.1]
+    status: completed
+    assignee: implementor
+    description: |
+      Add Section 10 to CLAUDE.md documenting messaging tools pattern
+      for agent testing.
+    files:
+      - CLAUDE.md (UPDATE)
+    acceptanceCriteria:
+      - Section 10 added
+      - Pattern code examples included
+      - When to use guidelines clear
+      - Security note about event:inject
+      - Link to full documentation
+      - Examples validated
+    testingRequired: false
+
+  - id: task-4.4
+    title: Manual validation workflow
+    phase: phase-4
+    priority: critical
+    estimatedHours: 2
+    dependencies: [task-4.3]
+    status: completed
+    assignee: implementor
+    description: |
+      Complete manual validation checklist testing full workflow from
+      scratch in agent-dev environment.
+    files: []
+    acceptanceCriteria:
+      - All 10 manual validation steps pass
+      - Provision agent-dev context works
+      - Deploy api-gateway works
+      - Send messages via tools works
+      - Verify responses received
+      - Check audit logs
+      - Verify platform emulation
+      - Test permission denial
+      - Test anonymous rejection
+      - Cleanup successful
+    testingRequired: true
+    tests:
+      - Manual validation checklist complete
+      - No errors encountered
+
+  # ============================================================================
+  # FINAL TASKS
+  # ============================================================================
+
+  - id: task-final-1
+    title: Run all tests and verify coverage
+    phase: phase-4
+    priority: critical
+    estimatedHours: 1
+    dependencies: [task-4.4]
+    status: completed
+    assignee: implementor
+    description: |
+      Run full test suite and verify coverage meets targets.
+    files: []
+    acceptanceCriteria:
+      - All unit tests pass (60+ tests)
+      - All integration tests pass (5+ tests)
+      - All security tests pass (8+ tests)
+      - Code coverage >85%
+      - No console.log statements
+      - ESLint passes
+      - TypeScript compiles without errors
+    testingRequired: true
+    tests:
+      - npm test passes
+      - npm run lint passes
+      - npm run build passes
+
+  - id: task-final-2
+    title: Code review and security audit
+    phase: phase-4
+    priority: critical
+    estimatedHours: 2
+    dependencies: [task-final-1]
+    status: completed
+    assignee: reviewer
+    securityCritical: true
+    description: |
+      Comprehensive code review focusing on security model and
+      permission enforcement.
+    files:
+      - All modified files
+    acceptanceCriteria:
+      - Permission checks verified (no bypass)
+      - Audit logging verified (dual identity)
+      - Error handling verified (fail-safe)
+      - Input validation verified (Zod schemas)
+      - Backward compatibility verified
+      - Documentation accuracy verified
+    testingRequired: false
+
+  - id: task-final-3
+    title: Update sprint status and create PR
+    phase: phase-4
+    priority: critical
+    estimatedHours: 1
+    dependencies: [task-final-2]
+    status: completed
+    assignee: implementor
+    description: |
+      Update sprint manifest, create commit, and open pull request.
+    files:
+      - planning/sprint-39-62r0fc/sprint-manifest.yaml
+    acceptanceCriteria:
+      - Sprint status updated to 'validating'
+      - All changes committed
+      - Pull request created with summary
+      - PR links to sprint artifacts
+      - CI/CD passes
+    testingRequired: false
+
+# Task Summary
+totalTasks: 34
+criticalTasks: 19
+securityCriticalTasks: 4
+estimatedTotalHours: 71
+
+# Dependencies Graph
+# Phase 1 (8 tasks) → Phase 2 (8 tasks) → Phase 3 (8 tasks) → Phase 4 (7 tasks) → Final (3 tasks)
+
+# Critical Path
+criticalPath:
+  - task-1.1  # ApiGatewayClient skeleton
+  - task-1.2  # WebSocket connection
+  - task-1.3  # Message sending
+  - task-1.4  # Response correlation
+  - task-1.7  # Unit tests
+  - task-2.1  # Messaging tools skeleton
+  - task-2.4  # message.send tool
+  - task-2.5  # event.send tool
+  - task-2.7  # Register tools
+  - task-3.1  # Database migration
+  - task-3.2  # getUserPermissions
+  - task-3.3  # WebSocket permissions
+  - task-3.4  # handleEventInject (SECURITY CRITICAL)
+  - task-3.5  # Frame routing
+  - task-3.7  # Security tests (CRITICAL)
+  - task-4.1  # Integration tests
+  - task-4.4  # Manual validation
+  - task-final-1  # Test verification
+  - task-final-2  # Security audit
+  - task-final-3  # PR creation
+
+# Risk Register
+risks:
+  - id: risk-1
+    description: Breaking existing chat.message.v1 flow
+    probability: low
+    impact: high
+    mitigation: Comprehensive backward compatibility tests
+    monitoredBy: [task-3.7, task-4.1]
+
+  - id: risk-2
+    description: Permission bypass vulnerability
+    probability: low
+    impact: critical
+    mitigation: Defense-in-depth security model, audit logging
+    monitoredBy: [task-3.4, task-3.7, task-final-2]
+
+  - id: risk-3
+    description: WebSocket connection instability
+    probability: medium
+    impact: medium
+    mitigation: Timeout handling, reconnection logic
+    monitoredBy: [task-1.4, task-1.8]
+
+  - id: risk-4
+    description: Token management complexity
+    probability: low
+    impact: medium
+    mitigation: Reuse existing patterns, clear error messages
+    monitoredBy: [task-2.3, task-2.8]
+
+# Daily Milestones
+milestones:
+  day1:
+    - Complete Phase 1 tasks 1.1-1.5
+    - ApiGatewayClient core functionality working
+
+  day2:
+    - Complete Phase 1 tasks 1.6-1.8
+    - Start Phase 2 tasks 2.1-2.3
+    - ApiGatewayClient tested and validated
+
+  day3:
+    - Complete Phase 2 tasks 2.4-2.8
+    - Start Phase 3 tasks 3.1-3.3
+    - Messaging tools functional
+
+  day4:
+    - Complete Phase 3 tasks 3.4-3.8
+    - Security model fully implemented
+
+  day5:
+    - Complete Phase 4 all tasks
+    - Complete final tasks
+    - PR ready for review
+
+# Notes
+notes:
+  - Security is paramount: Tasks 3.4 and 3.7 are CRITICAL and require extra scrutiny
+  - All permission checks must be tested with security-critical flag
+  - Audit logging MUST capture both real and emulated identity
+  - Backward compatibility is essential: chat.message.v1 must continue working
+  - Integration tests should run in real agent-dev contexts, not mocks
+  - Documentation must be validated by running all examples

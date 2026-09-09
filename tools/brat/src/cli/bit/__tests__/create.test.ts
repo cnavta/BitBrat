@@ -11,6 +11,7 @@ import * as loader from '../../../config/loader';
 import * as validation from '../validation';
 import * as templates from '../templates';
 import * as registry from '../registry';
+import * as gitUtils from '../git-utils';
 
 // Mock dependencies
 jest.mock('fs');
@@ -18,12 +19,14 @@ jest.mock('../../../config/loader');
 jest.mock('../validation');
 jest.mock('../templates');
 jest.mock('../registry');
+jest.mock('../git-utils');
 
 const mockFs = fs as jest.Mocked<typeof fs>;
 const mockLoader = loader as jest.Mocked<typeof loader>;
 const mockValidation = validation as jest.Mocked<typeof validation>;
 const mockTemplates = templates as jest.Mocked<typeof templates>;
 const mockRegistry = registry as jest.Mocked<typeof registry>;
+const mockGitUtils = gitUtils as jest.Mocked<typeof gitUtils>;
 
 // Mock logger
 const mockLogger: Logger = {
@@ -71,6 +74,16 @@ describe('cmdBitCreate', () => {
 
     mockLoader.loadArchitecture.mockReturnValue({ services: {} });
     mockRegistry.registerBitInArchitecture.mockResolvedValue(undefined);
+
+    // Mock git-utils
+    mockGitUtils.validateGitEnvironment.mockReturnValue({ valid: true, errors: [] });
+    mockGitUtils.getGitInfo.mockReturnValue({
+      isGitRepo: true,
+      repoRoot: '/test/project',
+      currentBranch: 'main',
+      isWorktree: false,
+      worktreePath: null,
+    });
 
     // Mock process.cwd()
     jest.spyOn(process, 'cwd').mockReturnValue('/test/project');

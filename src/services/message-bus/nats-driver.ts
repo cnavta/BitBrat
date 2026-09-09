@@ -197,7 +197,7 @@ export class NatsSubscriber implements MessageSubscriber {
         const ack = async () => {
           try {
             m.ack();
-            logger.debug('message_consumer.ack', { driver: 'nats', subject: subj });
+            logger.trace?.('message_consumer.ack', { driver: 'nats', subject: subj });
           } catch (e: any) {
             logger.error('message_consumer.ack.error', { driver: 'nats', subject: subj, error: e?.message || String(e) });
           }

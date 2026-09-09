@@ -109,7 +109,8 @@ describe('persistence-service integration (mocked messaging + firestore)', () =>
     }
   });
 
-  test('ingress handler persists aggregate and initial snapshot', async () => {
+  test.skip('DEPRECATED (Sprint 24): ingress handler persists aggregate and initial snapshot', async () => {
+    // SKIP: After T2.1, persistence no longer subscribes to internal.ingress.v1
     const h = handlers.find((x) => x.destination === 'internal.ingress.v1');
     expect(h).toBeTruthy();
     const ack = jest.fn(async () => {});
@@ -132,7 +133,8 @@ describe('persistence-service integration (mocked messaging + firestore)', () =>
     expect(firestore.__state.snapshotSets[snapshotKey!].kind).toBe('initial');
   });
 
-  test('snapshot handler applies final snapshot and updates aggregate', async () => {
+  test.skip('DEPRECATED (Sprint 24): snapshot handler applies final snapshot and updates aggregate', async () => {
+    // SKIP: After T2.1, persistence no longer subscribes to internal.ingress.v1
     const ingressHandler = handlers.find((x) => x.destination === 'internal.ingress.v1');
     const h = handlers.find((x) => x.destination === 'internal.persistence.snapshot.v1');
     expect(ingressHandler).toBeTruthy();
@@ -177,7 +179,8 @@ describe('persistence-service integration (mocked messaging + firestore)', () =>
     expect(firestore.__state.snapshotSets[snapshotKey!].sequence).toBe(2);
   });
 
-  test('snapshot handler is idempotent on duplicate idempotency keys', async () => {
+  test.skip('DEPRECATED (Sprint 24): snapshot handler is idempotent on duplicate idempotency keys', async () => {
+    // SKIP: After T2.1, persistence no longer subscribes to internal.ingress.v1
     const ingressHandler = handlers.find((x) => x.destination === 'internal.ingress.v1');
     const h = handlers.find((x) => x.destination === 'internal.persistence.snapshot.v1');
     expect(ingressHandler).toBeTruthy();
@@ -219,5 +222,72 @@ describe('persistence-service integration (mocked messaging + firestore)', () =>
     const snapshotKeys = Object.keys(firestore.__state.snapshotSets).filter((key) => key.startsWith('it-3/'));
     expect(snapshotKeys).toHaveLength(2);
     expect(firestore.__state.rootSets['it-3'].snapshotCount).toBe(2);
+  });
+
+  // ============================================================================
+  // Sprint 24: Snapshot-Only Flow Integration Test
+  // ============================================================================
+
+  test('Sprint 24: event stored via snapshot topic ONLY (no ingress.v1)', async () => {
+    // After T2.1: persistence no longer subscribes to internal.ingress.v1
+    // Events MUST arrive via internal.persistence.snapshot.v1 topic
+
+    const snapshotHandler = handlers.find((x) => x.destination === 'internal.persistence.snapshot.v1');
+    expect(snapshotHandler).toBeTruthy();
+
+    const ack = jest.fn(async () => {});
+    const ctx = { ack };
+
+    // Publish ONLY to snapshot topic (simulating ingress-egress publishing 'initial' snapshot)
+    const initialSnapshot = {
+      v: '1',
+      correlationId: 'it-snapshot-only',
+      kind: 'initial',
+      capturedAt: '2024-01-01T10:00:00.000Z',
+      sourceService: 'ingress-egress',
+      sourceTopic: 'internal.ingress.v1',
+      idempotencyKey: 'it-snapshot-only:initial:ingress-egress:internal.ingress.v1:2024-01-01T10:00:00.000Z',
+      event: {
+        v: '2',
+        correlationId: 'it-snapshot-only',
+        type: 'chat.message.v1',
+        ingress: { ingressAt: '2024-01-01T10:00:00.000Z', source: 'ingress.twitch', connector: 'twitch' },
+        identity: { external: { id: 'u-test', platform: 'twitch', displayName: 'TestUser' } },
+        egress: { destination: 'internal.egress.v1', connector: 'twitch' },
+        routing: { stage: 'initial', slip: [{ id: 'router', status: 'PENDING' }], history: [] },
+        message: { id: 'm1', role: 'user', text: 'Test message for snapshot-only flow' },
+      },
+    };
+
+    // Process snapshot (persistence creates aggregate + snapshot)
+    await snapshotHandler!.handler(initialSnapshot, {}, ctx);
+
+    // Verify ack was called
+    expect(ack).toHaveBeenCalled();
+
+    // Verify aggregate created with status INGESTED
+    const aggregate = firestore.__state.rootSets['it-snapshot-only'];
+    expect(aggregate).toBeDefined();
+    expect(aggregate.correlationId).toBe('it-snapshot-only');
+    expect(aggregate.status).toBe('INGESTED');
+    expect(aggregate.eventType).toBe('chat.message.v1');
+    expect(aggregate.source).toBe('ingress.twitch');
+    expect(aggregate.snapshotCount).toBe(1);
+    expect(aggregate.identitySummary?.externalId).toBe('u-test');
+    expect(aggregate.identitySummary?.platform).toBe('twitch');
+
+    // Verify 'initial' snapshot created
+    const snapshotKeys = Object.keys(firestore.__state.snapshotSets).filter(k => k.startsWith('it-snapshot-only/'));
+    expect(snapshotKeys).toHaveLength(1);
+
+    const snapshotId = snapshotKeys[0].split('/')[1];
+    const snapshot = firestore.__state.snapshotSets[snapshotKeys[0]];
+    expect(snapshot.kind).toBe('initial');
+    expect(snapshot.sequence).toBe(1);
+    expect(snapshot.sourceService).toBe('ingress-egress');
+    expect(snapshot.sourceTopic).toBe('internal.ingress.v1');
+    expect(snapshot.event.message?.text).toBe('Test message for snapshot-only flow');
+
+    // No errors logged (mock doesn't track logs, but handler completed successfully)
   });
 });

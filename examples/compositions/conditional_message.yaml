@@ -1,0 +1,121 @@
+# Conditional Message Composition
+#
+# Demonstrates: Conditional logic (if/else), condition operators, ifValue steps
+#
+# This composition sends different messages based on user role and message urgency.
+# It showcases conditional execution using the ifValue step type.
+#
+# Usage:
+#   POST /v1/compositions
+#   Body: <this file's contents>
+#
+#   Then invoke via:
+#   POST /v1/tools/conditional_message
+#   Body: { "role": "admin", "urgency": "high" }
+
+apiVersion: mcp-compose/v1
+kind: Composition
+metadata:
+  name: conditional_message
+  description: Sends different messages based on user role and urgency level
+  version: 1
+  author: BitBrat Platform
+  tags:
+    - example
+    - intermediate
+    - conditionals
+    - logic
+
+spec:
+  inputSchema:
+    type: object
+    properties:
+      role:
+        type: string
+        enum: [admin, moderator, user]
+        description: User's role in the system
+      urgency:
+        type: string
+        enum: [low, normal, high]
+        description: Message urgency level
+    required:
+      - role
+      - urgency
+
+  steps:
+    # Step 1: Determine message prefix based on urgency
+    - id: message_prefix
+      ifValue:
+        condition:
+          equals:
+            - { $ref: { namespace: input, pointer: /urgency } }
+            - high
+        then: "🚨 URGENT"
+        else:
+          ifValue:
+            condition:
+              equals:
+                - { $ref: { namespace: input, pointer: /urgency } }
+                - normal
+            then: "📢"
+            else: "ℹ️"
+
+    # Step 2: Determine message content based on role
+    - id: message_content
+      ifValue:
+        condition:
+          equals:
+            - { $ref: { namespace: input, pointer: /role } }
+            - admin
+        then: "You have administrative privileges"
+        else:
+          ifValue:
+            condition:
+              equals:
+                - { $ref: { namespace: input, pointer: /role } }
+                - moderator
+            then: "You have moderation privileges"
+            else: "You have standard user privileges"
+
+    # Step 3: Conditionally send progress update for high urgency
+    - id: progress_notification
+      call: agent.sendProgressUpdate
+      when:
+        equals:
+          - { $ref: { namespace: input, pointer: /urgency } }
+          - high
+      with:
+        message: Processing high-urgency request
+        emoji: "⚡"
+        urgency: high
+
+  # Combine prefix and content in the return value
+  return:
+    prefix:
+      $ref:
+        namespace: steps
+        pointer: /message_prefix
+    content:
+      $ref:
+        namespace: steps
+        pointer: /message_content
+    role:
+      $ref:
+        namespace: input
+        pointer: /role
+    urgency:
+      $ref:
+        namespace: input
+        pointer: /urgency
+
+  outputSchema:
+    type: object
+    properties:
+      prefix:
+        type: string
+      content:
+        type: string
+      role:
+        type: string
+      urgency:
+        type: string

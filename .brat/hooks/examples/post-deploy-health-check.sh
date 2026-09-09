@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # Example: Post-Deploy Health Check
 # Hook Type: post-deploy

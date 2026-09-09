@@ -7,8 +7,7 @@
  * This solves the startup race condition where llm-bot connects before tool-gateway has discovered
  * all Bits, enabling automatic tool discovery without manual restarts.
  */
-
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { Server } from "@modelcontextprotocol/server";
 
 // Mock Firestore
 const setMock = jest.fn(async () => {});
@@ -111,10 +110,10 @@ describe('Tool Gateway Notification Broadcasting', () => {
       expect(mockSessionServer2.notification).toHaveBeenCalledTimes(3);
     });
 
-    it('logs broadcast activity', () => {
+    it('logs broadcast activity', async () => {
       const loggerSpy = jest.spyOn((server as any).getLogger(), 'info');
 
-      (server as any).broadcastListChangedNotifications();
+      await (server as any).broadcastListChangedNotifications();
 
       // Should log broadcasting start and completion
       expect(loggerSpy).toHaveBeenCalledWith(

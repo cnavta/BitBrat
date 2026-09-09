@@ -1,0 +1,977 @@
+# Stream Analyst Real-Time v4: Prioritized Backlog
+# Track implementation progress across all phases
+# Format: YAML-based task tracking with dependencies and estimates
+
+metadata:
+  project: stream-analyst-realtime-v4
+  owner: Lead Implementor
+  architecture: documentation/technical-architecture/stream-analyst-realtime-v4.md
+  execution_plan: planning/stream-analyst-realtime/EXECUTION_PLAN.md
+  created: 2026-08-18
+  target_completion: 2026-10-27 (Week 10)
+
+# Priority levels: P0 (blocker), P1 (critical), P2 (important), P3 (nice-to-have)
+# Status: not-started, in-progress, blocked, completed, skipped
+
+# ==============================================================================
+# PHASE 1: PROOF OF CONCEPT (Sprint 1)
+# ==============================================================================
+
+phase_1:
+  name: Proof of Concept
+  sprint: 1
+  duration: 2 weeks
+  goal: Validate RxJS-based streaming with single observer
+  status: completed
+  decision_point: CONDITIONAL GO - Proceed to Phase 2 with latency validation requirement
+
+  tasks:
+    # --- Setup & Dependencies (2 hours) ---
+    - id: P1-001
+      name: Install RxJS dependency
+      description: Add rxjs package to package.json
+      priority: P0
+      status: completed
+      estimated_hours: 0.5
+      assignee: Lead Implementor
+      dependencies: []
+      acceptance_criteria:
+        - rxjs added to package.json
+        - npm install succeeds
+        - TypeScript types available
+      files:
+        - package.json
+      notes: RxJS already present in dependencies
+
+    - id: P1-002
+      name: Create event-stream-analyzer service using brat CLI
+      description: Use brat bit create to scaffold new service with all required files
+      priority: P0
+      status: completed
+      estimated_hours: 0.5
+      assignee: Lead Implementor
+      dependencies: []
+      acceptance_criteria:
+        - Run "brat bit create event-stream-analyzer --profile llm --exposure platform-only --stage analyze --register --active"
+        - src/apps/event-stream-analyzer-service.ts created
+        - Test file, Dockerfile, compose file generated
+        - Service registered in architecture.yaml
+        - stream-analyst-service marked as active:false in architecture.yaml
+      files:
+        - src/apps/event-stream-analyzer-service.ts
+        - src/apps/event-stream-analyzer-service.test.ts
+        - Dockerfile.event-stream-analyzer
+        - infrastructure/docker-compose/services/event-stream-analyzer.compose.yaml
+
+    - id: P1-003
+      name: Create directory structure and review existing code for reuse
+      description: Create event-stream-analyzer directory and identify reusable parts from stream-analyst
+      priority: P1
+      status: completed
+      estimated_hours: 1
+      assignee: Lead Implementor
+      dependencies: [P1-002]
+      acceptance_criteria:
+        - src/services/event-stream-analyzer/ directory created
+        - List of reusable components from stream-analyst documented
+        - Plan for copying/adapting StreamBuffer and Engine
+      files:
+        - src/services/event-stream-analyzer/ (new directory)
+        - src/services/stream-analyst/stream-buffer.ts (review for copy)
+        - src/services/stream-analyst/engine.ts (review for copy)
+      notes: |
+        Reusable components identified:
+        1. StreamBuffer (stream-buffer.ts) - PII redaction, token counting, event normalization - REUSE AS-IS
+        2. StreamAnalystEngine (engine.ts) - LLM analysis, prompt assembly - ADAPT for window-based input
+        3. repository.ts - Database operations - MAY REUSE for observer persistence in Phase 2
+        Plan: Copy StreamBuffer unchanged, adapt Engine.summarize() to accept events array instead of querying DB
+
+    # --- Core RxJS Window Manager (8 hours) ---
+    - id: P1-004
+      name: Implement RxJSWindowManager core class
+      description: Create WindowManager with Subject, bufferTime, event filtering
+      priority: P0
+      status: completed
+      estimated_hours: 4
+      assignee: Lead Implementor
+      dependencies: [P1-001, P1-002]
+      acceptance_criteria:
+        - RxJSWindowManager class implemented
+        - createSlidingWindow() method functional
+        - addEvent() routes to Subject
+        - Event filtering logic working (platform, eventType, channel)
+      files:
+        - src/services/event-stream-analyzer/rxjs-window-manager.ts
+
+    - id: P1-005
+      name: Implement subscription cleanup and error handling
+      description: Add removeObserver(), destroy(), error handlers for RxJS subscriptions
+      priority: P0
+      status: completed
+      estimated_hours: 2
+      assignee: Lead Implementor
+      dependencies: [P1-004]
+      acceptance_criteria:
+        - removeObserver() unsubscribes correctly
+        - destroy() cleans up all subscriptions
+        - Error handling logs and doesn't crash service
+      files:
+        - src/services/event-stream-analyzer/rxjs-window-manager.ts
+
+    - id: P1-006
+      name: Unit tests for RxJSWindowManager
+      description: Test sliding window timing, event filtering, subscription management
+      priority: P1
+      status: completed
+      estimated_hours: 2
+      assignee: Lead Implementor
+      dependencies: [P1-005]
+      acceptance_criteria:
+        - Test sliding window emits every slideMs
+        - Test event filtering (platform, eventType)
+        - Test subscription cleanup prevents leaks
+        - All tests pass
+      files:
+        - src/services/event-stream-analyzer/rxjs-window-manager.test.ts
+
+    # --- Service Integration (6 hours) ---
+    - id: P1-007
+      name: Implement EventStreamAnalyzerService skeleton
+      description: Create new service class extending Bit, with setup() and close()
+      priority: P0
+      status: completed
+      estimated_hours: 2
+      assignee: Lead Implementor
+      dependencies: [P1-002, P1-003]
+      acceptance_criteria:
+        - EventStreamAnalyzerService extends Bit
+        - CONFIG_DEFAULTS defined
+        - setup() method defined
+        - close() method defined
+      files:
+        - src/apps/event-stream-analyzer-service.ts
+
+    - id: P1-008
+      name: Integrate RxJSWindowManager into service
+      description: Instantiate WindowManager, create POC observer, connect to handleWindowClose
+      priority: P0
+      status: completed
+      estimated_hours: 2
+      assignee: Lead Implementor
+      dependencies: [P1-005, P1-007]
+      acceptance_criteria:
+        - WindowManager instantiated in setup()
+        - POC observer created (hardcoded config)
+        - createSlidingWindow() called with POC observer
+        - handleWindowClose() callback defined
+      files:
+        - src/apps/event-stream-analyzer-service.ts
+
+    - id: P1-009
+      name: Subscribe to internal.contextualization.v1 (passive observer)
+      description: Use onMessage() with separate queue, route events to WindowManager
+      priority: P0
+      status: completed
+      estimated_hours: 2
+      assignee: Lead Implementor
+      dependencies: [P1-008]
+      acceptance_criteria:
+        - Subscription to internal.contextualization.v1 working
+        - Separate queue used (event-stream-analyzer-observer)
+        - Events routed to windowManager.addEvent()
+        - No next() call (passive observer pattern)
+      files:
+        - src/apps/event-stream-analyzer-service.ts
+
+    # --- Window Close Handling & LLM Integration (4 hours) ---
+    - id: P1-010
+      name: Implement handleWindowClose with Engine integration
+      description: Call existing StreamAnalystEngine.summarize() when window closes
+      priority: P0
+      status: completed
+      estimated_hours: 2
+      assignee: Lead Implementor
+      dependencies: [P1-003, P1-009]
+      acceptance_criteria:
+        - handleWindowClose() receives events array
+        - Calls engine.summarize() with appropriate request
+        - Handles errors gracefully
+        - Logs window closure
+      files:
+        - src/apps/event-stream-analyzer-service.ts
+
+    - id: P1-011
+      name: Publish results to internal.summarization.report.v1 and internal.egress.v1
+      description: Dual publishing pattern (audit trail + user delivery)
+      priority: P0
+      status: completed
+      estimated_hours: 2
+      assignee: Lead Implementor
+      dependencies: [P1-010]
+      acceptance_criteria:
+        - Summary published to internal.summarization.report.v1
+        - Summary published to internal.egress.v1 (if delivery configured)
+        - Both publications succeed
+        - Logs confirm publishing
+      files:
+        - src/apps/event-stream-analyzer-service.ts
+
+    # --- Integration Testing (4 hours) ---
+    - id: P1-012
+      name: End-to-end integration test
+      description: Test full flow from NATS event → window closure → egress publishing
+      priority: P1
+      status: completed
+      estimated_hours: 4
+      assignee: Lead Implementor
+      dependencies: [P1-011]
+      acceptance_criteria:
+        - Publish 10 test events to internal.contextualization.v1
+        - Wait for window to close (1 min slide)
+        - Verify summary published to egress
+        - Test passes consistently
+      files:
+        - src/apps/event-stream-analyzer-service.test.ts
+
+    # --- Performance Benchmarking (4 hours) ---
+    - id: P1-013
+      name: Create benchmark script
+      description: Measure latency, memory usage, throughput for POC
+      priority: P1
+      status: completed
+      estimated_hours: 2
+      assignee: Lead Implementor
+      dependencies: [P1-011]
+      acceptance_criteria:
+        - Script publishes 1000 events over 60 seconds
+        - Measures memory increase
+        - Measures latency (event → analysis)
+        - Outputs benchmark report
+      files:
+        - scripts/benchmark-event-stream-analyzer.ts
+
+    - id: P1-014
+      name: Run benchmark and document results
+      description: Execute benchmark, analyze results, create go/no-go recommendation
+      priority: P1
+      status: completed
+      estimated_hours: 2
+      assignee: Lead Implementor
+      dependencies: [P1-013]
+      acceptance_criteria:
+        - Benchmark executed successfully
+        - Results documented (latency, memory, throughput)
+        - Go/no-go recommendation made
+        - Report shared with stakeholders
+      files:
+        - planning/stream-analyst-realtime/POC_BENCHMARK_REPORT.md
+
+    # --- Sprint 1 Deliverables ---
+    - id: P1-015
+      name: Sprint 1 retrospective and go/no-go decision
+      description: Team review of POC results, decision to proceed or pivot
+      priority: P0
+      status: completed
+      estimated_hours: 2
+      assignee: Lead Implementor
+      dependencies: [P1-014]
+      acceptance_criteria:
+        - Team meeting held
+        - POC results presented
+        - Go/no-go decision documented
+        - If GO, proceed to Phase 2
+        - If NO-GO, pivot to database polling (v3)
+      files:
+        - planning/stream-analyst-realtime/SPRINT_1_RETRO.md
+
+# ==============================================================================
+# PHASE 2: MULTI-OBSERVER & WINDOW TYPES (Sprints 2-3)
+# ==============================================================================
+
+phase_2:
+  name: Multi-Observer & Window Types
+  sprints: [2, 3]
+  duration: 4 weeks
+  goal: Observer lifecycle management, all window types
+  status: in-progress
+  depends_on_phase: phase_1
+
+  # --- SPRINT 2: Observer Lifecycle Management ---
+  sprint_2_tasks:
+    - id: P2-001
+      name: Create PostgreSQL migration for stream_observers table
+      description: Define schema for stream_observers and summarization_runs
+      priority: P0
+      status: completed
+      estimated_hours: 2
+      assignee: christophernavta
+      dependencies: [P1-015]  # Depends on Phase 1 go decision
+      acceptance_criteria:
+        - Migration file created (018-add-stream-observers.sql)
+        - stream_observers table schema matches StreamObserver interface
+        - summarization_runs table schema defined
+        - Migration tested in agent-dev context
+      files:
+        - infrastructure/postgres/migrations/018-add-stream-observers.sql
+
+    - id: P2-002
+      name: Run migration in local and agent-dev environments
+      description: Apply migration, verify schema
+      priority: P0
+      status: completed
+      estimated_hours: 1
+      assignee: christophernavta
+      dependencies: [P2-001]
+      acceptance_criteria:
+        - Migration applied successfully
+        - Tables created in PostgreSQL
+        - Schema verified with \d command
+      files: []
+
+    - id: P2-003
+      name: Implement ObserverRepository
+      description: CRUD operations for stream_observers via IDocumentStore
+      priority: P0
+      status: completed
+      estimated_hours: 4
+      assignee: christophernavta
+      dependencies: [P2-002]
+      acceptance_criteria:
+        - ObserverRepository class created
+        - create(), get(), list(), update(), delete() methods implemented
+        - Uses IDocumentStore abstraction
+        - Unit tests pass
+      files:
+        - src/services/event-stream-analyzer/observer-repository.ts
+        - src/services/event-stream-analyzer/observer-repository.test.ts
+
+    - id: P2-004
+      name: Implement MCP tool event_stream_analyzer.observer.create
+      description: Create observer via MCP, validate config with Zod
+      priority: P0
+      status: completed
+      estimated_hours: 3
+      assignee: christophernavta
+      dependencies: [P2-003]
+      acceptance_criteria:
+        - MCP tool registered
+        - Zod schema validates observer config
+        - Observer persisted to database
+        - Window created in WindowManager
+        - Topic subscription added dynamically
+      files:
+        - src/apps/event-stream-analyzer-service.ts
+
+    - id: P2-005
+      name: Implement MCP tool event_stream_analyzer.observer.list
+      description: List all observers with filters (active, mode, etc)
+      priority: P1
+      status: completed
+      estimated_hours: 1
+      assignee: christophernavta
+      dependencies: [P2-003]
+      acceptance_criteria:
+        - MCP tool registered
+        - Returns list of observers
+        - Supports filtering by active status
+      files:
+        - src/apps/event-stream-analyzer-service.ts
+
+    - id: P2-006
+      name: Implement MCP tool event_stream_analyzer.observer.update
+      description: Update observer config, recreate window
+      priority: P1
+      status: completed
+      estimated_hours: 2
+      assignee: christophernavta
+      dependencies: [P2-004]
+      acceptance_criteria:
+        - MCP tool registered
+        - Observer config updated in database
+        - Old window destroyed
+        - New window created with updated config
+      files:
+        - src/apps/event-stream-analyzer-service.ts
+
+    - id: P2-007
+      name: Implement MCP tool event_stream_analyzer.observer.delete
+      description: Delete observer, cleanup window and subscription
+      priority: P1
+      status: completed
+      estimated_hours: 1
+      assignee: christophernavta
+      dependencies: [P2-004]
+      acceptance_criteria:
+        - MCP tool registered
+        - Observer deleted from database
+        - Window destroyed
+        - Subscription removed
+      files:
+        - src/apps/event-stream-analyzer-service.ts
+
+    - id: P2-008
+      name: Implement Dynamic Subscription Manager
+      description: Track active topics, add/remove NATS subscriptions dynamically
+      priority: P0
+      status: completed
+      estimated_hours: 6
+      assignee: christophernavta
+      dependencies: [P2-004]
+      acceptance_criteria:
+        - SubscriptionManager class created
+        - Tracks active topics across all observers
+        - Adds subscription when first observer for topic created
+        - Removes subscription when last observer for topic deleted
+        - Handles subscription errors gracefully
+      files:
+        - src/services/event-stream-analyzer/subscription-manager.ts
+
+    - id: P2-009
+      name: Update service to load observers from database on startup
+      description: Replace hardcoded POC observer with database-driven observers
+      priority: P0
+      status: completed
+      estimated_hours: 2
+      assignee: christophernavta
+      dependencies: [P2-008]
+      acceptance_criteria:
+        - Service loads all active observers from database on startup
+        - Windows created for each observer
+        - Subscriptions added for all unique topics
+        - Handles empty observer list gracefully
+      files:
+        - src/apps/event-stream-analyzer-service.ts
+
+    - id: P2-010
+      name: Integration test for multiple observers
+      description: Create 5 observers, verify independent operation
+      priority: P1
+      status: completed
+      estimated_hours: 3
+      assignee: christophernavta
+      dependencies: [P2-009]
+      acceptance_criteria:
+        - Create 5 observers with different configs
+        - Publish events matching different filters
+        - Verify each observer triggers independently
+        - No cross-observer interference
+      files:
+        - src/apps/event-stream-analyzer-service.test.ts
+
+    # --- SPRINT 3: Tumbling & Session Windows ---
+    - id: P2-011
+      name: Implement tumbling window support
+      description: Use RxJS buffer + manual trigger for non-overlapping windows
+      priority: P1
+      status: completed
+      estimated_hours: 4
+      assignee: christophernavta
+      dependencies: [P2-009]
+      acceptance_criteria:
+        - createTumblingWindow() method added to WindowManager
+        - Uses RxJS buffer with manual trigger
+        - Windows are non-overlapping
+        - Events appear in exactly one window
+      files:
+        - src/services/event-stream-analyzer/rxjs-window-manager.ts
+
+    - id: P2-012
+      name: Implement session window support
+      description: Use RxJS debounceTime for inactivity-based windows
+      priority: P1
+      status: completed
+      estimated_hours: 6
+      assignee: christophernavta
+      dependencies: [P2-009]
+      acceptance_criteria:
+        - createSessionWindow() method added to WindowManager
+        - Uses RxJS debounceTime for inactivity gap
+        - Window closes after sessionGapMs of no events
+        - Handles edge cases (empty sessions, rapid events)
+      files:
+        - src/services/event-stream-analyzer/rxjs-window-manager.ts
+
+    - id: P2-013
+      name: Add window type validation
+      description: Zod schemas for sliding, tumbling, session window configs
+      priority: P1
+      status: completed
+      estimated_hours: 2
+      assignee: christophernavta
+      dependencies: [P2-011, P2-012]
+      acceptance_criteria:
+        - Zod schema validates window type
+        - Required fields enforced (slideMs for sliding, sessionGapMs for session)
+        - Invalid configs rejected
+      files:
+        - src/types/sessi.ts
+
+    - id: P2-014
+      name: Unit tests for all window types
+      description: Comprehensive tests for sliding, tumbling, session windows
+      priority: P1
+      status: completed
+      estimated_hours: 4
+      assignee: christophernavta
+      dependencies: [P2-013]
+      acceptance_criteria:
+        - Test sliding window (overlapping)
+        - Test tumbling window (non-overlapping)
+        - Test session window (inactivity gap)
+        - Test window transitions
+        - All tests pass
+      files:
+        - src/services/event-stream-analyzer/rxjs-window-manager.test.ts
+
+    - id: P2-015
+      name: Integration test for all window types
+      description: End-to-end test creating observers with different window types
+      priority: P1
+      status: completed
+      estimated_hours: 4
+      assignee: christophernavta
+      dependencies: [P2-014]
+      acceptance_criteria:
+        - Create observer with sliding window
+        - Create observer with tumbling window
+        - Create observer with session window
+        - Publish events, verify all trigger correctly
+      files:
+        - src/apps/event-stream-analyzer-service.test.ts
+
+# ==============================================================================
+# PHASE 3: PRODUCTION READINESS (Sprints 4-5)
+# ==============================================================================
+
+phase_3:
+  name: Production Readiness
+  sprints: [4, 5]
+  duration: 4 weeks
+  goal: Snapshots, observability, load testing
+  status: completed
+  depends_on_phase: phase_2
+
+  # --- SPRINT 4: Snapshot & Recovery ---
+  sprint_4_tasks:
+    - id: P3-001
+      name: Create PostgreSQL migration for window_snapshots table
+      description: Schema for periodic window snapshots
+      priority: P0
+      status: completed
+      estimated_hours: 1
+      assignee: christophernavta
+      dependencies: [P2-015]  # Depends on Phase 2 completion
+      acceptance_criteria:
+        - Migration file created (019-add-window-snapshots.sql)
+        - window_snapshots table schema defined
+        - Indexes on observerId, snapshotAt
+      files:
+        - infrastructure/postgres/migrations/019-add-window-snapshots.sql
+
+    - id: P3-002
+      name: Implement SnapshotManager class
+      description: Periodic snapshot logic, write to PostgreSQL
+      priority: P0
+      status: completed
+      estimated_hours: 6
+      assignee: christophernavta
+      dependencies: [P3-001]
+      acceptance_criteria:
+        - SnapshotManager class created
+        - snapshotWindows() method implemented
+        - Stores event IDs + window metadata
+        - Configurable snapshot interval
+      files:
+        - src/services/event-stream-analyzer/snapshot-manager.ts
+
+    - id: P3-003
+      name: Implement window restoration on startup
+      description: Fetch snapshots, reconstruct windows
+      priority: P0
+      status: completed
+      estimated_hours: 4
+      assignee: christophernavta
+      dependencies: [P3-002]
+      acceptance_criteria:
+        - restoreWindows() method implemented
+        - Fetches recent snapshots (< 15 min old)
+        - Reconstructs windows from event IDs
+        - Resumes windows at correct state
+      files:
+        - src/services/event-stream-analyzer/snapshot-manager.ts
+
+    - id: P3-004
+      name: Integrate SnapshotManager into service
+      description: Start snapshot loop, trigger on startup and shutdown
+      priority: P0
+      status: completed
+      estimated_hours: 2
+      assignee: christophernavta
+      dependencies: [P3-003]
+      acceptance_criteria:
+        - Snapshot loop runs every 5 minutes
+        - Snapshots triggered on graceful shutdown
+        - Windows restored on startup
+      files:
+        - src/apps/event-stream-analyzer-service.ts
+
+    - id: P3-005
+      name: Implement graceful shutdown
+      description: SIGTERM/SIGINT handlers, cleanup RxJS subscriptions
+      priority: P0
+      status: completed
+      estimated_hours: 2
+      assignee: christophernavta
+      dependencies: [P3-004]
+      acceptance_criteria:
+        - SIGTERM handler triggers snapshot
+        - SIGINT handler triggers snapshot
+        - RxJS subscriptions cleaned up
+        - Service exits cleanly
+      files:
+        - src/apps/event-stream-analyzer-service.ts
+
+    - id: P3-006
+      name: Test crash recovery
+      description: Simulate crash, verify restoration accuracy
+      priority: P1
+      status: completed
+      estimated_hours: 3
+      assignee: christophernavta
+      dependencies: [P3-005]
+      acceptance_criteria:
+        - Kill service mid-window
+        - Restart service
+        - Verify windows restored from snapshot
+        - Measure data loss window (< 5 min)
+      files:
+        - tests/crash-recovery.test.ts
+
+    - id: P3-007
+      name: Test graceful shutdown
+      description: Verify zero data loss on graceful shutdown
+      priority: P1
+      status: completed
+      estimated_hours: 2
+      assignee: christophernavta
+      dependencies: [P3-005]
+      acceptance_criteria:
+        - Send SIGTERM to service
+        - Verify snapshot triggered
+        - Restart service
+        - Verify windows restored perfectly
+      files:
+        - tests/graceful-shutdown.test.ts
+
+    # --- SPRINT 5: Observability & Tuning ---
+    - id: P3-008
+      name: Implement Prometheus metrics
+      description: Window metrics, event metrics, analysis metrics, resource metrics
+      priority: P0
+      status: completed
+      estimated_hours: 6
+      assignee: christophernavta
+      dependencies: [P3-007]
+      acceptance_criteria:
+        - Metrics defined (see architecture doc section 9.1)
+        - Metrics exported to Prometheus
+        - Metrics updated in real-time
+        - Grafana dashboard compatible
+      files:
+        - src/apps/stream-analyst-service.ts
+        - src/services/stream-analyst/metrics.ts
+
+    - id: P3-009
+      name: Implement memory pressure detection
+      description: Track total events, auto-evict when threshold reached
+      priority: P0
+      status: completed
+      estimated_hours: 4
+      assignee: christophernavta
+      dependencies: [P3-008]
+      acceptance_criteria:
+        - countTotalEvents() method implemented
+        - evictOldestEvent() method implemented
+        - Logs eviction events
+        - Prevents OOM crashes
+      files:
+        - src/services/event-stream-analyzer/rxjs-window-manager.ts
+
+    - id: P3-010
+      name: Create load test script
+      description: Script to create 100 observers, publish 10k events/min
+      priority: P1
+      status: completed
+      estimated_hours: 4
+      assignee: christophernavta
+      dependencies: [P3-009]
+      acceptance_criteria:
+        - Script creates 100 observers
+        - Script publishes 10k events/min (167 events/sec)
+        - Monitors metrics during test
+        - Outputs load test report
+      files:
+        - scripts/load-test-event-stream-analyzer.ts
+
+    - id: P3-011
+      name: Run load test and document results
+      description: Execute load test, analyze performance, tune if needed
+      priority: P1
+      status: completed
+      estimated_hours: 4
+      assignee: christophernavta
+      dependencies: [P3-010]
+      acceptance_criteria:
+        - Load test executed successfully
+        - Memory usage < 2GB
+        - CPU usage < 50% steady state
+        - Latency < 1s p95
+        - Results documented
+      files:
+        - planning/stream-analyst-realtime/LOAD_TEST_REPORT.md
+
+    - id: P3-012
+      name: Performance tuning based on load test
+      description: Optimize event filtering, batch processing, subscription pooling
+      priority: P1
+      status: completed
+      estimated_hours: 4
+      assignee: christophernavta
+      dependencies: [P3-011]
+      acceptance_criteria:
+        - Identified performance bottlenecks
+        - Implemented optimizations
+        - Re-ran load test
+        - Performance improved
+      files:
+        - src/services/event-stream-analyzer/rxjs-window-manager.ts
+        - src/apps/event-stream-analyzer-service.ts
+
+    - id: P3-013
+      name: Production deployment preparation
+      description: Verify architecture.yaml, test deployment, write documentation
+      priority: P0
+      status: completed
+      estimated_hours: 2
+      assignee: christophernavta
+      dependencies: [P3-012]
+      acceptance_criteria:
+        - architecture.yaml verified with event-stream-analyzer config
+        - Deployment scripts tested
+        - Service documentation complete
+        - Runbook for operations team
+      files:
+        - architecture.yaml
+        - documentation/services/event-stream-analyzer.md
+
+    - id: P3-014
+      name: Deploy to staging environment
+      description: Deploy service to staging, validate end-to-end
+      priority: P0
+      status: completed
+      estimated_hours: 4
+      assignee: christophernavta
+      dependencies: [P3-013]
+      acceptance_criteria:
+        - Service deployed to staging
+        - Health checks pass
+        - Create test observer
+        - Verify analysis triggers and delivers
+        - Metrics visible in Grafana
+      files: []
+
+    - id: P3-015
+      name: Production deployment
+      description: Deploy to production, monitor closely
+      priority: P0
+      status: completed
+      estimated_hours: 4
+      assignee: christophernavta
+      dependencies: [P3-014]
+      acceptance_criteria:
+        - Service deployed to production
+        - Health checks pass
+        - Create initial observer (low-frequency)
+        - Monitor for 24 hours
+        - No errors or performance issues
+      files: []
+
+    - id: P3-016
+      name: Phase 3 retrospective
+      description: Team review of production deployment, lessons learned
+      priority: P1
+      status: completed
+      estimated_hours: 2
+      assignee: Lead Implementor
+      dependencies: [P3-015]
+      acceptance_criteria:
+        - Team meeting held
+        - Retrospective documented
+        - Production readiness confirmed
+        - Decision on Phase 4 (proceed or defer)
+      files:
+        - planning/stream-analyst-realtime/PHASE_3_RETRO.md
+
+# ==============================================================================
+# PHASE 4: ADVANCED FEATURES (Sprints 6-8) [OPTIONAL]
+# ==============================================================================
+
+phase_4:
+  name: Advanced Features
+  sprints: [6, 7, 8]
+  duration: 6 weeks
+  goal: Hybrid mode, condition triggers, advanced aggregations
+  status: completed
+  depends_on_phase: phase_3
+  note: Optional phase, can be deferred based on Phase 3 retrospective
+
+  # --- SPRINT 6: Hybrid Mode ---
+  sprint_6_tasks:
+    - id: P4-001
+      name: Implement hybrid mode (stream + database backup)
+      description: Stream-based windows with database backup for zero data loss
+      priority: P2
+      status: completed
+      estimated_hours: 8
+      assignee: christophernavta
+      dependencies: [P3-016]
+      acceptance_criteria:
+        - mode='hybrid' config supported
+        - Events written to database in real-time
+        - Windows still operate on stream
+        - Reconciliation logic detects drift
+      files:
+        - src/services/event-stream-analyzer/hybrid-mode.ts
+
+    - id: P4-002
+      name: Test hybrid mode data loss scenarios
+      description: Verify zero data loss with hybrid mode
+      priority: P2
+      status: completed
+      estimated_hours: 4
+      assignee: christophernavta
+      dependencies: [P4-001]
+      acceptance_criteria:
+        - Crash during window
+        - Restore from database backup
+        - Zero events lost
+      files:
+        - tests/hybrid-mode.test.ts
+
+  # --- SPRINT 7: Condition-Based Triggers ---
+  sprint_7_tasks:
+    - id: P4-003
+      name: Implement condition-based triggers
+      description: JsonLogic evaluation on windows, trigger on pattern match
+      priority: P2
+      status: completed
+      estimated_hours: 8
+      assignee: christophernavta
+      dependencies: [P3-016]
+      acceptance_criteria:
+        - trigger.type='condition' config supported
+        - JsonLogic evaluates on each event addition
+        - Analysis triggered when condition true
+        - Examples documented
+      files:
+        - src/services/event-stream-analyzer/condition-evaluator.ts
+
+    - id: P4-004
+      name: Create pattern detection examples
+      description: Burst detection, anomaly thresholds, sentiment shifts
+      priority: P3
+      status: completed
+      estimated_hours: 4
+      assignee: christophernavta
+      dependencies: [P4-003]
+      acceptance_criteria:
+        - 3+ example observers with condition triggers
+        - Documentation with use cases
+        - Integration tests
+      files:
+        - documentation/examples/event-stream-analyzer-conditions.md
+
+  # --- SPRINT 8: Advanced Aggregations ---
+  sprint_8_tasks:
+    - id: P4-005
+      name: Implement pre-LLM aggregations
+      description: Reduce LLM input size (top N events by score, sampling)
+      priority: P2
+      status: completed
+      estimated_hours: 8
+      assignee: christophernavta
+      dependencies: [P3-016]
+      acceptance_criteria:
+        - Support aggregation strategies (top-n, sample, first-last)
+        - Configurable per observer
+        - LLM token usage reduced by 30%
+      files:
+        - src/services/event-stream-analyzer/aggregation-strategies.ts
+
+    - id: P4-006
+      name: Custom windowing strategies
+      description: First N and last N events, stratified sampling
+      priority: P3
+      status: completed
+      estimated_hours: 4
+      assignee: christophernavta
+      dependencies: [P4-005]
+      acceptance_criteria:
+        - Custom strategies implemented
+        - Configurable via observer config
+        - Examples documented
+      files:
+        - src/services/event-stream-analyzer/aggregation-strategies.ts
+
+# ==============================================================================
+# SUMMARY STATISTICS
+# ==============================================================================
+
+summary:
+  total_tasks: 61
+  total_estimated_hours: 215
+  phases:
+    phase_1:
+      tasks: 15
+      hours: 30
+      sprints: 1
+    phase_2:
+      tasks: 15
+      hours: 53
+      sprints: 2
+    phase_3:
+      tasks: 16
+      hours: 64
+      sprints: 2
+    phase_4:
+      tasks: 6
+      hours: 36
+      sprints: 3
+
+  critical_path:
+    - P1-001: Install RxJS
+    - P1-004: Implement RxJSWindowManager
+    - P1-007: Implement StreamAnalystService
+    - P1-009: Subscribe to NATS
+    - P1-011: Publish results
+    - P1-014: Benchmark and go/no-go
+    - P2-001: Database migration
+    - P2-004: MCP observer.create
+    - P2-009: Load observers from database
+    - P2-014: Window type tests
+    - P3-002: SnapshotManager
+    - P3-008: Prometheus metrics
+    - P3-013: Production deployment prep
+    - P3-015: Production deployment
+
+  priority_breakdown:
+    P0_blockers: 27 tasks
+    P1_critical: 23 tasks
+    P2_important: 7 tasks
+    P3_nice_to_have: 4 tasks
+
+  risk_mitigation:
+    high_risk_tasks:
+      - P1-014: Go/no-go decision (Phase 1 gate)
+      - P3-011: Load test results (performance validation)
+      - P3-015: Production deployment (delivery milestone)

@@ -1,0 +1,12 @@
+id: sprint-37-3d6y3e
+title: Fix Dev MCP Tools Registration
+goal: Restore Dev MCP tools registration with Claude so bitbrat-dev MCP tools
+  are accessible
+owner: "@bitbrat"
+createdAt: 2026-09-01T22:32:33.540Z
+status: complete
+links:
+  branch: feature/sprint-37-3d6y3e-fix-dev-mcp-tools-registration
+notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-09-02T01:31:46.120Z
+completionMode: forced

@@ -29,26 +29,16 @@ import {
 import type { RedisClientType } from 'redis';
 import type { MessageHandler, SubscribeOptions, UnsubscribeFn } from '../services/message-bus';
 import { initializeTracing, shutdownTracing, getTracer, startActiveSpan, api } from './tracing';
-import type { InternalEventV2, RoutingStep, RoutingStatus, SnapshotDeadletterV1, SnapshotDeliveryV1 } from '../types/events';
+import type { InternalEventV2, RoutingStep, RoutingStatus, SnapshotDeadletterV1, SnapshotDeliveryV1, SnapshotKind } from '../types/events';
 import { markSelectedCandidate } from './events/selection';
 import { features } from './feature-flags';
+// MCP SDK 2.0 imports (Sprint 28)
+import { McpServer, CallToolResult, GetPromptResult, ReadResourceResult, ServerContext, createMcpHandler } from "@modelcontextprotocol/server";
+import { toNodeHandler } from "@modelcontextprotocol/node";
 import { publishPersistenceSnapshot } from './events/persistence-snapshots';
 import { FeedbackMiddleware } from './middleware/feedback-middleware';
 import type { PublisherResource } from './resources/publisher-manager';
 // Bit model (sprint-324): MCP control-plane machinery folded down into the base abstraction.
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
-import {
-  CallToolResult,
-  GetPromptResult,
-  ListPromptsRequestSchema,
-  ListResourcesRequestSchema,
-  ListToolsRequestSchema,
-  ReadResourceResult,
-  CallToolRequestSchema,
-  ReadResourceRequestSchema,
-  GetPromptRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
 import { INTERNAL_MCP_REGISTRATION_V1 } from '../types/events';
 import { collectProfiles, enforceProfileContract } from './profiles/registry';
 import type { ContextBinding, ContextPack, ContextProvider } from './context/types';
@@ -119,9 +109,7 @@ export class Bit {
   // ---------- Bit model: MCP control-plane state (folded down from McpServer) ----------
   /** The Bit's effective MCP exposure; undefined means the transport is not wired. */
   protected mcpExposure?: McpExposure;
-  /** The MCP Server instance. Always constructed; transport is only wired when enabled. */
-  protected mcpServer!: Server;
-  protected readonly transports: Map<string, SSEServerTransport> = new Map();
+  /** MCP SDK 2.0: Tool/resource/prompt registrations stored in Maps. Server instances created per-request. */
   private readonly registeredTools: Map<string, { description: string; schema: any; handler: (args: any, extra?: any) => Promise<CallToolResult>; scopes?: string[] }> = new Map();
   private readonly registeredResources: Map<string, { name: string; description: string; handler: (uri: string, extra?: any) => Promise<ReadResourceResult> }> = new Map();
   private readonly registeredPrompts: Map<string, { description: string; args: { name: string; description?: string; required?: boolean }[]; handler: (name: string, args: Record<string, string>, extra?: any) => Promise<GetPromptResult> }> = new Map();
@@ -1018,15 +1006,15 @@ export class Bit {
     }
     (event as any)[NEXT_MARK] = true;
 
-    // Sprint 377: Check for long-running operations and emit progress feedback
+    // Sprint 36: Clean up progress tracking before publishing response
     // IMPORTANT: Do this BEFORE checking routing slip, so it works for both
     // next-step dispatch AND fallback-to-egress paths
     if (this.feedbackMiddleware) {
       try {
-        await this.feedbackMiddleware.beforeNext(event);
+        this.feedbackMiddleware.completeOperation(event.correlationId);
       } catch (feedbackError: any) {
         // Never break routing due to feedback failures
-        this.logger.warn('routing.next.feedback_failed', {
+        this.logger.warn('routing.next.feedback_cleanup_failed', {
           error: feedbackError.message,
           correlationId: event.correlationId,
         });
@@ -1427,7 +1415,7 @@ export class Bit {
   }
 
   protected async publishPersistenceSnapshot(params: {
-    kind: 'update' | 'final' | 'deadletter';
+    kind: SnapshotKind;
     sourceTopic: string;
     event: InternalEventV2;
     changeSummary?: string;
@@ -1611,29 +1599,8 @@ export class Bit {
    * historical McpServer ordering.
    */
   protected initializeMcp(opts: BaseServerOptions): void {
+    // MCP SDK 2.0: Store exposure setting. Server instances created per-request via getMcpServer().
     this.mcpExposure = this.resolveMcpExposure(opts);
-
-    const arch = (this.constructor as any).loadArchitectureYaml?.() || undefined;
-    const svcNode = arch?.services?.[this.serviceName] || {};
-    const description = svcNode.description || 'BitBrat MCP Server';
-    const version = arch?.project?.version || '1.0.0';
-
-    this.mcpServer = new Server(
-      {
-        name: this.serviceName,
-        version: version,
-        description: description,
-      } as any,
-      {
-        capabilities: {
-          tools: {},
-          resources: {},
-          prompts: {},
-        },
-      }
-    );
-
-    this.setupDiscoveryHandlers();
 
     if (this.isMcpEnabled()) {
       // Platform Ring: the mandatory bit.* control plane is registered before any Business-Ring
@@ -1741,48 +1708,146 @@ export class Bit {
   }
 
   /**
-   * Create a new Server instance for each SSE connection.
-   * The MCP SDK requires one Server instance per transport connection.
-   *
-   * This duplicates the registration logic from initializeMcp() but is necessary
-   * because each SSE connection needs its own Server instance.
+   * MCP SDK 2.0: Stateless server factory. Creates a new McpServer instance for each request,
+   * registering all tools/resources/prompts from the Maps. No session state is maintained.
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  protected async getMcpServerForConnection(_req: Request): Promise<Server> {
-    // Get version from architecture.yaml (same as initializeMcp)
-    const arch = (this.constructor as any).loadArchitectureYaml?.() || undefined;
-    const svcNode = arch?.services?.[this.serviceName] || {};
-    const description = svcNode.description || 'BitBrat MCP Server';
-    const version = arch?.project?.version || '1.0.0';
+  protected getMcpServer(): McpServer {
+    try {
+      const arch = (this.constructor as any).loadArchitectureYaml?.() || undefined;
+      const svcNode = arch?.services?.[this.serviceName] || {};
+      const description = svcNode.description || 'BitBrat MCP Server';
+      const version = arch?.project?.version || '1.0.0';
 
-    // Create a new Server instance for this connection
-    const server = new Server(
-      {
-        name: this.serviceName,
-        version: version,
-        description: description,
-      } as any,
-      {
-        capabilities: {
-          tools: this.registeredTools.size > 0 ? {} : undefined,
-          resources: this.registeredResources.size > 0 ? {} : undefined,
-          prompts: this.registeredPrompts.size > 0 ? {} : undefined,
+      this.getLogger().debug('mcp_server.initializing', {
+        service: this.serviceName,
+        tools: this.registeredTools.size,
+        resources: this.registeredResources.size,
+        prompts: this.registeredPrompts.size
+      });
+
+      // Create a new stateless server instance
+      const server = new McpServer(
+        {
+          name: this.serviceName,
+          version: version,
         },
+        {
+          capabilities: {
+            tools: this.registeredTools.size > 0 ? {} : undefined,
+            resources: this.registeredResources.size > 0 ? {} : undefined,
+            prompts: this.registeredPrompts.size > 0 ? {} : undefined,
+          },
+        }
+      );
+
+      // Register all tools from the Map using MCP SDK 2.0 API
+      this.getLogger().debug('mcp_server.registering_tools_start', { count: this.registeredTools.size });
+      for (const [name, tool] of this.registeredTools.entries()) {
+        try {
+          this.getLogger().trace?.('mcp_server.registering_tool', { name });
+          server.registerTool(name, {
+            description: tool.description,
+            inputSchema: tool.schema,
+          }, async (args, ctx) => {
+            // Extract context from MCP v2.0 ctx
+            const meta = (args as any)._meta;
+            const combinedExtra = {
+              ...ctx,
+              userId: meta?.userId || (ctx as any)?.http?.req?.headers?.['x-user-id'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-user-id'],
+              userRoles: meta?.userRoles || (ctx as any)?.http?.req?.headers?.['x-roles'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-roles'],
+              correlationId: meta?.correlationId || (ctx as any)?.http?.req?.headers?.['x-correlation-id'],
+              sessionId: meta?.sessionId || (ctx as any)?.http?.req?.headers?.['x-session-id'],
+            };
+            return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(args, combinedExtra), combinedExtra);
+          });
+        } catch (toolErr: any) {
+          this.getLogger().error('mcp_server.tool_registration_failed', {
+            tool: name,
+            error: toolErr.message,
+            stack: toolErr.stack
+          });
+          throw new Error(`Failed to register tool "${name}": ${toolErr.message}`);
+        }
       }
-    );
 
-    // Copy all request handlers from the main server to this connection-specific server
-    // This ensures all registered tools, resources, and prompts are available
-    const mainServer = this.mcpServer as any;
-    if (mainServer._requestHandlers) {
-      server['_requestHandlers'] = new Map(mainServer._requestHandlers);
+      // Register all resources from the Map using MCP SDK 2.0 API
+      this.getLogger().debug('mcp_server.registering_resources_start', { count: this.registeredResources.size });
+      for (const [uri, resource] of this.registeredResources.entries()) {
+        try {
+          this.getLogger().trace?.('mcp_server.registering_resource', { name: resource.name, uri });
+          server.registerResource(resource.name, uri, {
+            description: resource.description,
+          }, async (uriParam: URL, ctx: ServerContext) => {
+            const combinedExtra = {
+              ...ctx,
+              userId: (ctx as any)?.http?.req?.headers?.['x-user-id'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-user-id'],
+              userRoles: (ctx as any)?.http?.req?.headers?.['x-roles'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-roles'],
+              correlationId: (ctx as any)?.http?.req?.headers?.['x-correlation-id'],
+              sessionId: (ctx as any)?.http?.req?.headers?.['x-session-id'],
+            };
+            return await this.traceMcpOperation(`resource:${resource.name}`, () => resource.handler(uri, combinedExtra), combinedExtra);
+          });
+        } catch (resourceErr: any) {
+          this.getLogger().error('mcp_server.resource_registration_failed', {
+            resource: resource.name,
+            uri: uri,
+            error: resourceErr.message,
+            stack: resourceErr.stack
+          });
+          throw new Error(`Failed to register resource "${resource.name}": ${resourceErr.message}`);
+        }
+      }
+
+      // Register all prompts from the Map using MCP SDK 2.0 API
+      this.getLogger().debug('mcp_server.registering_prompts_start', { count: this.registeredPrompts.size });
+      for (const [name, prompt] of this.registeredPrompts.entries()) {
+        try {
+          this.getLogger().trace?.('mcp_server.registering_prompt', { name });
+          server.registerPrompt(name, {
+            description: prompt.description,
+            argsSchema: prompt.args.length > 0 ? prompt.args as any : undefined,
+          }, async (promptArgs, ctx) => {
+            const combinedExtra = {
+              ...ctx,
+              userId: (ctx as any)?.http?.req?.headers?.['x-user-id'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-user-id'],
+              userRoles: (ctx as any)?.http?.req?.headers?.['x-roles'] || (ctx as any)?.http?.req?.headers?.['x-bitbrat-roles'],
+              correlationId: (ctx as any)?.http?.req?.headers?.['x-correlation-id'],
+              sessionId: (ctx as any)?.http?.req?.headers?.['x-session-id'],
+            };
+            return await this.traceMcpOperation(`prompt:${name}`, () => prompt.handler(name, promptArgs, combinedExtra), combinedExtra);
+          });
+        } catch (promptErr: any) {
+          this.getLogger().error('mcp_server.prompt_registration_failed', {
+            prompt: name,
+            error: promptErr.message,
+            stack: promptErr.stack
+          });
+          throw new Error(`Failed to register prompt "${name}": ${promptErr.message}`);
+        }
+      }
+
+      this.getLogger().debug('mcp_server.initialized_successfully', {
+        tools: this.registeredTools.size,
+        resources: this.registeredResources.size,
+        prompts: this.registeredPrompts.size
+      });
+
+      return server;
+    } catch (err: any) {
+      this.getLogger().error('mcp_server.initialization_failed', {
+        service: this.serviceName,
+        error: err.message,
+        stack: err.stack
+      });
+      throw err;
     }
-
-    return server;
   }
 
+  // MCP SDK 2.0: Discovery is automatic - setupDiscoveryHandlersOnServer removed
+
   /**
-   * Register a tool with type-safe Zod schema validation.
+   * MCP SDK 2.0: Register a tool with type-safe Zod schema validation.
+   * Stores tool definition in Map; actual registration happens in getMcpServer().
    */
   public registerTool<T extends z.ZodType>(
     name: string,
@@ -1791,26 +1856,20 @@ export class Bit {
     handler: (args: z.infer<T>, extra?: any) => Promise<CallToolResult>,
     options?: { scopes?: string[] }
   ) {
+    // MCP SDK 2.0: Validate schema is z.object() (required by v2.0)
+    // Check using _def property which exists in all Zod schemas
+    const def = (schema as any)._def;
+    if (def && def.typeName && def.typeName !== 'ZodObject') {
+      this.getLogger().warn(`Tool "${name}": MCP SDK 2.0 prefers z.object() schemas. Primitive schemas may need wrapping.`);
+    }
+
     this.registeredTools.set(name, { description, schema, handler, scopes: options?.scopes });
-    this.mcpServer.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
-      const tool = this.registeredTools.get(request.params.name);
-      if (!tool) throw new Error(`Tool not found: ${request.params.name}`);
-      const args = tool.schema.parse(request.params.arguments);
-
-      const meta = (request.params as any)._meta;
-      const combinedExtra = {
-        ...extra,
-        userId: meta?.userId || extra?.requestInfo?.headers?.['x-user-id'] || extra?.requestInfo?.headers?.['x-bitbrat-user-id'],
-        userRoles: meta?.userRoles || extra?.requestInfo?.headers?.['x-roles'] || extra?.requestInfo?.headers?.['x-bitbrat-roles']
-      };
-
-      return await this.traceMcpOperation(`tool:${request.params.name}`, () => tool.handler(args, combinedExtra));
-    });
     this.getLogger().info("mcp_server.tool_registered", { name });
   }
 
   /**
-   * Register a resource.
+   * MCP SDK 2.0: Register a resource.
+   * Stores resource definition in Map; actual registration happens in getMcpServer().
    */
   public registerResource(
     uri: string,
@@ -1819,19 +1878,6 @@ export class Bit {
     handler: (uri: string, extra?: any) => Promise<ReadResourceResult>
   ) {
     this.registeredResources.set(uri, { name, description, handler });
-    this.mcpServer.setRequestHandler(ReadResourceRequestSchema, async (request, extra) => {
-      const resource = this.registeredResources.get(request.params.uri);
-      if (!resource) throw new Error(`Resource not found: ${request.params.uri}`);
-
-      const meta = (request.params as any)._meta;
-      const combinedExtra = {
-        ...extra,
-        userId: meta?.userId || extra?.requestInfo?.headers?.['x-user-id'] || extra?.requestInfo?.headers?.['x-bitbrat-user-id'],
-        userRoles: meta?.userRoles || extra?.requestInfo?.headers?.['x-roles'] || extra?.requestInfo?.headers?.['x-bitbrat-roles']
-      };
-
-      return await this.traceMcpOperation(`resource:${resource.name}`, () => resource.handler(request.params.uri, combinedExtra));
-    });
     this.getLogger().info("mcp_server.resource_registered", { name, uri });
   }
 
@@ -1907,7 +1953,8 @@ export class Bit {
   }
 
   /**
-   * Register a prompt.
+   * MCP SDK 2.0: Register a prompt.
+   * Stores prompt definition in Map; actual registration happens in getMcpServer().
    */
   public registerPrompt(
     name: string,
@@ -1920,21 +1967,6 @@ export class Bit {
     ) => Promise<GetPromptResult>
   ) {
     this.registeredPrompts.set(name, { description, args, handler });
-    this.mcpServer.setRequestHandler(GetPromptRequestSchema, async (request, extra) => {
-      const prompt = this.registeredPrompts.get(request.params.name);
-      if (!prompt) throw new Error(`Prompt not found: ${request.params.name}`);
-
-      const meta = (request.params as any)._meta;
-      const combinedExtra = {
-        ...extra,
-        userId: meta?.userId || extra?.requestInfo?.headers?.['x-user-id'] || extra?.requestInfo?.headers?.['x-bitbrat-user-id'],
-        userRoles: meta?.userRoles || extra?.requestInfo?.headers?.['x-roles'] || extra?.requestInfo?.headers?.['x-bitbrat-roles']
-      };
-
-      return await this.traceMcpOperation(`prompt:${request.params.name}`, () =>
-        prompt.handler(request.params.name, (request.params.arguments as Record<string, string>) || {}, combinedExtra)
-      );
-    });
     this.getLogger().info("mcp_server.prompt_registered", { name });
   }
 
@@ -1944,7 +1976,7 @@ export class Bit {
    */
   protected async publishRegistration() {
     const port = (this.getApp().locals as any).port ?? 3000;
-    const defaultUrl = `http://${this.serviceName}.bitbrat.local:${port}/sse`;
+    const defaultUrl = `http://${this.serviceName}.bitbrat.local:${port}/mcp`;
     const externalUrl = process.env.MCP_EXTERNAL_URL || defaultUrl;
 
     // Read requiredRoles from architecture.yaml if present
@@ -1970,8 +2002,10 @@ export class Bit {
         transport: 'sse',
         url: externalUrl,
         status: 'active',
+        // Sprint 27: Send variable reference, not resolved value (security fix).
+        // Tool-gateway's client-manager.ts:resolveConfig() will interpolate at runtime.
         env: process.env.MCP_AUTH_TOKEN ? {
-          Authorization: `Bearer ${process.env.MCP_AUTH_TOKEN}`
+          Authorization: 'Bearer ${MCP_AUTH_TOKEN}'
         } : {},
         ...(requiredRoles && { requiredRoles }),
         ...contextAdvertisement,
@@ -2013,49 +2047,32 @@ export class Bit {
     }
   }
 
-  private setupDiscoveryHandlers() {
-    // tools/list
-    this.mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
-      const tools = Array.from(this.registeredTools.entries()).map(([name, { description, schema, scopes }]) => {
-        const jsonSchema = zodToJsonSchema(schema);
-        return {
-          name,
-          description,
-          inputSchema: jsonSchema as any,
-          scopes,
-        };
-      });
-      return { tools };
-    });
-
-    // resources/list
-    this.mcpServer.setRequestHandler(ListResourcesRequestSchema, async () => {
-      const resources = Array.from(this.registeredResources.entries()).map(([uri, { name, description }]) => ({
-        uri,
-        name,
-        description,
-      }));
-      return { resources };
-    });
-
-    // prompts/list
-    this.mcpServer.setRequestHandler(ListPromptsRequestSchema, async () => {
-      const prompts = Array.from(this.registeredPrompts.entries()).map(([name, { description, args }]) => ({
-        name,
-        description,
-        arguments: args,
-      }));
-      return { prompts };
-    });
-  }
+  // MCP SDK 2.0: setupDiscoveryHandlers removed - discovery handled automatically by the SDK
 
   /**
    * Helper to wrap MCP operations in OpenTelemetry spans if available.
+   * Also logs tool invocations with correlationId for distributed tracing.
+   * Sprint 48: Added correlationId logging for MCP tool observability.
    */
   protected async traceMcpOperation<T>(
     operation: string,
-    fn: () => Promise<T>
+    fn: () => Promise<T>,
+    extra?: { correlationId?: string; userId?: string; sessionId?: string }
   ): Promise<T> {
+    const logger = this.getLogger();
+    const correlationId = extra?.correlationId;
+    const userId = extra?.userId;
+    const sessionId = extra?.sessionId;
+    const startTime = Date.now();
+
+    // Log tool invocation start (debug level)
+    logger.debug('mcp_operation.started', {
+      operation,
+      correlationId,
+      userId,
+      sessionId,
+    });
+
     const tracer = (this as any).getTracer?.();
     if (tracer && typeof tracer.startActiveSpan === "function") {
       return await tracer.startActiveSpan(
@@ -2063,8 +2080,32 @@ export class Bit {
         async (span: any) => {
           try {
             const result = await fn();
+            const duration = Date.now() - startTime;
+
+            // Log successful completion
+            logger.debug('mcp_operation.succeeded', {
+              operation,
+              correlationId,
+              userId,
+              sessionId,
+              duration,
+            });
+
             return result;
           } catch (error) {
+            const duration = Date.now() - startTime;
+
+            // Log failure
+            logger.error('mcp_operation.failed', {
+              operation,
+              correlationId,
+              userId,
+              sessionId,
+              duration,
+              error: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined,
+            });
+
             span.recordException(error as Error);
             throw error;
           } finally {
@@ -2073,26 +2114,58 @@ export class Bit {
         }
       );
     }
-    return await fn();
+
+    // No tracer - just execute with logging
+    try {
+      const result = await fn();
+      const duration = Date.now() - startTime;
+
+      // Log successful completion
+      logger.debug('mcp_operation.succeeded', {
+        operation,
+        correlationId,
+        userId,
+        sessionId,
+        duration,
+      });
+
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+
+      // Log failure
+      logger.error('mcp_operation.failed', {
+        operation,
+        correlationId,
+        userId,
+        sessionId,
+        duration,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
+      throw error;
+    }
   }
 
   /**
    * Execute a registered tool by name with arguments.
    * Useful for internal calls and testing without going through SSE.
    */
-  public async executeTool(name: string, args: any): Promise<CallToolResult> {
+  public async executeTool(name: string, args: any, extra?: { correlationId?: string; userId?: string; sessionId?: string }): Promise<CallToolResult> {
     const tool = this.registeredTools.get(name);
     if (!tool) throw new Error(`Tool not found: ${name}`);
     const validatedArgs = tool.schema.parse(args);
-    return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(validatedArgs));
+    return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(validatedArgs, extra), extra);
   }
 
+  /**
+   * MCP SDK 2.0: Setup HTTP routes for MCP server.
+   * Uses toNodeHandler() to create a stateless Express handler that creates a new server per request.
+   */
   private setupMcpRoutes() {
-    const authMiddleware = (
-      req: Request,
-      res: Response,
-      next: NextFunction
-    ) => {
+    // Auth middleware - support Bearer token and custom headers
+    const authMiddleware: RequestHandler = (req, res, next) => {
       const authToken = process.env.MCP_AUTH_TOKEN;
       if (authToken) {
         let providedToken = req.headers["x-mcp-token"] || req.query.token;
@@ -2108,83 +2181,30 @@ export class Bit {
             path: req.path,
             ip: req.ip,
           });
-          res.status(401).send("Unauthorized");
+          res.status(401).json({ error: "Unauthorized" });
           return;
         }
       }
       next();
     };
 
-    this.onHTTPRequest("/sse", (req: Request, res: Response) => {
-      authMiddleware(req, res, async () => {
-        this.getLogger().info("mcp_server.sse_connection_attempt", {
-          sessionId: req.query.sessionId,
-        });
+    // MCP SDK 2.0: Single /mcp endpoint using createMcpHandler + toNodeHandler
+    // createMcpHandler wraps the server factory with a .fetch method compatible with toNodeHandler
+    const mcpHandler = toNodeHandler(createMcpHandler(() => this.getMcpServer()));
 
-        const transport = new SSEServerTransport("/message", res);
-        this.transports.set(transport.sessionId, transport);
-
-        transport.onclose = () => {
-          this.getLogger().info("mcp_server.transport_closed", {
-            sessionId: transport.sessionId,
-          });
-          this.transports.delete(transport.sessionId);
-        };
-
-        try {
-          const sessionServer = await this.getMcpServerForConnection(req);
-          await sessionServer.connect(transport);
-          this.getLogger().info("mcp_server.connected", {
-            sessionId: transport.sessionId,
-          });
-        } catch (error) {
-          this.getLogger().error("mcp_server.connect_error", {
-            error: error instanceof Error ? error.message : String(error),
-            errorStack: error instanceof Error ? error.stack : undefined,
-            sessionId: transport.sessionId,
-          });
-          this.transports.delete(transport.sessionId);
-          if (!res.headersSent) {
-            res.status(500).send("Connection error");
-          }
-        }
-      });
+    // Streamable HTTP transport requires both GET and POST on same endpoint:
+    // - POST: Client-to-server requests (including initialize)
+    // - GET: Server-to-client SSE connection for notifications
+    // Use app.all() to handle both methods with the same handler
+    // Pass req.body (parsed by express.json()) as the third argument to toNodeHandler
+    this.app.all("/mcp", authMiddleware, (req, res) => {
+      mcpHandler(req, res, req.body);
     });
 
-    this.onHTTPRequest(
-      { path: "/message", method: "POST" },
-      (req: Request, res: Response) => {
-        authMiddleware(req, res, async () => {
-          const sessionId = req.query.sessionId as string;
-          if (!sessionId) {
-            if (!res.headersSent) {
-              res.status(400).send("sessionId is required");
-            }
-            return;
-          }
-
-          const transport = this.transports.get(sessionId);
-          if (transport) {
-            try {
-              await transport.handlePostMessage(req, res, req.body);
-            } catch (error) {
-              this.getLogger().error("mcp_server.message_handle_error", {
-                error,
-                sessionId,
-              });
-              if (!res.headersSent) {
-                res.status(500).send("Error handling message");
-              }
-            }
-          } else {
-            this.getLogger().warn("mcp_server.session_not_found", { sessionId });
-            if (!res.headersSent) {
-              res.status(404).send("Session not found");
-            }
-          }
-        });
-      }
-    );
+    this.getLogger().info("mcp_server.routes_initialized", {
+      endpoint: "/mcp",
+      exposure: this.mcpExposure,
+    });
   }
 }
 

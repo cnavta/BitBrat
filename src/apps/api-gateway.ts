@@ -84,6 +84,7 @@ export class ApiGatewayServer extends Bit {
     // Get persistence backend based on PERSISTENCE_DRIVER
     const persistenceDriver = process.env.PERSISTENCE_DRIVER || 'postgres';
     let persistenceBackend: IDocumentStore | Firestore;
+    let pool: any = undefined; // pg.Pool for Sprint 39 permissions support
 
     if (persistenceDriver === 'postgres' || persistenceDriver === 'postgresql') {
       const documentStore = this.getResource<IDocumentStore>('documentStore');
@@ -92,6 +93,13 @@ export class ApiGatewayServer extends Bit {
         throw new Error('DocumentStore resource required for PostgreSQL persistence');
       }
       persistenceBackend = documentStore;
+
+      // Extract pool from PostgresDocumentStore for Sprint 39 permissions
+      if ((documentStore as any).pool) {
+        pool = (documentStore as any).pool;
+        this.getLogger().info('api_gateway.using_postgres_with_pool');
+      }
+
       this.getLogger().info('api_gateway.using_postgres_persistence');
     } else if (persistenceDriver === 'firestore') {
       const firestore = this.getResource<Firestore>('firestore');
@@ -111,7 +119,7 @@ export class ApiGatewayServer extends Bit {
       throw new Error('Publisher resource required');
     }
 
-    this.authService = new AuthService(persistenceBackend, this.getLogger());
+    this.authService = new AuthService(persistenceBackend, this.getLogger(), pool);
 
     const resolver = new VariableResolver();
     const formatterRegistry = new FormatterRegistry();
@@ -193,25 +201,42 @@ export class ApiGatewayServer extends Bit {
           }
         }
 
-        // Allow brat-chat to specify a dynamic name if they have a valid token
+        // Allow brat-chat and brat-dev-mcp to specify a dynamic name if they have a valid token
         const url = new URL(request.url || '', `http://${request.headers.host}`);
         const preferredUserId = url.searchParams.get('userId');
-        if (preferredUserId && preferredUserId.startsWith('brat-chat:')) {
+        if (preferredUserId && (preferredUserId.startsWith('brat-chat:') || preferredUserId.startsWith('brat-dev-mcp:'))) {
           this.getLogger().info('api_gateway.auth.userid_override', { original: userId, override: preferredUserId });
           userId = preferredUserId;
         }
 
+        // Sprint 39: Load permissions for the authenticated user
+        let permissions: string[] = [];
+        try {
+          permissions = await this.authService?.getUserPermissions(userId) || [];
+          this.getLogger().info('api_gateway.auth.permissions_loaded', {
+            userId,
+            permissions,
+            permissionCount: permissions.length
+          });
+        } catch (err: any) {
+          this.getLogger().error('api_gateway.auth.permissions_load_failed', {
+            userId,
+            error: err.message
+          });
+          // Continue with empty permissions (fail-safe)
+        }
+
         this.wss?.handleUpgrade(request, socket, head, (ws) => {
-          this.wss?.emit('connection', ws, request, userId);
+          this.wss?.emit('connection', ws, request, userId, permissions);
         });
       } else {
         socket.destroy();
       }
     });
 
-    this.wss.on('connection', (ws: WebSocket, _req: http.IncomingMessage, userId: string) => {
-      this.getLogger().info('api_gateway.ws.connected', { userId });
-      
+    this.wss.on('connection', (ws: WebSocket, _req: http.IncomingMessage, userId: string, permissions: string[] = []) => {
+      this.getLogger().info('api_gateway.ws.connected', { userId, permissions });
+
       // Register connection
       if (!this.userConnections.has(userId)) {
         this.userConnections.set(userId, new Set());
@@ -221,7 +246,7 @@ export class ApiGatewayServer extends Bit {
       // Send connection ready
       ws.send(JSON.stringify({
         type: 'connection.ready',
-        payload: { user_id: userId },
+        payload: { user_id: userId, permissions },
         metadata: { timestamp: new Date().toISOString() }
       }));
 
@@ -231,8 +256,10 @@ export class ApiGatewayServer extends Bit {
           if (frame.type === 'heartbeat') {
             return;
           }
-          await this.ingressManager?.handleMessage(userId, data.toString());
+          // Sprint 39: Pass permissions to IngressManager
+          await this.ingressManager?.handleMessage(userId, data.toString(), permissions);
         } catch (err: any) {
+          this.getLogger().error('api_gateway.ingress.message_error', { userId, error: err.message });
           ws.send(JSON.stringify({
             type: 'chat.error',
             payload: { message: err.message },

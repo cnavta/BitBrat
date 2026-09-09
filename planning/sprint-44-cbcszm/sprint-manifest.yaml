@@ -1,0 +1,14 @@
+id: sprint-44-cbcszm
+title: Fix fleet.logs MCP Tool Parameter Issues
+goal: Fix parameter validation bugs in fleet.logs MCP tool, particularly the
+  level array parameter issue, and improve overall tool usability based on
+  comprehensive testing across multiple scenarios
+owner: navta3
+createdAt: 2026-09-07T14:02:34.759Z
+status: complete
+links:
+  branch: feature/sprint-44-cbcszm-fix-fleet-logs-mcp-tool-parame
+  pr: https://github.com/cnavta/BitBrat/pull/356
+notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-09-07T15:37:03.846Z
+completionMode: normal

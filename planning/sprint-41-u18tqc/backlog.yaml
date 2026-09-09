@@ -1,0 +1,1145 @@
+sprint:
+  id: sprint-41-u18tqc
+  title: Composition DSL & Runtime
+  goal: >
+    Implement foundational layer for MCP Behavioral Compilation: define, validate,
+    execute, and expose Compositions as callable tools via MCP and REST.
+  owner: christophernavta
+  startDate: 2026-09-02
+  estimatedDuration: 17 days
+
+phases:
+  - name: foundation
+    priority: 1
+    goal: Establish core type system and database schema
+    estimatedDays: 3
+
+  - name: core-runtime
+    priority: 2
+    goal: Implement parser, compiler, executor
+    estimatedDays: 4
+
+  - name: registry-storage
+    priority: 3
+    goal: Persistent storage for compositions
+    estimatedDays: 2
+
+  - name: integration
+    priority: 4
+    goal: Expose compositions via MCP and REST
+    estimatedDays: 3
+
+  - name: testing-validation
+    priority: 5
+    goal: Comprehensive test coverage and validation
+    estimatedDays: 3
+
+  - name: documentation
+    priority: 6
+    goal: Examples and operational documentation
+    estimatedDays: 2
+
+tasks:
+  # ============================================================
+  # PHASE 1: FOUNDATION (Days 1-3)
+  # ============================================================
+
+  - id: COMP-001
+    title: Create TypeScript type definitions
+    phase: foundation
+    priority: P0
+    status: todo
+    effort: 2h
+    assignee: null
+    dependencies: []
+    description: >
+      Define all TypeScript interfaces and types for the composition system.
+      This is the foundational contract for the entire implementation.
+    files:
+      - src/common/composition/types.ts
+    subtasks:
+      - Define CompositionDefinition interface
+      - Define CompositionSpec interface
+      - Define Step types (CallStep, IfValueStep)
+      - Define ValueExpression type union
+      - Define Reference interface
+      - Define Condition type union (all operators)
+      - Define CompiledComposition interface
+      - Define ValidationReport and ValidationError types
+      - Define ToolDependency interface
+      - Add comprehensive JSDoc documentation
+    acceptance:
+      - All types compile without TypeScript errors
+      - Types match technical architecture specification
+      - JSDoc comments present on all exported types
+      - No any types unless explicitly justified
+    tests: []
+
+  - id: COMP-002
+    title: Create DocumentStore indexes for compositions (optional)
+    phase: foundation
+    priority: P1
+    status: todo
+    effort: 0.5h
+    assignee: null
+    dependencies: []
+    description: >
+      Create optional performance indexes for compositions collection in PostgreSQL
+      backend. Leverages existing DocumentStore abstraction (no schema needed).
+    files:
+      - infrastructure/sql/migrations/001_composition_indexes.sql
+    subtasks:
+      - Create index on data->>'name' for name lookups
+      - Create index on data->>'status' for status filtering
+      - Create index on data->>'contentHash' for deduplication
+      - Create composite index on (data->>'status', data->>'name') for active queries
+      - Test index performance improvement
+    acceptance:
+      - Indexes apply cleanly to PostgreSQL backend
+      - Migration is idempotent (can run multiple times)
+      - No impact on Firestore backend (indexes N/A)
+      - Query performance improved for name/status lookups
+    tests:
+      - Apply migration to PostgreSQL backend
+      - Apply migration twice (idempotency)
+      - Benchmark query performance before/after
+
+  - id: COMP-003
+    title: Set up test infrastructure
+    phase: foundation
+    priority: P0
+    status: todo
+    effort: 1h
+    assignee: null
+    dependencies: []
+    description: >
+      Create test directory structure, Jest configuration, and shared test
+      utilities for composition module.
+    files:
+      - src/common/composition/__tests__/setup.ts
+      - src/common/composition/__tests__/fixtures/
+      - src/common/composition/__tests__/mocks/
+    subtasks:
+      - Create __tests__ directory structure
+      - Configure Jest for composition module
+      - Create test fixtures directory
+      - Create mock ToolRegistry
+      - Create mock DocumentStore
+      - Create test utilities (helpers, assertions)
+    acceptance:
+      - npm test runs without errors in composition directory
+      - Test infrastructure is isolated
+      - Mocks are reusable across tests
+      - Fixtures are well-organized
+    tests:
+      - Run npm test -- composition
+      - Verify isolation (no external dependencies hit)
+
+  # ============================================================
+  # PHASE 2: CORE RUNTIME (Days 4-7)
+  # ============================================================
+
+  - id: COMP-004
+    title: Implement CompositionParser
+    phase: core-runtime
+    priority: P0
+    status: todo
+    effort: 4h
+    assignee: null
+    dependencies:
+      - COMP-001
+    description: >
+      Implement parser that converts YAML/JSON composition definitions into
+      canonical AST representation.
+    files:
+      - src/common/composition/parser.ts
+    subtasks:
+      - Create CompositionParser class
+      - Implement parse(source) method (YAML/JSON auto-detect)
+      - Implement YAML loading via js-yaml
+      - Implement JSON parsing fallback
+      - Implement validateTopLevel() for basic structure
+      - Implement canonicalize() for full AST conversion
+      - Implement parseReference() for shorthand ($input/foo)
+      - Implement canonicalizeStep() for step normalization
+      - Implement canonicalizeValue() for recursive resolution
+      - Implement canonicalizeCondition() for condition normalization
+      - Add comprehensive error messages
+      - Add JSDoc documentation
+    acceptance:
+      - Valid YAML parses to correct AST
+      - Valid JSON parses to correct AST
+      - Shorthand references canonicalize correctly
+      - Invalid apiVersion throws descriptive error
+      - Invalid kind throws descriptive error
+      - Missing metadata.name throws error
+      - Malformed YAML throws error
+      - All condition types parse correctly
+    tests:
+      - Unit tests in COMP-005
+
+  - id: COMP-005
+    title: Write CompositionParser unit tests
+    phase: core-runtime
+    priority: P0
+    status: todo
+    effort: 3h
+    assignee: null
+    dependencies:
+      - COMP-004
+      - COMP-003
+    description: >
+      Comprehensive unit test suite for CompositionParser covering all
+      code paths and edge cases.
+    files:
+      - src/common/composition/parser.test.ts
+      - src/common/composition/__tests__/fixtures/valid-compositions/
+      - src/common/composition/__tests__/fixtures/invalid-compositions/
+    subtasks:
+      - Test valid YAML parsing
+      - Test valid JSON parsing
+      - Test reference canonicalization ($input, $context, $steps)
+      - Test invalid apiVersion error
+      - Test invalid kind error
+      - Test missing metadata.name error
+      - Test malformed YAML error
+      - Test edge cases (empty steps, null values, arrays)
+      - Test all condition operator types
+      - Create test fixtures for valid/invalid compositions
+    acceptance:
+      - All tests pass
+      - Code coverage >90%
+      - Edge cases covered
+      - Error messages validated
+    tests:
+      - npm test parser.test.ts
+
+  - id: COMP-006
+    title: Implement CompositionCompiler
+    phase: core-runtime
+    priority: P0
+    status: todo
+    effort: 5h
+    assignee: null
+    dependencies:
+      - COMP-001
+      - COMP-004
+    description: >
+      Implement compiler that validates compositions, detects cycles,
+      resolves dependencies, and produces compiled form.
+    files:
+      - src/common/composition/compiler.ts
+    subtasks:
+      - Create CompositionCompiler class with ToolRegistry dependency
+      - Implement compile(def) method
+      - Implement validate(def) with comprehensive checks
+      - Implement extractToolIds() helper
+      - Implement detectCycles() using DFS algorithm
+      - Implement validateReferences() for step ID validation
+      - Implement resolveDependencies() for tool lookup
+      - Implement computeHash() for content-addressable storage
+      - Implement hashSchema() for fingerprinting
+      - Define error codes (COMPOSE-TOOL-001, COMPOSE-CYCLE-001, etc.)
+      - Add comprehensive error reporting
+      - Add JSDoc documentation
+    acceptance:
+      - Validation detects missing tools
+      - Cycle detection works (direct and indirect cycles)
+      - Reference validation catches undefined step IDs
+      - Content hash is deterministic and stable
+      - All validation errors have unique error codes
+      - Dependencies correctly extracted
+    tests:
+      - Unit tests in COMP-007
+
+  - id: COMP-007
+    title: Write CompositionCompiler unit tests
+    phase: core-runtime
+    priority: P0
+    status: todo
+    effort: 3h
+    assignee: null
+    dependencies:
+      - COMP-006
+      - COMP-003
+    description: >
+      Comprehensive unit test suite for CompositionCompiler covering
+      validation, cycle detection, and dependency resolution.
+    files:
+      - src/common/composition/compiler.test.ts
+    subtasks:
+      - Test successful compilation
+      - Test tool resolution (tool exists)
+      - Test tool resolution (missing tool error)
+      - Test cycle detection (A → B → A direct cycle)
+      - Test cycle detection (A → B → C → A indirect)
+      - Test cycle detection (no cycle case)
+      - Test reference validation (valid references)
+      - Test reference validation (undefined step error)
+      - Test dependency extraction
+      - Test content hash stability
+      - Mock ToolRegistry for isolated testing
+    acceptance:
+      - All tests pass
+      - Cycle detection algorithm validated
+      - Code coverage >90%
+      - Mock ToolRegistry works correctly
+    tests:
+      - npm test compiler.test.ts
+
+  - id: COMP-008
+    title: Implement CompositionExecutor
+    phase: core-runtime
+    priority: P0
+    status: todo
+    effort: 6h
+    assignee: null
+    dependencies:
+      - COMP-001
+      - COMP-004
+    description: >
+      Implement executor that runs compiled compositions by sequentially
+      executing steps and resolving references.
+    files:
+      - src/common/composition/executor.ts
+    subtasks:
+      - Create CompositionExecutor class with ToolRegistry + Logger
+      - Implement execute(compiled, ctx) method
+      - Implement executeStep() dispatcher
+      - Implement executeCallStep() for tool invocation
+      - Implement executeIfStep() for conditional values
+      - Implement resolveValue() for ValueExpression resolution
+      - Implement resolveReference() for namespace resolution
+      - Implement navigatePointer() for JSON Pointer traversal
+      - Implement evaluateCondition() for all condition operators
+      - Add input schema validation (using AJV)
+      - Add output schema validation (using AJV)
+      - Add execution state management
+      - Add comprehensive logging (debug, info, error levels)
+      - Add error handling and recovery
+      - Add JSDoc documentation
+    acceptance:
+      - Sequential execution works correctly
+      - References resolve correctly ($input, $context, $steps)
+      - All condition operators work (equals, greaterThan, lessThan, etc.)
+      - Logical combinators work (all, any, not)
+      - Guarded steps (when: false) skip correctly
+      - Nested object/array resolution works
+      - Schema validation catches invalid input/output
+      - Tool execution errors propagate correctly
+    tests:
+      - Unit tests in COMP-009
+
+  - id: COMP-009
+    title: Write CompositionExecutor unit tests
+    phase: core-runtime
+    priority: P0
+    status: todo
+    effort: 4h
+    assignee: null
+    dependencies:
+      - COMP-008
+      - COMP-003
+    description: >
+      Comprehensive unit test suite for CompositionExecutor covering
+      step execution, reference resolution, and condition evaluation.
+    files:
+      - src/common/composition/executor.test.ts
+    subtasks:
+      - Test basic call step execution
+      - Test sequential multi-step execution
+      - Test $input reference resolution
+      - Test $context reference resolution
+      - Test $steps reference resolution (simple)
+      - Test $steps nested path resolution ($steps/user/id)
+      - Test all condition operators (equals, greaterThan, etc.)
+      - Test logical combinators (all, any, not)
+      - Test guarded steps (when condition true/false)
+      - Test if/else value steps
+      - Test nested object construction in return
+      - Test array construction in return
+      - Test error handling (tool not found)
+      - Test error handling (reference missing)
+      - Test schema validation errors
+      - Mock ToolRegistry with test tools
+    acceptance:
+      - All tests pass
+      - Reference resolution thoroughly validated
+      - Condition evaluation thoroughly validated
+      - Code coverage >90%
+      - Edge cases covered
+    tests:
+      - npm test executor.test.ts
+
+  # ============================================================
+  # PHASE 3: REGISTRY & STORAGE (Days 8-9)
+  # ============================================================
+
+  - id: COMP-010
+    title: Verify DocumentStore collection setup
+    phase: registry-storage
+    priority: P1
+    status: todo
+    effort: 0.5h
+    assignee: null
+    dependencies:
+      - COMP-002
+    description: >
+      Verify DocumentStore is available and working for compositions collection.
+      No schema migration needed - leverages existing DocumentStore infrastructure.
+    files: []
+    subtasks:
+      - Verify documentStore resource available in tool-gateway
+      - Test document creation in compositions collection
+      - Test document retrieval by ID
+      - Test query operations (filter by name, status)
+      - Optional - Apply performance indexes from COMP-002
+      - Document verification results
+    acceptance:
+      - DocumentStore accessible from tool-gateway
+      - CRUD operations work on compositions collection
+      - Query filters work correctly (name, status)
+      - No errors in test environment
+    tests:
+      - Manual verification in agent-dev or local context
+      - Integration tests in COMP-018
+
+  - id: COMP-011
+    title: Implement DocumentStoreCompositionRegistry
+    phase: registry-storage
+    priority: P0
+    status: todo
+    effort: 3h
+    assignee: null
+    dependencies:
+      - COMP-001
+      - COMP-010
+    description: >
+      Implement DocumentStore-backed repository for storing and retrieving
+      compiled compositions. Uses vendor-neutral IDocumentStore interface.
+    files:
+      - src/common/composition/registry.ts
+    subtasks:
+      - Define CompositionRegistry interface
+      - Implement DocumentStoreCompositionRegistry class
+      - Implement create(compiled, sourceYaml) using documentStore.set()
+      - Implement get(id) using documentStore.get()
+      - Implement getByName(name) using documentStore.query() with filters
+      - Implement listActive() using documentStore.query()
+      - Implement updateStatus(id, status) using documentStore.set() with merge
+      - Implement delete(id) using documentStore.delete()
+      - Implement docToCompiled() helper to convert docs to CompiledComposition
+      - Add error handling (duplicate names, not found)
+      - Add logging for all operations
+      - Add JSDoc documentation
+    acceptance:
+      - CRUD operations work with DocumentStore API
+      - Queries use DocumentStore filter syntax correctly
+      - Error handling is comprehensive
+      - Status filtering works via DocumentStore queries
+      - Duplicate name handling works
+      - Not found returns null (not error)
+    tests:
+      - Unit tests in COMP-012
+
+  - id: COMP-012
+    title: Write DocumentStoreCompositionRegistry unit tests
+    phase: registry-storage
+    priority: P0
+    status: todo
+    effort: 2h
+    assignee: null
+    dependencies:
+      - COMP-011
+      - COMP-003
+    description: >
+      Unit test suite for DocumentStoreCompositionRegistry using mocked DocumentStore.
+    files:
+      - src/common/composition/registry.test.ts
+    subtasks:
+      - Create mock IDocumentStore implementation
+      - Test create operation (verifies documentStore.set() called)
+      - Test get by ID (mocks documentStore.get())
+      - Test get by ID (not found)
+      - Test get by name (mocks documentStore.query() with filters)
+      - Test list active compositions (mocks documentStore.query())
+      - Test update status (verifies merge flag used)
+      - Test delete operation (verifies documentStore.delete() called)
+      - Test error handling
+      - Verify correct collection name used (compositions)
+      - Verify correct filter syntax for queries
+    acceptance:
+      - All tests pass
+      - Tests use mocked DocumentStore (no real database needed)
+      - No database setup/teardown required
+      - Code coverage >85%
+    tests:
+      - npm test registry.test.ts
+
+  # ============================================================
+  # PHASE 4: INTEGRATION (Days 10-12)
+  # ============================================================
+
+  - id: COMP-013
+    title: Add composition dependencies to tool-gateway
+    phase: integration
+    priority: P0
+    status: todo
+    effort: 2h
+    assignee: null
+    dependencies:
+      - COMP-011
+    description: >
+      Import and initialize composition subsystem in tool-gateway service.
+    files:
+      - src/apps/tool-gateway.ts
+    subtasks:
+      - Import composition modules (parser, compiler, executor, registry)
+      - Add compositionRegistry field to ToolGatewayServer
+      - Add compositionExecutor field to ToolGatewayServer
+      - Initialize registry in constructor (get documentStore)
+      - Initialize executor in constructor (pass registry + logger)
+      - Handle missing documentStore gracefully
+      - Add error logging for initialization failures
+    acceptance:
+      - Tool-gateway compiles without errors
+      - Dependencies inject correctly
+      - Graceful degradation if DB unavailable
+      - No breaking changes to existing functionality
+    tests:
+      - Existing tool-gateway tests still pass
+
+  - id: COMP-014
+    title: Implement composition loading in tool-gateway
+    phase: integration
+    priority: P0
+    status: todo
+    effort: 3h
+    assignee: null
+    dependencies:
+      - COMP-013
+    description: >
+      Load compositions from database on startup and register them as
+      MCP tools.
+    files:
+      - src/apps/tool-gateway.ts
+    subtasks:
+      - Create loadCompositions() async method
+      - Call loadCompositions() in setup() lifecycle hook
+      - Create registerCompositionTool(comp) method
+      - Register composition in ToolRegistry
+      - Register composition via Bit's MCP interface
+      - Create executeComposition(comp, args, extra) method
+      - Add error handling for registration failures
+      - Add logging (compositions.loading, compositions.loaded)
+      - Handle empty composition list gracefully
+    acceptance:
+      - Compositions load on tool-gateway startup
+      - Compositions appear in MCP tools/list
+      - Composition execution works via MCP tools/call
+      - Errors logged appropriately
+      - Empty composition list handled gracefully
+    tests:
+      - Integration test in COMP-018
+
+  - id: COMP-015
+    title: Add REST API endpoints to tool-gateway
+    phase: integration
+    priority: P0
+    status: todo
+    effort: 3h
+    assignee: null
+    dependencies:
+      - COMP-014
+    description: >
+      Add REST API endpoints for composition management and execution.
+    files:
+      - src/apps/tool-gateway.ts
+    subtasks:
+      - Add POST /compositions endpoint (create/register)
+      - Add GET /compositions endpoint (list all)
+      - Add GET /compositions/:id endpoint (get by ID)
+      - Add POST /compositions/:id/execute endpoint (execute)
+      - Add DELETE /compositions/:id endpoint (delete)
+      - Add request body validation
+      - Add error handling (400 Bad Request, 404 Not Found, 500 Internal Error)
+      - Add request/response logging
+      - Add JSDoc comments for endpoints
+    acceptance:
+      - All endpoints work correctly
+      - Validation rejects malformed requests with 400
+      - Not found returns 404
+      - Server errors return 500
+      - Logging captures all requests
+      - CORS headers set correctly (if needed)
+    tests:
+      - REST API tests in COMP-019
+
+  - id: COMP-017A
+    title: Implement administrative MCP tools for composition management
+    phase: integration
+    priority: P0
+    status: completed
+    effort: 4h
+    assignee: null
+    dependencies:
+      - COMP-015
+    description: >
+      Add composition.* MCP tools for administrative operations (register, list,
+      get, delete, stats). Ensures architectural consistency with other BitBrat
+      subsystems that expose MCP control planes.
+    files:
+      - src/apps/tool-gateway.ts
+      - src/apps/__tests__/composition-mcp-admin.integration.test.ts
+    subtasks:
+      - Implement registerCompositionAdminTools() method in tool-gateway
+      - Implement composition.register tool (register from YAML/JSON)
+      - Implement composition.list tool (list all compositions)
+      - Implement composition.get tool (get by name/version)
+      - Implement composition.delete tool (delete by name/version)
+      - Implement composition.stats tool (registry statistics)
+      - Implement composition.validate tool (optional - validate without registering)
+      - Add Zod schemas for each tool's input
+      - Add handler methods (handleCompositionRegister, etc.)
+      - Reuse REST endpoint logic internally
+      - Write unit tests (6-8 tests in tool-gateway.test.ts)
+      - Write integration tests (6 tests in new file)
+      - Update composition-usage.md with MCP tool examples
+    acceptance:
+      - All 5 admin tools registered and callable via MCP
+      - Tools reuse existing REST logic (no code duplication)
+      - Tools respect ENABLE_COMPOSITIONS feature flag
+      - Graceful error handling (compositions disabled → clear error)
+      - Unit tests cover all tools
+      - Integration tests validate full lifecycle via MCP
+      - Documentation includes MCP examples
+    tests:
+      - npm test tool-gateway.test.ts (6-8 new tests)
+      - npm test composition-mcp-admin.integration.test.ts (6 tests)
+
+  - id: COMP-016
+    title: Update tool-gateway unit tests
+    phase: integration
+    priority: P1
+    status: todo
+    effort: 2h
+    assignee: null
+    dependencies:
+      - COMP-015
+      - COMP-017A
+    description: >
+      Update existing tool-gateway tests to account for composition subsystem
+      (both REST and MCP).
+    files:
+      - src/apps/tool-gateway.test.ts
+    subtasks:
+      - Add composition fixture for testing
+      - Test composition loading in setup
+      - Test MCP registration (executable compositions)
+      - Test MCP admin tools (covered in COMP-017A)
+      - Test composition execution via MCP
+      - Update existing tests if broken
+      - Mock documentStore for isolated testing
+    acceptance:
+      - All tool-gateway tests pass
+      - New composition functionality covered (REST + MCP)
+      - No regressions in existing tests
+      - Mocks properly isolated
+    tests:
+      - npm test tool-gateway.test.ts
+
+  # ============================================================
+  # PHASE 5: TESTING & VALIDATION (Days 13-15)
+  # ============================================================
+
+  - id: COMP-017
+    title: Create index file for composition module
+    phase: testing-validation
+    priority: P1
+    status: todo
+    effort: 0.5h
+    assignee: null
+    dependencies:
+      - COMP-004
+      - COMP-006
+      - COMP-008
+      - COMP-011
+    description: >
+      Create barrel export for composition module to simplify imports.
+    files:
+      - src/common/composition/index.ts
+    subtasks:
+      - Export all types from types.ts
+      - Export CompositionParser class
+      - Export CompositionCompiler class
+      - Export CompositionExecutor class
+      - Export CompositionRegistry interface and implementation
+      - Add module-level JSDoc
+    acceptance:
+      - Clean imports work (import { Parser } from '../composition')
+      - No circular dependencies
+      - All exports documented
+    tests:
+      - Import and use in integration tests
+
+  - id: COMP-018
+    title: Create E2E integration test suite
+    phase: testing-validation
+    priority: P0
+    status: todo
+    effort: 4h
+    assignee: null
+    dependencies:
+      - COMP-015
+      - COMP-017
+    description: >
+      End-to-end integration tests validating full composition lifecycle.
+    files:
+      - tests/integration/composition-e2e.test.ts
+      - tests/integration/fixtures/compositions/
+    subtasks:
+      - Set up test environment (DocumentStore + tool-gateway)
+      - Create test composition YAML (viewer_greeting)
+      - Test 1 - Load composition from YAML file
+      - Test 2 - Parse and compile composition
+      - Test 3 - Register composition in tool-gateway
+      - Test 4 - Verify composition in MCP tools/list
+      - Test 5 - Execute composition via MCP tools/call
+      - Test 6 - Verify structured output matches schema
+      - Test 7 - Nested composition (composition calls composition)
+      - Test 8 - Error handling (missing tool)
+      - Tear down test environment cleanly
+    acceptance:
+      - All E2E tests pass
+      - Full lifecycle validated
+      - Nested composition works
+      - Error cases handled
+      - Test environment cleanup works
+    tests:
+      - npm test composition-e2e.test.ts
+
+  - id: COMP-019
+    title: Create REST API test suite
+    phase: testing-validation
+    priority: P0
+    status: todo
+    effort: 3h
+    assignee: null
+    dependencies:
+      - COMP-015
+      - COMP-017
+    description: >
+      Test suite for composition REST API endpoints.
+    files:
+      - tests/apps/tool-gateway-composition-rest.test.ts
+    subtasks:
+      - Set up test server
+      - Test POST /compositions (create valid composition)
+      - Test POST /compositions (invalid YAML → 400)
+      - Test POST /compositions (missing tools → 400)
+      - Test GET /compositions (list all)
+      - Test GET /compositions/:id (found)
+      - Test GET /compositions/:id (not found → 404)
+      - Test POST /compositions/:id/execute (success)
+      - Test POST /compositions/:id/execute (not found → 404)
+      - Test POST /compositions/:id/execute (execution error → 500)
+      - Test DELETE /compositions/:id (success)
+      - Test DELETE /compositions/:id (not found → 404)
+      - Tear down test server
+    acceptance:
+      - All REST endpoints tested
+      - Error cases (400, 404, 500) covered
+      - Tests are isolated and repeatable
+      - No test database pollution
+    tests:
+      - npm test tool-gateway-composition-rest.test.ts
+
+  - id: COMP-020
+    title: Agent-dev validation
+    phase: testing-validation
+    priority: P0
+    status: todo
+    effort: 3h
+    assignee: null
+    dependencies:
+      - COMP-015
+    description: >
+      Deploy and validate composition system in agent-dev environment.
+    files:
+      - planning/sprint-41-u18tqc/agent-dev-validation.md
+    subtasks:
+      - Provision agent-dev context
+      - Deploy tool-gateway to agent-dev
+      - Create sample composition (viewer_greeting.yaml)
+      - Register composition via REST API
+      - Verify composition in database
+      - Invoke composition via MCP (simulate llm-bot)
+      - Verify execution logs
+      - Invoke composition via REST (simulate reflex)
+      - Verify structured output
+      - Test error cases (invalid composition, missing tools)
+      - Document validation results
+      - Destroy agent-dev context
+    acceptance:
+      - Deployment succeeds in agent-dev
+      - MCP invocation works correctly
+      - REST invocation works correctly
+      - Logs show expected execution flow
+      - Results documented in validation report
+    tests:
+      - Manual validation checklist
+
+  - id: COMP-021
+    title: Performance testing
+    phase: testing-validation
+    priority: P2
+    status: todo
+    effort: 2h
+    assignee: null
+    dependencies:
+      - COMP-018
+    description: >
+      Benchmark composition system to validate performance targets.
+    files:
+      - tests/performance/composition-perf.test.ts
+    subtasks:
+      - Create performance test harness
+      - Benchmark composition load time (target <100ms)
+      - Benchmark compilation time
+      - Benchmark execution overhead (target <10ms vs direct tools)
+      - Benchmark concurrent execution (10 parallel executions)
+      - Test memory usage (no leaks)
+      - Document performance results
+    acceptance:
+      - Load time <100ms per composition
+      - Execution overhead <10ms
+      - No memory leaks detected
+      - Concurrent execution works correctly
+      - Results documented
+    tests:
+      - npm test composition-perf.test.ts
+
+  # ============================================================
+  # PHASE 6: DOCUMENTATION (Days 16-17)
+  # ============================================================
+
+  - id: COMP-022
+    title: Create example compositions
+    phase: documentation
+    priority: P1
+    status: todo
+    effort: 3h
+    assignee: null
+    dependencies:
+      - COMP-015
+    description: >
+      Create a library of example compositions demonstrating key features.
+    files:
+      - compositions/examples/viewer_greeting.yaml
+      - compositions/examples/user_lookup.yaml
+      - compositions/examples/conditional_alert.yaml
+      - compositions/examples/nested_composition.yaml
+      - compositions/examples/README.md
+    subtasks:
+      - Create viewer_greeting.yaml (full 4-step example)
+      - Create user_lookup.yaml (simple 2-step example)
+      - Create conditional_alert.yaml (demonstrates if/else)
+      - Create nested_composition.yaml (composition calls composition)
+      - Create README explaining each example
+      - Validate all examples compile without errors
+      - Add inline comments to YAML for clarity
+    acceptance:
+      - All examples are valid YAML
+      - All examples compile successfully
+      - All examples execute correctly
+      - README clearly explains each example
+      - Examples demonstrate key features
+    tests:
+      - Compile and execute each example
+
+  - id: COMP-023
+    title: Create operational runbook
+    phase: documentation
+    priority: P1
+    status: todo
+    effort: 2h
+    assignee: null
+    dependencies:
+      - COMP-022
+    description: >
+      Operational documentation for composition management.
+    files:
+      - documentation/guides/composition-operations.md
+    subtasks:
+      - Document composition authoring workflow
+      - Document composition registration (REST API)
+      - Document composition deployment process
+      - Document composition debugging techniques
+      - Document common errors and solutions
+      - Document performance tuning
+      - Document rollback procedures
+      - Add examples and code snippets
+    acceptance:
+      - Runbook is complete and actionable
+      - Examples are clear and tested
+      - Troubleshooting section is comprehensive
+      - Cross-references to other docs work
+    tests:
+      - Manual review by platform team
+
+  - id: COMP-024
+    title: Update architecture documentation
+    phase: documentation
+    priority: P1
+    status: todo
+    effort: 2h
+    assignee: null
+    dependencies:
+      - COMP-022
+    description: >
+      Create comprehensive reference documentation for composition DSL.
+    files:
+      - documentation/architecture/composition-dsl.md
+    subtasks:
+      - Document DSL syntax (apiVersion, kind, metadata, spec)
+      - Document reference syntax ($input, $context, $steps)
+      - Document all condition operators with examples
+      - Document step types (call, if) with examples
+      - Document return expression syntax
+      - Document schema requirements (inputSchema, outputSchema)
+      - Add examples for each concept
+      - Link to operational runbook
+      - Link to example compositions
+    acceptance:
+      - Documentation is comprehensive
+      - Examples are clear and correct
+      - Cross-references work
+      - Formatted correctly (markdown)
+    tests:
+      - Manual review by platform team
+
+  - id: COMP-025
+    title: Sprint retrospective
+    phase: documentation
+    priority: P1
+    status: todo
+    effort: 1h
+    assignee: null
+    dependencies:
+      - COMP-020
+    description: >
+      Conduct sprint retrospective and document findings.
+    files:
+      - planning/sprint-41-u18tqc/retrospective.md
+    subtasks:
+      - Document what went well
+      - Document challenges encountered
+      - Document lessons learned
+      - Document metrics achieved vs targets
+      - Document technical debt incurred
+      - Document next sprint recommendations
+      - Gather team feedback
+    acceptance:
+      - Retrospective is honest and actionable
+      - Metrics documented accurately
+      - Recommendations are specific
+      - Technical debt identified
+    tests:
+      - Review with platform team
+
+  # ============================================================
+  # OPTIONAL / STRETCH GOALS
+  # ============================================================
+
+  - id: COMP-026
+    title: Add composition versioning support
+    phase: documentation
+    priority: P3
+    status: backlog
+    effort: 4h
+    assignee: null
+    dependencies:
+      - COMP-011
+    description: >
+      Add support for versioned compositions (v1, v2, etc.) with
+      automatic version bumping.
+    files:
+      - src/common/composition/registry.ts
+      - infrastructure/sql/migrations/002_composition_versioning.sql
+    subtasks:
+      - Update schema to support version history
+      - Implement version bump logic
+      - Implement getByName(name, version) overload
+      - Update REST API to support version parameter
+      - Add migration for existing compositions
+    acceptance:
+      - Versions tracked correctly
+      - getByName returns latest version by default
+      - Specific versions retrievable
+    tests:
+      - Versioning integration tests
+
+  - id: COMP-027
+    title: Add composition debugging tools
+    phase: documentation
+    priority: P3
+    status: backlog
+    effort: 6h
+    assignee: null
+    dependencies:
+      - COMP-015
+    description: >
+      Add debugging endpoints that return execution trace with step-by-step
+      results.
+    files:
+      - src/apps/tool-gateway.ts
+      - src/common/composition/executor.ts
+    subtasks:
+      - Add debug mode to executor
+      - Capture execution trace (step results, timing)
+      - Add GET /compositions/:id/trace/:correlationId endpoint
+      - Return formatted trace to caller
+    acceptance:
+      - Execution trace captures all steps
+      - Trace includes timing information
+      - Trace accessible via API
+    tests:
+      - Debug endpoint tests
+
+summary:
+  totalTasks: 28
+  p0Tasks: 21
+  p1Tasks: 5
+  p2Tasks: 1
+  p3Tasks: 2
+  estimatedEffort: 79h
+  estimatedDuration: 17 days
+  newTasks:
+    - COMP-017A: Administrative MCP tools (4h, P0)
+
+deliverables:
+  - name: Core composition runtime
+    tasks:
+      - COMP-001
+      - COMP-004
+      - COMP-006
+      - COMP-008
+    status: todo
+
+  - name: PostgreSQL storage
+    tasks:
+      - COMP-002
+      - COMP-010
+      - COMP-011
+    status: todo
+
+  - name: Tool-gateway integration
+    tasks:
+      - COMP-013
+      - COMP-014
+      - COMP-015
+      - COMP-017A
+    status: todo
+
+  - name: Test coverage
+    tasks:
+      - COMP-003
+      - COMP-005
+      - COMP-007
+      - COMP-009
+      - COMP-012
+      - COMP-016
+      - COMP-018
+      - COMP-019
+    status: todo
+
+  - name: Production validation
+    tasks:
+      - COMP-020
+      - COMP-021
+    status: todo
+
+  - name: Documentation
+    tasks:
+      - COMP-022
+      - COMP-023
+      - COMP-024
+      - COMP-025
+    status: todo
+
+milestones:
+  - name: Foundation Complete
+    date: Day 3
+    criteria:
+      - COMP-001 complete
+      - COMP-002 complete
+      - COMP-003 complete
+
+  - name: Core Runtime Complete
+    date: Day 7
+    criteria:
+      - COMP-004 through COMP-009 complete
+      - All unit tests passing
+
+  - name: Storage Complete
+    date: Day 9
+    criteria:
+      - COMP-010 through COMP-012 complete
+      - Database schema deployed
+
+  - name: Integration Complete
+    date: Day 12
+    criteria:
+      - COMP-013 through COMP-016 complete
+      - Tool-gateway integration working
+
+  - name: Testing Complete
+    date: Day 15
+    criteria:
+      - COMP-017 through COMP-021 complete
+      - All tests passing
+      - Agent-dev validation successful
+
+  - name: Sprint Complete
+    date: Day 17
+    criteria:
+      - COMP-022 through COMP-025 complete
+      - All acceptance criteria met
+      - Documentation complete
+      - Retrospective conducted
+
+risks:
+  - id: RISK-001
+    title: Reference resolution complexity underestimated
+    impact: high
+    probability: medium
+    mitigation: Extensive unit tests, JSON Pointer spec compliance, 20% buffer in estimates
+    owner: null
+
+  - id: RISK-002
+    title: Cycle detection edge cases
+    impact: medium
+    probability: low
+    mitigation: Use proven DFS algorithm, comprehensive test cases including indirect cycles
+    owner: null
+
+  - id: RISK-003
+    title: Tool registry integration issues
+    impact: medium
+    probability: medium
+    mitigation: Mock registry for tests, early integration testing, graceful degradation
+    owner: null
+
+  - id: RISK-004
+    title: Performance targets not met
+    impact: medium
+    probability: low
+    mitigation: Performance testing early (COMP-021), profiling, optimization if needed
+    owner: null
+
+  - id: RISK-005
+    title: Agent-dev environment availability
+    impact: low
+    probability: low
+    mitigation: Documented fallback to manual testing, local validation sufficient
+    owner: null

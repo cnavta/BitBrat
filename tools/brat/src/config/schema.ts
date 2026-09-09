@@ -112,7 +112,7 @@ export const NetworkRemoteStateSchema = z.object({
 
 export const NetworkSchema = z.object({
   regions: z.array(z.string()).nonempty().default(['us-central1']),
-  subnets: z.record(NetworkSubnetSchema).optional(),
+  subnets: z.record(z.string(), NetworkSubnetSchema).optional(),
   enableFlowLogs: z.boolean().default(false),
   remoteState: NetworkRemoteStateSchema.optional(),
 });
@@ -151,11 +151,11 @@ export const LoadBalancerSchema = z.object({
 export const ArchitectureSchema = z.object({
   name: z.string().optional(),
   defaults: z.object({ services: DefaultsServicesSchema }).optional(),
-  services: z.record(ServiceSchema).default({}),
+  services: z.record(z.string(), ServiceSchema).default({}),
   deploymentDefaults: DeploymentDefaultsSchema.optional(),
   // Sprint 349: executionContexts (new, preferred) vs deploymentTargets (deprecated)
   executionContexts: ExecutionContextsSchema.optional(),
-  deploymentTargets: z.record(DeploymentTargetSchema).optional(),
+  deploymentTargets: z.record(z.string(), DeploymentTargetSchema).optional(),
   network: NetworkSchema.optional(),
   lb: LoadBalancerSchema.optional(),
   // Sprint 20 — infrastructure.resources schema (object-store + load-balancer)
@@ -164,6 +164,7 @@ export const ArchitectureSchema = z.object({
       target: z.string().optional(),
       resources: z
         .record(
+          z.string(),
           z.discriminatedUnion('type', [
             // document-database (cloud-firestore) — primary persistence layer
             z
@@ -174,7 +175,7 @@ export const ArchitectureSchema = z.object({
                 docs: z.string().optional(),
                 rules: z.string().optional(),
                 indexes: z.string().optional(),
-                collections: z.record(z.string()).optional(),
+                collections: z.record(z.string(), z.string()).optional(),
               })
               .passthrough(),
             // object-store (cloud-storage)
@@ -187,7 +188,7 @@ export const ArchitectureSchema = z.object({
                 location: z.string().optional(),
                 versioning: z.boolean().optional(),
                 lifecycle: z.any().optional(),
-                labels: z.record(z.string()).optional(),
+                labels: z.record(z.string(), z.string()).optional(),
               })
               .passthrough(),
             // load-balancer (global-external-application-lb or regional-internal-application-lb)

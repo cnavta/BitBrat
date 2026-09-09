@@ -175,6 +175,54 @@ The BitBrat repository is organized to separate concerns between application cod
 - **`CHANGELOG.md`** — Version history and release notes
 - **`LICENSE`**, **`CONTRIBUTING.md`**, **`CODE_OF_CONDUCT.md`**, **`SECURITY.md`** — Open source project governance
 
+## Testing
+
+Run the full test suite with:
+```bash
+npm test
+```
+
+Tests are organized using Jest:
+- **Unit tests**: Alongside source code (`*.test.ts`, `*.spec.ts`)
+- **Integration tests**: In `tests/integration/`
+- **Configuration**: See `jest.config.js` for test runner settings
+
+### Known Test Issues
+
+**Environmental Failures** (not bugs):
+- **Docker tests**: Require Docker daemon running (auto-skip if unavailable)
+  - `agent-dev-e2e.test.ts`, `jetstream-validation.test.ts`, `docker-compose-*.test.ts`
+  - Fix: Start Docker locally (`docker info` to verify)
+
+- **NATS tests**: Require NATS server or use localhost:4222 default
+  - Tests automatically connect to `NATS_URL=nats://localhost:4222`
+  - Some failures in full suite pass in isolation (concurrency issue, not bug)
+  - Fix: Start NATS via `npm run local` or install separately
+
+- **E2E tests**: May fail without full infrastructure
+  - These validate deployment, not core business logic
+  - Safe to skip for feature development
+
+**Active Investigation** (Sprint 31):
+- Category B: NATS connectivity failures in full suite (pass in isolation)
+- Category D: Legitimate test bugs (TBD - requires identification)
+
+**Resolved** (Sprint 30):
+- ✅ Worktree test duplication (fixed via jest.config.js roots configuration)
+- ✅ EventEmitter warnings (temporary fix via increased limit)
+- ✅ mcp-discovery test (env var interpolation fixed)
+- ✅ bit-conformance test (MCP SDK 2.0 endpoints updated)
+
+For detailed analysis, see:
+- [Sprint 30 Test Failures Backlog](planning/sprint-30-pe25g1/test-failures-backlog.md)
+- [Sprint 30 Test Infrastructure Analysis](planning/sprint-30-pe25g1/test-infrastructure-analysis.md)
+
+### Test Infrastructure Notes
+- **Worktree support**: Tests work from both main repo AND worktrees
+- **Jest roots configuration**: Scopes discovery to `src/`, `tests/`, `tools/`
+- **EventEmitter limit**: Increased for test stability (temporary, tracked in backlog)
+- **Docker auto-skip**: E2E tests auto-skip when Docker unavailable (Sprint 31)
+
 ### Build and Deployment Files
 
 - **`Dockerfile.*`** — Multi-stage Docker builds for each service

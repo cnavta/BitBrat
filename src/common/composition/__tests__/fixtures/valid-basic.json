@@ -1,0 +1,30 @@
+{
+  "apiVersion": "mcp-compose/v1",
+  "kind": "Composition",
+  "metadata": {
+    "name": "json_example"
+  },
+  "spec": {
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": ["name"]
+    },
+    "steps": [
+      {
+        "id": "greet",
+        "call": "test.greet",
+        "with": {
+          "name": "$input/name"
+        }
+      }
+    ],
+    "return": {
+      "message": "$steps/greet/message"
+    }
+  }
+}

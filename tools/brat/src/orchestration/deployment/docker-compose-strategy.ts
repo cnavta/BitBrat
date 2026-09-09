@@ -200,25 +200,77 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       const deployOptions = (plan.metadata.deployOptions || {}) as DeployOptions;
       const repoRoot = process.cwd();
       const baseComposeFilePath = plan.metadata.composeFilePath as string;
+      const isRemote = plan.metadata.remoteHost !== undefined;
 
       // ============================================================================
       // HOOK 1: PRE-DEPLOY (Sprint 15)
-      // Executes BEFORE any deployment operations (local)
+      // Executes BEFORE any deployment operations
       // Use case: Registry authentication, environment validation
+      // For remote deployments: Runs on remote host (after syncing hooks directory)
+      // For local deployments: Runs on local machine
       // ============================================================================
-      await this.hookExecutor.execute(
-        'pre-deploy',
-        plan.context.deployment.hooks?.['pre-deploy'],
-        {
-          contextName: plan.context.name,
-          deploymentType: plan.context.deployment.type,
-          targetHost: plan.metadata.remoteHost as string | undefined,
-          remoteDir: plan.metadata.remoteDir as string | undefined,
-          services: [plan.service.name],
-          repoRoot,
-          verbose: deployOptions.verbose,
+      if (isRemote) {
+        // Remote deployment: Sync hooks directory first so remote hook can execute
+        const hookPath = plan.context.deployment.hooks?.['pre-deploy'];
+        if (hookPath) {
+          const sshHost = (plan.metadata.remoteHost as string).replace('ssh://', '');
+          const remoteDir = plan.metadata.remoteDir as string;
+
+          console.log(`[docker-compose-strategy] Syncing hooks directory to remote for pre-deploy hook...`);
+
+          // Sync .brat/hooks directory to remote
+          const hooksDir = path.join(repoRoot, '.brat/hooks');
+          const remoteHooksDir = path.join(remoteDir, '.brat/hooks');
+
+          // Create remote directory structure
+          await execCmd('ssh', [sshHost, `mkdir -p ${remoteHooksDir}`], { cwd: repoRoot });
+
+          // Sync hooks directory using rsync
+          const rsyncResult = await execCmd(
+            'rsync',
+            ['-az', '--delete', `${hooksDir}/`, `${sshHost}:${remoteHooksDir}/`],
+            { cwd: repoRoot }
+          );
+
+          if (rsyncResult.code !== 0) {
+            throw new Error(
+              `Failed to sync hooks directory to remote: ${rsyncResult.stderr || rsyncResult.stdout}`
+            );
+          }
+
+          console.log(`[docker-compose-strategy] ✓ Hooks directory synced successfully`);
         }
-      );
+
+        // Remote deployment: Hook must run on remote host for Docker auth
+        await this.hookExecutor.executeRemote(
+          'pre-deploy',
+          plan.context.deployment.hooks?.['pre-deploy'],
+          {
+            contextName: plan.context.name,
+            deploymentType: plan.context.deployment.type,
+            targetHost: plan.metadata.remoteHost as string | undefined,
+            remoteDir: plan.metadata.remoteDir as string | undefined,
+            services: [plan.service.name],
+            repoRoot,
+            verbose: deployOptions.verbose,
+          }
+        );
+      } else {
+        // Local deployment: Hook runs on local machine
+        await this.hookExecutor.execute(
+          'pre-deploy',
+          plan.context.deployment.hooks?.['pre-deploy'],
+          {
+            contextName: plan.context.name,
+            deploymentType: plan.context.deployment.type,
+            targetHost: plan.metadata.remoteHost as string | undefined,
+            remoteDir: plan.metadata.remoteDir as string | undefined,
+            services: [plan.service.name],
+            repoRoot,
+            verbose: deployOptions.verbose,
+          }
+        );
+      }
 
       // Sprint 375: Read original compose file FIRST (before any processing)
       // This ensures we can restore even if merge/secureFiles processing fails
@@ -270,7 +322,6 @@ export class DockerComposeStrategy implements DeploymentStrategy {
 
       // Sprint 374/375: Process secure files
       const secureFiles = (plan.metadata.secureFiles || []) as SecureFile[];
-      const isRemote = plan.metadata.remoteHost !== undefined;
 
       if (secureFiles.length > 0) {
         console.log(
@@ -751,33 +802,87 @@ export class DockerComposeStrategy implements DeploymentStrategy {
     try {
       // ============================================================================
       // HOOK 1: PRE-DEPLOY (Sprint 15)
-      // Executes BEFORE any deployment operations (local only, bulk deployment)
+      // Executes BEFORE any deployment operations
       // Use case: Registry authentication, environment validation
+      // For remote deployments: Must run on remote host for Docker auth
+      // For local deployments: Runs on local machine
       // ============================================================================
-      await this.hookExecutor.execute(
-        'pre-deploy',
-        context.deployment.hooks?.['pre-deploy'],
-        {
-          contextName: context.name,
-          deploymentType: context.deployment.type,
-          targetHost: context.deployment?.docker?.host,
-          remoteDir: context.deployment?.docker?.remoteDir,
-          services: serviceNames,
-          repoRoot,
-          verbose: options.verbose,
+      if (isRemote) {
+        // Remote deployment: Sync hooks directory first so remote hook can execute
+        const hookPath = context.deployment.hooks?.['pre-deploy'];
+        if (hookPath) {
+          const sshHost = context.deployment!.docker!.host!.replace('ssh://', '');
+          const remoteDir = context.deployment!.docker!.remoteDir || '/opt/BitBratPlatform';
+
+          console.log(`[docker-compose-strategy] Syncing hooks directory to remote for pre-deploy hook...`);
+
+          // Sync .brat/hooks directory to remote
+          const hooksDir = path.join(repoRoot, '.brat/hooks');
+          const remoteHooksDir = path.join(remoteDir, '.brat/hooks');
+
+          // Create remote directory structure
+          await execCmd('ssh', [sshHost, `mkdir -p ${remoteHooksDir}`], { cwd: repoRoot });
+
+          // Sync hooks directory using rsync
+          const rsyncResult = await execCmd(
+            'rsync',
+            ['-az', '--delete', `${hooksDir}/`, `${sshHost}:${remoteHooksDir}/`],
+            { cwd: repoRoot }
+          );
+
+          if (rsyncResult.code !== 0) {
+            throw new Error(
+              `Failed to sync hooks directory to remote: ${rsyncResult.stderr || rsyncResult.stdout}`
+            );
+          }
+
+          console.log(`[docker-compose-strategy] ✓ Hooks directory synced successfully`);
         }
-      );
+
+        // Remote deployment: Hook must run on remote host for Docker auth
+        await this.hookExecutor.executeRemote(
+          'pre-deploy',
+          context.deployment.hooks?.['pre-deploy'],
+          {
+            contextName: context.name,
+            deploymentType: context.deployment.type,
+            targetHost: context.deployment?.docker?.host,
+            remoteDir: context.deployment?.docker?.remoteDir,
+            services: serviceNames,
+            repoRoot,
+            verbose: options.verbose,
+          }
+        );
+      } else {
+        // Local deployment: Hook runs on local machine
+        await this.hookExecutor.execute(
+          'pre-deploy',
+          context.deployment.hooks?.['pre-deploy'],
+          {
+            contextName: context.name,
+            deploymentType: context.deployment.type,
+            targetHost: context.deployment?.docker?.host,
+            remoteDir: context.deployment?.docker?.remoteDir,
+            services: serviceNames,
+            repoRoot,
+            verbose: options.verbose,
+          }
+        );
+      }
 
       // ============================================================================
       // STAGE 1: Read base compose file
       // ============================================================================
-      // For bulk deployments, use infrastructure-only base file (docker-compose.local.yaml)
-      // to avoid circular dependencies from generated context-specific files
-      // (e.g., docker-compose.staging.yaml which contains all services with dependencies).
+      // For bulk deployments, use context-specific base file to preserve network aliases
+      // Sprint 27: CRITICAL FIX - Must use context-specific compose file (not docker-compose.local.yaml)
+      // because different contexts have different network configurations:
+      //   - local: bitbrat-network (literal)
+      //   - staging: bitbrat-network → bitbrat-staging-network (alias)
+      //   - production: bitbrat-network → bitbrat-production-network (alias)
       //
-      // The infrastructure-only base contains:
-      // - Infrastructure services (nats, postgres, firebase-emulator)
-      // - Network definitions
+      // The context-specific base contains:
+      // - Infrastructure services (nats, postgres, redis)
+      // - Network definitions (with context-specific aliases)
       // - Volume definitions
       // - bitbrat-base build-only service
       //
@@ -785,7 +890,8 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       // from service-specific compose files to avoid dependency conflicts.
       const baseComposePath = path.join(
         repoRoot,
-        'infrastructure/docker-compose/docker-compose.local.yaml'
+        'infrastructure/docker-compose',
+        `docker-compose.${context.name}.yaml`
       );
       let baseYaml = await fs.promises.readFile(baseComposePath, 'utf-8');
 
@@ -805,7 +911,7 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       }
 
       // Sprint 378: Fix build context paths for services in base file
-      // docker-compose.local.yaml uses context: ../.. (from infrastructure/docker-compose/ to repo root)
+      // Context-specific compose files use context: ../.. (from infrastructure/docker-compose/ to repo root)
       // but merged file is at repo root, so context should be . (repo root itself)
       for (const [serviceName, serviceConfig] of Object.entries(baseCompose.services)) {
         const service = serviceConfig as any;
@@ -910,6 +1016,88 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       }
 
       // ============================================================================
+      // STAGE 2.5: Merge observability stack if --loki flag is set
+      // Sprint 46: Include Loki + Promtail observability stack in bulk deployments
+      //
+      // NOTE: Unlike service-specific compose files which contain a SINGLE service,
+      // the observability compose file contains MULTIPLE services (loki + promtail)
+      // plus volumes and networks. We merge it directly into baseYaml here rather
+      // than adding it to serviceFiles array (which is for single-service merges).
+      // ============================================================================
+      if (options.loki) {
+        const observabilityPath = path.join(
+          repoRoot,
+          'infrastructure/docker-compose/observability/docker-compose.observability.yaml'
+        );
+
+        console.log(`[docker-compose-strategy] --loki flag enabled, merging observability stack...`);
+
+        if (fs.existsSync(observabilityPath)) {
+          try {
+            const observabilityYaml = await fs.promises.readFile(observabilityPath, 'utf-8');
+            const observabilityCompose = yaml.load(observabilityYaml) as any;
+
+            // Fix volume mount paths to be relative to repo root (merged file location)
+            // Docker Compose requires bind mounts to start with ./ or / to distinguish from named volumes
+            if (observabilityCompose.services?.loki?.volumes) {
+              observabilityCompose.services.loki.volumes = observabilityCompose.services.loki.volumes.map((vol: string) => {
+                if (typeof vol === 'string' && vol.includes('loki-config.yaml')) {
+                  return vol.replace('./loki-config.yaml', './infrastructure/docker-compose/observability/loki-config.yaml');
+                }
+                return vol;
+              });
+            }
+
+            if (observabilityCompose.services?.promtail?.volumes) {
+              observabilityCompose.services.promtail.volumes = observabilityCompose.services.promtail.volumes.map((vol: string) => {
+                if (typeof vol === 'string' && vol.includes('promtail-config.yaml')) {
+                  return vol.replace('./promtail-config.yaml', './infrastructure/docker-compose/observability/promtail-config.yaml');
+                }
+                return vol;
+              });
+            }
+
+            // Merge observability compose into base compose
+            const baseComposeParsed = yaml.load(baseYaml) as any;
+
+            // Merge services
+            if (observabilityCompose.services) {
+              baseComposeParsed.services = baseComposeParsed.services || {};
+              for (const [serviceName, serviceConfig] of Object.entries(observabilityCompose.services)) {
+                baseComposeParsed.services[serviceName] = serviceConfig;
+              }
+            }
+
+            // Merge volumes
+            if (observabilityCompose.volumes) {
+              baseComposeParsed.volumes = baseComposeParsed.volumes || {};
+              for (const [volumeName, volumeConfig] of Object.entries(observabilityCompose.volumes)) {
+                baseComposeParsed.volumes[volumeName] = volumeConfig;
+              }
+            }
+
+            // Networks are already defined in base file, no need to merge
+            // (observability file uses same bitbrat-network)
+
+            // Convert back to YAML
+            baseYaml = yaml.dump(baseComposeParsed, {
+              indent: 2,
+              lineWidth: 120,
+              noRefs: true,
+            });
+
+            console.log(`[docker-compose-strategy] ✓ Observability stack merged (loki, promtail, 2 volumes)`);
+          } catch (error: any) {
+            console.error(`[docker-compose-strategy] WARNING: Failed to merge observability file: ${error.message}`);
+            console.error(`[docker-compose-strategy] Continuing without observability stack`);
+          }
+        } else {
+          console.error(`[docker-compose-strategy] WARNING: Observability file not found at ${observabilityPath}`);
+          console.error(`[docker-compose-strategy] Continuing without observability stack`);
+        }
+      }
+
+      // ============================================================================
       // STAGE 3: Iteratively merge service-specific files
       // ============================================================================
       let mergedYaml = baseYaml;
@@ -980,7 +1168,6 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       // ============================================================================
       // STAGE 4: Collect and validate secureFiles for all services
       // ============================================================================
-      const isRemote = context.deployment?.docker?.host?.startsWith('ssh://');
       const allSecureFiles = new Map<string, SecureFile[]>();
       const secureFilesErrors: Array<{ service: string; error: string }> = [];
       const validator = new SecureFilesValidator(repoRoot);

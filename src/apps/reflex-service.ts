@@ -3,7 +3,7 @@ import { Bit } from '../common/base-server';
 import type { PublisherResource } from '../common/resources/publisher-manager';
 import { type IReflexRepository, createReflexRepository } from '../services/reflex/reflex-repository.js';
 import { ReflexCache, createReflexCache } from '../services/reflex/reflex-cache.js';
-import { selectReflexes } from '../services/reflex/reflex-selector.js';
+import { selectReflexes, selectReflexesWithCaptures } from '../services/reflex/reflex-selector.js';
 import { executeReflex } from '../services/reflex/reflex-executor.js';
 import { validateRegexPattern } from '../services/reflex/pattern-matcher.js';
 import { metrics } from '../services/reflex/reflex-metrics.js';
@@ -131,10 +131,10 @@ export class ReflexServer extends Bit {
             eventType: event.type,
           });
 
-          // Step 1: Select matching reflexes from cache
+          // Step 1: Select matching reflexes from cache (with capture extraction - Sprint 34)
           const matchStart = Date.now();
           const reflexes = this.cache.getAll();
-          const matchedReflexes = selectReflexes(event, reflexes);
+          const matchedReflexes = selectReflexesWithCaptures(event, reflexes);
           const matchLatency = Date.now() - matchStart;
 
           // Record match latency
@@ -171,17 +171,19 @@ export class ReflexServer extends Bit {
           metrics.incrementMatchCount(true);
 
           // Path 2: Match found → execute reflex → complete()
-          const reflex = matchedReflexes[0]; // Phase 1: only first match
+          const { reflex, captures } = matchedReflexes[0]; // Phase 1: only first match (Sprint 34: with captures)
           logger.info('reflex.event.matched', {
             correlationId: event.correlationId,
             reflexId: reflex.id,
             reflexName: reflex.name,
             priority: reflex.priority,
+            hasCaptures: !!captures,
           });
 
-          // Execute reflex
+          // Execute reflex (Sprint 34: pass captures for parameter interpolation)
           const result = await executeReflex(reflex, event, {
             correlationId: event.correlationId,
+            captures,
           });
 
           const totalLatency = Date.now() - startTime;
@@ -581,7 +583,7 @@ export class ReflexServer extends Bit {
         }).optional().describe('Optional conditions for reflex execution'),
         action: z.object({
           tool: z.string().describe('Sanitized MCP tool name as shown in your tools list (e.g., "mcp_obs-set-scene-item-enabled"). IMPORTANT: Tool names preserve hyphens from the original tool name. Only colons and dots are replaced with underscores. Use the EXACT name from your available tools list.'),
-          parameters: z.record(z.any()).describe('Tool parameters template (supports {{field.path}} interpolation)'),
+          parameters: z.record(z.string(), z.any()).describe('Tool parameters template (supports {{field.path}} interpolation)'),
           timeout: z.number().int().min(1000).max(60000).optional().describe('Tool execution timeout in milliseconds (default: 5000)'),
         }).optional().describe('Optional MCP tool invocation configuration. If omitted, reflex will only generate candidate response.'),
         candidateTemplate: z.union([
@@ -764,7 +766,7 @@ export class ReflexServer extends Bit {
         }).optional().describe('Updated conditions'),
         action: z.object({
           tool: z.string().optional().describe('Sanitized MCP tool name (e.g., "mcp_obs-set-scene-item-enabled"). Note: hyphens are preserved, only colons and dots become underscores.'),
-          parameters: z.record(z.any()).optional().describe('Tool parameters template'),
+          parameters: z.record(z.string(), z.any()).optional().describe('Tool parameters template'),
           timeout: z.number().int().min(1000).max(60000).optional().describe('Tool execution timeout in milliseconds'),
         }).optional().describe('Updated action configuration'),
         candidateTemplate: z.union([
@@ -887,7 +889,7 @@ export class ReflexServer extends Bit {
       'Test a reflex against a mock event to verify pattern matching and execution',
       z.object({
         id: z.string().describe('Reflex ID to test'),
-        mockEvent: z.record(z.any()).describe('Mock event object for testing (must include fields referenced by reflex)'),
+        mockEvent: z.record(z.string(), z.any()).describe('Mock event object for testing (must include fields referenced by reflex)'),
       }),
       async (args) => {
         try {

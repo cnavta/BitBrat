@@ -1,0 +1,928 @@
+# Sprint 40 Backlog
+# MCP Type Coercion for XML Invocation Compatibility
+
+sprint:
+  id: sprint-40-2otmwc
+  title: MCP Type Coercion for XML Invocation Compatibility
+  owner: claude-code
+  status: planning
+  created: 2026-09-02
+
+# Backlog Structure:
+# - priority: 1 (highest) to 5 (lowest)
+# - status: pending | in_progress | blocked | completed | skipped
+# - estimatedMinutes: time estimate for task completion
+# - dependencies: list of task IDs that must complete first
+
+tasks:
+  # ============================================================================
+  # PHASE 1: AUDIT & ANALYSIS
+  # ============================================================================
+
+  - id: T1.1
+    phase: 1
+    priority: 1
+    title: Read and analyze messaging tools schema
+    description: |
+      Read tools/brat/src/dev-mcp/tools/messaging.ts and identify all boolean/number
+      parameters in message.send and event.send tool schemas.
+    acceptanceCriteria:
+      - Read messaging.ts completely
+      - Document waitForResponse and timeoutMs parameters
+      - Verify parameter types and optionality
+      - Note current validation behavior
+    files:
+      - tools/brat/src/dev-mcp/tools/messaging.ts
+    estimatedMinutes: 10
+    status: pending
+    dependencies: []
+
+  - id: T1.2
+    phase: 1
+    priority: 1
+    title: Read and analyze fleet tools schema
+    description: |
+      Read tools/brat/src/dev-mcp/tools/fleet.ts and identify all boolean/number
+      parameters requiring coercion.
+    acceptanceCriteria:
+      - Read fleet.ts completely
+      - Identify limit parameter in fleet.logs
+      - Verify no coercion needed in fleet.trace
+      - Document findings
+    files:
+      - tools/brat/src/dev-mcp/tools/fleet.ts
+    estimatedMinutes: 10
+    status: pending
+    dependencies: []
+
+  - id: T1.3
+    phase: 1
+    priority: 1
+    title: Read and analyze agent-dev tools schema
+    description: |
+      Read tools/brat/src/dev-mcp/tools/agent-dev.ts and identify all boolean/number
+      parameters requiring coercion.
+    acceptanceCriteria:
+      - Read agent-dev.ts completely
+      - Identify confirm parameter in agent_dev.destroy
+      - Verify provision/start/stop need no changes
+      - Document findings
+    files:
+      - tools/brat/src/dev-mcp/tools/agent-dev.ts
+    estimatedMinutes: 10
+    status: pending
+    dependencies: []
+
+  - id: T1.4
+    phase: 1
+    priority: 1
+    title: Read and analyze persistence tools schema
+    description: |
+      Read tools/brat/src/dev-mcp/tools/persistence.ts and identify all boolean/number
+      parameters requiring coercion.
+    acceptanceCriteria:
+      - Read persistence.ts completely
+      - Identify limit and offset parameters in db.query
+      - Verify no other tools need changes
+      - Document findings
+    files:
+      - tools/brat/src/dev-mcp/tools/persistence.ts
+    estimatedMinutes: 10
+    status: pending
+    dependencies: []
+
+  - id: T1.5
+    phase: 1
+    priority: 2
+    title: Read and analyze config tools schema
+    description: |
+      Read tools/brat/src/dev-mcp/tools/config.ts and verify no boolean/number
+      parameters require coercion.
+    acceptanceCriteria:
+      - Read config.ts completely
+      - Confirm config.show needs no changes
+      - Confirm config.validate needs no changes
+      - Confirm config.doctor needs no changes
+    files:
+      - tools/brat/src/dev-mcp/tools/config.ts
+    estimatedMinutes: 5
+    status: pending
+    dependencies: []
+
+  - id: T1.6
+    phase: 1
+    priority: 2
+    title: Create tools audit documentation
+    description: |
+      Consolidate findings from T1.1-T1.5 into comprehensive audit document
+      listing all required coercion changes.
+    acceptanceCriteria:
+      - Create planning/sprint-40-2otmwc/tools-audit.md
+      - Document all 8 parameter changes
+      - Include before/after code snippets
+      - Verify count matches implementation plan (8 changes, 5 tools)
+    files:
+      - planning/sprint-40-2otmwc/tools-audit.md
+    estimatedMinutes: 10
+    status: pending
+    dependencies: [T1.1, T1.2, T1.3, T1.4, T1.5]
+
+  # ============================================================================
+  # PHASE 2: MESSAGING TOOLS (HIGH PRIORITY)
+  # ============================================================================
+
+  - id: T2.1
+    phase: 2
+    priority: 1
+    title: Add coercion to message.send waitForResponse parameter
+    description: |
+      Update messaging.ts line ~340 to use z.coerce.boolean().optional()
+      for waitForResponse parameter in message.send tool schema.
+    acceptanceCriteria:
+      - Edit messaging.ts line ~340
+      - Change z.boolean().optional() to z.coerce.boolean().optional()
+      - Preserve existing description text
+      - Verify schema compiles without errors
+    files:
+      - tools/brat/src/dev-mcp/tools/messaging.ts
+    estimatedMinutes: 5
+    status: pending
+    dependencies: [T1.6]
+
+  - id: T2.2
+    phase: 2
+    priority: 1
+    title: Add coercion to message.send timeoutMs parameter
+    description: |
+      Update messaging.ts line ~342 to use z.coerce.number().optional()
+      for timeoutMs parameter in message.send tool schema.
+    acceptanceCriteria:
+      - Edit messaging.ts line ~342
+      - Change z.number().optional() to z.coerce.number().optional()
+      - Preserve existing description text
+      - Verify schema compiles without errors
+    files:
+      - tools/brat/src/dev-mcp/tools/messaging.ts
+    estimatedMinutes: 5
+    status: pending
+    dependencies: [T1.6]
+
+  - id: T2.3
+    phase: 2
+    priority: 1
+    title: Add coercion to event.send waitForResponse parameter
+    description: |
+      Update messaging.ts line ~497 to use z.coerce.boolean().optional()
+      for waitForResponse parameter in event.send tool schema.
+    acceptanceCriteria:
+      - Edit messaging.ts line ~497
+      - Change z.boolean().optional() to z.coerce.boolean().optional()
+      - Preserve existing description text
+      - Verify schema compiles without errors
+    files:
+      - tools/brat/src/dev-mcp/tools/messaging.ts
+    estimatedMinutes: 5
+    status: pending
+    dependencies: [T1.6]
+
+  - id: T2.4
+    phase: 2
+    priority: 1
+    title: Add coercion to event.send timeoutMs parameter
+    description: |
+      Update messaging.ts line ~499 to use z.coerce.number().optional()
+      for timeoutMs parameter in event.send tool schema.
+    acceptanceCriteria:
+      - Edit messaging.ts line ~499
+      - Change z.number().optional() to z.coerce.number().optional()
+      - Preserve existing description text
+      - Verify schema compiles without errors
+    files:
+      - tools/brat/src/dev-mcp/tools/messaging.ts
+    estimatedMinutes: 5
+    status: pending
+    dependencies: [T1.6]
+
+  - id: T2.5
+    phase: 2
+    priority: 1
+    title: Build TypeScript after messaging tool changes
+    description: |
+      Run npm run build to compile messaging.ts changes and verify
+      no TypeScript errors introduced.
+    acceptanceCriteria:
+      - Run npm run build
+      - Verify zero compilation errors
+      - Verify dist/ files updated with coercion logic
+    files:
+      - dist/tools/brat/src/dev-mcp/tools/messaging.js
+    estimatedMinutes: 5
+    status: pending
+    dependencies: [T2.1, T2.2, T2.3, T2.4]
+
+  - id: T2.6
+    phase: 2
+    priority: 2
+    title: Add unit tests for message.send boolean coercion
+    description: |
+      Add test cases to messaging.test.ts verifying waitForResponse
+      accepts string "true"/"false" and coerces to boolean.
+    acceptanceCriteria:
+      - Add test case for waitForResponse = "true" → true
+      - Add test case for waitForResponse = "false" → false
+      - Add test case for waitForResponse = "1" → true
+      - Add test case for waitForResponse = "0" → false
+      - All tests pass
+    files:
+      - tools/brat/src/dev-mcp/__tests__/tools/messaging.test.ts
+    estimatedMinutes: 15
+    status: pending
+    dependencies: [T2.5]
+
+  - id: T2.7
+    phase: 2
+    priority: 2
+    title: Add unit tests for message.send number coercion
+    description: |
+      Add test cases to messaging.test.ts verifying timeoutMs
+      accepts string "15000" and coerces to number 15000.
+    acceptanceCriteria:
+      - Add test case for timeoutMs = "15000" → 15000
+      - Add test case for timeoutMs = "3.14" → 3.14
+      - Add test case for timeoutMs = "-42" → -42
+      - Add test case for timeoutMs = "abc" → throws error
+      - All tests pass
+    files:
+      - tools/brat/src/dev-mcp/__tests__/tools/messaging.test.ts
+    estimatedMinutes: 15
+    status: pending
+    dependencies: [T2.5]
+
+  - id: T2.8
+    phase: 2
+    priority: 2
+    title: Add unit tests for event.send coercion
+    description: |
+      Add test cases to messaging.test.ts verifying event.send
+      waitForResponse and timeoutMs accept string inputs.
+    acceptanceCriteria:
+      - Add test case for waitForResponse string coercion
+      - Add test case for timeoutMs string coercion
+      - Add test case for mixed string/number inputs
+      - All tests pass
+    files:
+      - tools/brat/src/dev-mcp/__tests__/tools/messaging.test.ts
+    estimatedMinutes: 15
+    status: pending
+    dependencies: [T2.5]
+
+  - id: T2.9
+    phase: 2
+    priority: 1
+    title: Run messaging tools test suite
+    description: |
+      Execute npm test for messaging tools to verify all tests pass
+      after coercion changes, including new and existing tests.
+    acceptanceCriteria:
+      - Run npm test -- messaging.test.ts
+      - All tests pass (0 failures)
+      - New coercion tests included in run
+      - No regressions detected
+    files: []
+    estimatedMinutes: 5
+    status: pending
+    dependencies: [T2.6, T2.7, T2.8]
+
+  # ============================================================================
+  # PHASE 3: FLEET TOOLS
+  # ============================================================================
+
+  - id: T3.1
+    phase: 3
+    priority: 2
+    title: Add coercion to fleet.logs limit parameter
+    description: |
+      Update fleet.ts to use z.coerce.number().optional() for limit
+      parameter in fleet.logs tool schema.
+    acceptanceCriteria:
+      - Edit fleet.ts fleet.logs schema
+      - Change z.number().optional() to z.coerce.number().optional()
+      - Preserve existing description text
+      - Verify schema compiles without errors
+    files:
+      - tools/brat/src/dev-mcp/tools/fleet.ts
+    estimatedMinutes: 5
+    status: pending
+    dependencies: [T1.6]
+
+  - id: T3.2
+    phase: 3
+    priority: 2
+    title: Build TypeScript after fleet tool changes
+    description: |
+      Run npm run build to compile fleet.ts changes and verify
+      no TypeScript errors introduced.
+    acceptanceCriteria:
+      - Run npm run build
+      - Verify zero compilation errors
+      - Verify dist/ files updated
+    files:
+      - dist/tools/brat/src/dev-mcp/tools/fleet.js
+    estimatedMinutes: 5
+    status: pending
+    dependencies: [T3.1]
+
+  - id: T3.3
+    phase: 3
+    priority: 3
+    title: Add unit tests for fleet.logs coercion
+    description: |
+      Add test cases verifying fleet.logs limit parameter accepts
+      string-encoded numbers and coerces correctly.
+    acceptanceCriteria:
+      - Add test case for limit = "100" → 100
+      - Add test case for limit = "0" → 0
+      - Add test case for limit = "abc" → throws error
+      - All tests pass
+    files:
+      - tools/brat/src/dev-mcp/__tests__/tools/fleet.test.ts
+    estimatedMinutes: 10
+    status: pending
+    dependencies: [T3.2]
+
+  - id: T3.4
+    phase: 3
+    priority: 2
+    title: Run fleet tools test suite
+    description: |
+      Execute npm test for fleet tools to verify all tests pass
+      after coercion changes.
+    acceptanceCriteria:
+      - Run npm test -- fleet.test.ts
+      - All tests pass (0 failures)
+      - No regressions detected
+    files: []
+    estimatedMinutes: 5
+    status: pending
+    dependencies: [T3.3]
+
+  # ============================================================================
+  # PHASE 4: AGENT-DEV TOOLS
+  # ============================================================================
+
+  - id: T4.1
+    phase: 4
+    priority: 2
+    title: Add coercion to agent_dev.destroy confirm parameter
+    description: |
+      Update agent-dev.ts to use z.coerce.boolean().optional() for confirm
+      parameter in agent_dev.destroy tool schema.
+    acceptanceCriteria:
+      - Edit agent-dev.ts agent_dev.destroy schema
+      - Change z.boolean().optional() to z.coerce.boolean().optional()
+      - Preserve existing description text
+      - Verify schema compiles without errors
+      - CRITICAL: Ensure safety defaults preserved (false when omitted)
+    files:
+      - tools/brat/src/dev-mcp/tools/agent-dev.ts
+    estimatedMinutes: 5
+    status: pending
+    dependencies: [T1.6]
+
+  - id: T4.2
+    phase: 4
+    priority: 2
+    title: Build TypeScript after agent-dev tool changes
+    description: |
+      Run npm run build to compile agent-dev.ts changes and verify
+      no TypeScript errors introduced.
+    acceptanceCriteria:
+      - Run npm run build
+      - Verify zero compilation errors
+      - Verify dist/ files updated
+    files:
+      - dist/tools/brat/src/dev-mcp/tools/agent-dev.js
+    estimatedMinutes: 5
+    status: pending
+    dependencies: [T4.1]
+
+  - id: T4.3
+    phase: 4
+    priority: 3
+    title: Add unit tests for agent_dev.destroy coercion
+    description: |
+      Add test cases verifying agent_dev.destroy confirm parameter
+      accepts string-encoded booleans and maintains safety defaults.
+    acceptanceCriteria:
+      - Add test case for confirm = "true" → enables destruction
+      - Add test case for confirm = "false" → blocks destruction
+      - Add test case for confirm omitted → defaults to false (safe)
+      - Add test case for confirm = "1" → true
+      - All tests pass
+    files:
+      - tools/brat/src/dev-mcp/__tests__/tools/agent-dev.test.ts
+    estimatedMinutes: 15
+    status: pending
+    dependencies: [T4.2]
+
+  - id: T4.4
+    phase: 4
+    priority: 2
+    title: Run agent-dev tools test suite
+    description: |
+      Execute npm test for agent-dev tools to verify all tests pass
+      after coercion changes.
+    acceptanceCriteria:
+      - Run npm test -- agent-dev.test.ts
+      - All tests pass (0 failures)
+      - Safety behavior verified (destructive ops require explicit confirm)
+      - No regressions detected
+    files: []
+    estimatedMinutes: 5
+    status: pending
+    dependencies: [T4.3]
+
+  # ============================================================================
+  # PHASE 5: PERSISTENCE TOOLS
+  # ============================================================================
+
+  - id: T5.1
+    phase: 5
+    priority: 2
+    title: Add coercion to db.query limit parameter
+    description: |
+      Update persistence.ts to use z.coerce.number().optional() for limit
+      parameter in db.query tool schema.
+    acceptanceCriteria:
+      - Edit persistence.ts db.query schema
+      - Change z.number().optional() to z.coerce.number().optional() for limit
+      - Preserve existing description text
+      - Verify schema compiles without errors
+    files:
+      - tools/brat/src/dev-mcp/tools/persistence.ts
+    estimatedMinutes: 5
+    status: pending
+    dependencies: [T1.6]
+
+  - id: T5.2
+    phase: 5
+    priority: 2
+    title: Add coercion to db.query offset parameter
+    description: |
+      Update persistence.ts to use z.coerce.number().optional() for offset
+      parameter in db.query tool schema.
+    acceptanceCriteria:
+      - Edit persistence.ts db.query schema
+      - Change z.number().optional() to z.coerce.number().optional() for offset
+      - Preserve existing description text
+      - Verify schema compiles without errors
+    files:
+      - tools/brat/src/dev-mcp/tools/persistence.ts
+    estimatedMinutes: 5
+    status: pending
+    dependencies: [T1.6]
+
+  - id: T5.3
+    phase: 5
+    priority: 2
+    title: Build TypeScript after persistence tool changes
+    description: |
+      Run npm run build to compile persistence.ts changes and verify
+      no TypeScript errors introduced.
+    acceptanceCriteria:
+      - Run npm run build
+      - Verify zero compilation errors
+      - Verify dist/ files updated
+    files:
+      - dist/tools/brat/src/dev-mcp/tools/persistence.js
+    estimatedMinutes: 5
+    status: pending
+    dependencies: [T5.1, T5.2]
+
+  - id: T5.4
+    phase: 5
+    priority: 3
+    title: Add unit tests for db.query coercion
+    description: |
+      Add test cases verifying db.query limit and offset parameters
+      accept string-encoded numbers and handle edge cases.
+    acceptanceCriteria:
+      - Add test case for limit = "50" → 50
+      - Add test case for offset = "100" → 100
+      - Add test case for limit = "0" → 0 (edge case)
+      - Add test case for offset = "-10" → -10 (negative, may reject)
+      - All tests pass
+    files:
+      - tools/brat/src/dev-mcp/__tests__/tools/persistence.test.ts
+    estimatedMinutes: 15
+    status: pending
+    dependencies: [T5.3]
+
+  - id: T5.5
+    phase: 5
+    priority: 2
+    title: Run persistence tools test suite
+    description: |
+      Execute npm test for persistence tools to verify all tests pass
+      after coercion changes.
+    acceptanceCriteria:
+      - Run npm test -- persistence.test.ts
+      - All tests pass (0 failures)
+      - No regressions detected
+    files: []
+    estimatedMinutes: 5
+    status: pending
+    dependencies: [T5.4]
+
+  # ============================================================================
+  # PHASE 6: INTEGRATION TESTING
+  # ============================================================================
+
+  - id: T6.1
+    phase: 6
+    priority: 1
+    title: Create integration test for XML invocation pattern
+    description: |
+      Create integration test simulating Claude Code's XML-based parameter
+      serialization and verify all coerced parameters work end-to-end.
+    acceptanceCriteria:
+      - Create tools/brat/src/dev-mcp/__tests__/integration/xml-invocation.test.ts
+      - Test message.send with string params
+      - Test event.send with string params
+      - Test fleet.logs with string limit
+      - Test db.query with string limit/offset
+      - All invocations succeed (no validation errors)
+    files:
+      - tools/brat/src/dev-mcp/__tests__/integration/xml-invocation.test.ts
+    estimatedMinutes: 30
+    status: pending
+    dependencies: [T2.9, T3.4, T4.4, T5.5]
+
+  - id: T6.2
+    phase: 6
+    priority: 1
+    title: Create integration test for JSON invocation pattern
+    description: |
+      Create integration test verifying native JSON invocations still work
+      (regression prevention).
+    acceptanceCriteria:
+      - Create tools/brat/src/dev-mcp/__tests__/integration/json-invocation.test.ts
+      - Test message.send with native boolean/number params
+      - Test event.send with native boolean/number params
+      - Verify no behavior changes from pre-coercion implementation
+      - All invocations succeed
+    files:
+      - tools/brat/src/dev-mcp/__tests__/integration/json-invocation.test.ts
+    estimatedMinutes: 20
+    status: pending
+    dependencies: [T2.9, T3.4, T4.4, T5.5]
+
+  - id: T6.3
+    phase: 6
+    priority: 2
+    title: Create integration test for mixed invocation pattern
+    description: |
+      Create integration test verifying mixed string/native params work
+      (edge case coverage).
+    acceptanceCriteria:
+      - Create test with waitForResponse as string, timeoutMs as number
+      - Create test with waitForResponse as boolean, timeoutMs as string
+      - Verify both patterns succeed
+      - Document expected behavior
+    files:
+      - tools/brat/src/dev-mcp/__tests__/integration/xml-invocation.test.ts
+    estimatedMinutes: 10
+    status: pending
+    dependencies: [T6.1]
+
+  - id: T6.4
+    phase: 6
+    priority: 1
+    title: Run full dev-mcp test suite
+    description: |
+      Execute complete test suite for dev-mcp tools to verify no regressions
+      and all new tests pass.
+    acceptanceCriteria:
+      - Run npm test -- tools/brat/src/dev-mcp
+      - All tests pass (unit + integration)
+      - Test count increased (new tests added)
+      - Zero regressions detected
+      - Coverage report shows coercion logic tested
+    files: []
+    estimatedMinutes: 10
+    status: pending
+    dependencies: [T6.1, T6.2, T6.3]
+
+  - id: T6.5
+    phase: 6
+    priority: 1
+    title: Manual validation via agent-dev context
+    description: |
+      Deploy dev-mcp server to agent-dev context and manually test
+      message.send with XML-style string parameters from Claude Code.
+    acceptanceCriteria:
+      - Provision agent-dev context (agent-dev-sprint-40-validation)
+      - Configure dev-mcp server with coercion changes
+      - Manually invoke message.send with waitForResponse="true" timeoutMs="5000"
+      - Verify invocation succeeds without validation errors
+      - Verify response received from api-gateway
+      - Clean up agent-dev context
+    files: []
+    estimatedMinutes: 20
+    status: pending
+    dependencies: [T6.4]
+
+  # ============================================================================
+  # PHASE 7: DOCUMENTATION & CLEANUP
+  # ============================================================================
+
+  - id: T7.1
+    phase: 7
+    priority: 2
+    title: Update dev-mcp-messaging guide with coercion notes
+    description: |
+      Update documentation/guides/dev-mcp-messaging.md to document
+      automatic type coercion behavior and remove workaround guidance.
+    acceptanceCriteria:
+      - Add section explaining type coercion
+      - Document supported string formats ("true", "false", "123", etc.)
+      - Remove XML workaround notes (no longer needed)
+      - Add troubleshooting section for type errors
+      - Update examples to show both XML and JSON work seamlessly
+    files:
+      - documentation/guides/dev-mcp-messaging.md
+    estimatedMinutes: 20
+    status: pending
+    dependencies: [T6.5]
+
+  - id: T7.2
+    phase: 7
+    priority: 2
+    title: Update CLAUDE.md with coercion guidance
+    description: |
+      Update CLAUDE.md to reflect automatic type coercion in MCP tools
+      and remove workaround guidance from earlier analysis.
+    acceptanceCriteria:
+      - Add note about .coerce() in MCP tools section
+      - Document that XML and JSON invocations both work
+      - Remove reference to manual parameter omission workaround
+      - Document coercion limitations (complex types not supported)
+    files:
+      - CLAUDE.md
+    estimatedMinutes: 15
+    status: pending
+    dependencies: [T6.5]
+
+  - id: T7.3
+    phase: 7
+    priority: 3
+    title: Create technical architecture document
+    description: |
+      Create planning/sprint-40-2otmwc/technical-architecture.md documenting
+      implementation details, design decisions, and Zod coercion behavior.
+    acceptanceCriteria:
+      - Document Option 1 vs Option 2/3 decision rationale
+      - Explain Zod .coerce() implementation details
+      - Document supported string formats and limitations
+      - Include before/after code examples
+      - Document Sprint 38 context (JSON Schema removal)
+      - Add references to Zod documentation
+    files:
+      - planning/sprint-40-2otmwc/technical-architecture.md
+    estimatedMinutes: 30
+    status: pending
+    dependencies: [T6.5]
+
+  - id: T7.4
+    phase: 7
+    priority: 3
+    title: Update tool inline documentation
+    description: |
+      Add JSDoc comments to tool definitions explaining type coercion
+      behavior and supported formats.
+    acceptanceCriteria:
+      - Add JSDoc to message.send explaining coercion
+      - Add JSDoc to event.send explaining coercion
+      - Add JSDoc to fleet.logs explaining coercion
+      - Add JSDoc to agent_dev.destroy explaining coercion
+      - Add JSDoc to db.query explaining coercion
+      - Include supported formats in comments
+    files:
+      - tools/brat/src/dev-mcp/tools/messaging.ts
+      - tools/brat/src/dev-mcp/tools/fleet.ts
+      - tools/brat/src/dev-mcp/tools/agent-dev.ts
+      - tools/brat/src/dev-mcp/tools/persistence.ts
+    estimatedMinutes: 20
+    status: pending
+    dependencies: [T6.5]
+
+  - id: T7.5
+    phase: 7
+    priority: 2
+    title: Create verification report
+    description: |
+      Create planning/sprint-40-2otmwc/verification-report.md documenting
+      test results, validation outcomes, and success criteria verification.
+    acceptanceCriteria:
+      - Document unit test results (pass count, coverage)
+      - Document integration test results
+      - Document manual validation results (agent-dev)
+      - Verify all success criteria met
+      - Document any deviations or issues
+      - Include test execution logs
+    files:
+      - planning/sprint-40-2otmwc/verification-report.md
+    estimatedMinutes: 20
+    status: pending
+    dependencies: [T6.5]
+
+  - id: T7.6
+    phase: 7
+    priority: 3
+    title: Create retrospective document
+    description: |
+      Create planning/sprint-40-2otmwc/retro.md documenting what went
+      well, what could be improved, and lessons learned.
+    acceptanceCriteria:
+      - Document sprint timeline (estimated vs actual)
+      - List successes and wins
+      - List challenges and blockers (if any)
+      - Document lessons learned
+      - Suggest improvements for future sprints
+    files:
+      - planning/sprint-40-2otmwc/retro.md
+    estimatedMinutes: 15
+    status: pending
+    dependencies: [T7.5]
+
+  - id: T7.7
+    phase: 7
+    priority: 3
+    title: Create key learnings document
+    description: |
+      Create planning/sprint-40-2otmwc/key-learnings.md documenting
+      technical insights, gotchas, and best practices discovered.
+    acceptanceCriteria:
+      - Document Zod coercion behavior insights
+      - Document MCP protocol nuances
+      - Document XML vs JSON serialization findings
+      - Document testing strategies that worked well
+      - Include code examples of patterns to follow
+    files:
+      - planning/sprint-40-2otmwc/key-learnings.md
+    estimatedMinutes: 15
+    status: pending
+    dependencies: [T7.5]
+
+  # ============================================================================
+  # PHASE 8: COMPLETION
+  # ============================================================================
+
+  - id: T8.1
+    phase: 8
+    priority: 1
+    title: Final build and test before completion
+    description: |
+      Run final npm run build and npm test to ensure clean state
+      before sprint completion.
+    acceptanceCriteria:
+      - Run npm run build (success, 0 errors)
+      - Run npm test (all tests pass)
+      - Run npm run lint (0 warnings/errors)
+      - Verify dist/ files up to date
+    files: []
+    estimatedMinutes: 10
+    status: pending
+    dependencies: [T7.1, T7.2, T7.3, T7.4, T7.5, T7.6, T7.7]
+
+  - id: T8.2
+    phase: 8
+    priority: 1
+    title: Commit all changes with comprehensive message
+    description: |
+      Commit all code changes and planning artifacts with detailed
+      commit message following BitBrat conventions.
+    acceptanceCriteria:
+      - Stage all modified files (code + planning)
+      - Write comprehensive commit message (feat: prefix)
+      - Include all file changes in commit
+      - Include Co-Authored-By tag
+      - Push to feature branch
+    files: []
+    estimatedMinutes: 10
+    status: pending
+    dependencies: [T8.1]
+
+  - id: T8.3
+    phase: 8
+    priority: 1
+    title: Update sprint status to complete
+    description: |
+      Use sprint-mcp complete-sprint tool to update status and generate
+      completion summary.
+    acceptanceCriteria:
+      - Run mcp__sprint-mcp-local__complete-sprint
+      - Verify status updated to complete
+      - Verify completion metadata added
+      - Review completion summary
+    files:
+      - planning/sprint-40-2otmwc/sprint-manifest.yaml
+    estimatedMinutes: 5
+    status: pending
+    dependencies: [T8.2]
+
+  - id: T8.4
+    phase: 8
+    priority: 1
+    title: Create pull request
+    description: |
+      Create GitHub pull request with comprehensive description of changes,
+      test results, and sprint artifacts.
+    acceptanceCriteria:
+      - Use gh pr create with detailed description
+      - Link to sprint manifest
+      - Include verification report summary
+      - Reference sprint-40-2otmwc in PR title
+      - Add labels (enhancement, dev-tools)
+      - Capture PR URL
+    files: []
+    estimatedMinutes: 10
+    status: pending
+    dependencies: [T8.3]
+
+  - id: T8.5
+    phase: 8
+    priority: 1
+    title: Update sprint manifest with PR URL
+    description: |
+      Update sprint manifest with PR URL using update-sprint-status tool.
+    acceptanceCriteria:
+      - Run mcp__sprint-mcp-local__update-sprint-status
+      - Add PR URL to manifest
+      - Verify manifest updated
+    files:
+      - planning/sprint-40-2otmwc/sprint-manifest.yaml
+    estimatedMinutes: 2
+    status: pending
+    dependencies: [T8.4]
+
+# ============================================================================
+# SUMMARY METRICS
+# ============================================================================
+
+summary:
+  totalTasks: 50
+  phaseBreakdown:
+    phase1_audit: 6
+    phase2_messaging: 9
+    phase3_fleet: 4
+    phase4_agentDev: 4
+    phase5_persistence: 5
+    phase6_integration: 5
+    phase7_documentation: 7
+    phase8_completion: 5
+
+  estimatedTime:
+    phase1: 55 minutes
+    phase2: 75 minutes
+    phase3: 25 minutes
+    phase4: 30 minutes
+    phase5: 35 minutes
+    phase6: 90 minutes
+    phase7: 135 minutes
+    phase8: 37 minutes
+    total: 482 minutes (8.0 hours)
+    buffer: 118 minutes (1.97 hours)
+    totalWithBuffer: 600 minutes (10 hours)
+
+  criticalPath:
+    - T1.1-T1.6 (Audit phase)
+    - T2.1-T2.9 (Messaging tools - highest priority)
+    - T6.1-T6.5 (Integration testing)
+    - T8.1-T8.5 (Completion)
+
+  risks:
+    - name: Integration test failures
+      mitigation: Extensive unit testing first, incremental validation
+      probability: low
+    - name: Agent-dev manual validation issues
+      mitigation: Use local dev-mcp server first for quick iteration
+      probability: low
+    - name: Unexpected edge cases in coercion
+      mitigation: Comprehensive test coverage, Zod documentation reference
+      probability: low
+
+# ============================================================================
+# EXECUTION NOTES
+# ============================================================================
+
+notes:
+  - All tasks should be executed in worktree .worktrees/sprint-40-2otmwc/
+  - Use relative paths (src/..., planning/sprint-40-2otmwc/...)
+  - Commit frequently to capture progress
+  - Update task status in backlog.yaml as work progresses
+  - If blocked, document blocker and escalate
+  - Phase 2 (messaging tools) is highest priority for immediate user impact
+  - Phases 3-5 can be parallelized if needed
+  - Phase 6 integration testing is critical gate before Phase 7
+  - Manual validation (T6.5) must succeed before documentation phase

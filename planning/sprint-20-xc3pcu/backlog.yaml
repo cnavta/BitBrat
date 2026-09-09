@@ -1,0 +1,446 @@
+# Phase 3 Backlog: Event Stream Analyzer - Production Readiness
+
+version: "1.0"
+sprint: sprint-20-xc3pcu
+phase: 3
+title: "Event Stream Analyzer - Phase 3: Production Readiness"
+owner: Lead Implementor
+created: 2026-08-19
+status: planning
+
+# Total Estimated Effort: 47 hours across 12 tasks
+# Timeline: 2-3 weeks
+# NOTE: Week 3 (Load Testing & Production Validation) removed per user request
+
+---
+
+## Week 1: LLM Integration & Snapshot Foundation
+
+tasks:
+  - id: P3-001
+    title: Integrate StreamAnalystEngine for Real LLM Analysis
+    description: |
+      Replace stub event formatting with StreamAnalystEngine for GPT-4 powered
+      summarization. Support custom prompts per observer, inspection mode, and
+      cost tracking.
+    priority: P0
+    status: completed
+    estimated_hours: 6
+    dependencies: []
+    files:
+      - src/apps/event-stream-analyzer-service.ts (modify)
+      - src/services/stream-analyst/engine.ts (reuse existing)
+    acceptance_criteria:
+      - LLM analysis replaces stub summaries
+      - Existing prompts (standard-chat-summary-v1) work correctly
+      - Inspection mode can be enabled per observer
+      - Cost tracking logged for each LLM call
+      - Integration test with mock LLM responses passes
+    tests:
+      - Integration test: LLM analysis flow end-to-end
+      - Unit test: Prompt selection based on observer config
+      - Unit test: Inspection mode toggling
+    notes: |
+      Leverage existing StreamAnalystEngine without modification. Focus on
+      integration with multi-observer system and proper error handling.
+
+  - id: P3-002
+    title: Implement SnapshotManager for Window State Persistence
+    description: |
+      Create SnapshotManager component for periodic window state snapshots to
+      PostgreSQL. Enables crash recovery with max 5-min data loss.
+    priority: P0
+    status: completed
+    estimated_hours: 8
+    dependencies: [P3-006]
+    files:
+      - src/services/event-stream-analyzer/snapshot-manager.ts (create)
+      - src/services/event-stream-analyzer/snapshot-manager.test.ts (create)
+    acceptance_criteria:
+      - Snapshot loop runs every 5 minutes (configurable)
+      - Window states persisted with event IDs and metadata
+      - Restore logic reconstructs windows from snapshots
+      - Graceful error handling (snapshot failure doesn't crash service)
+      - Unit tests for snapshot/restore cycle pass
+    tests:
+      - Unit test: Snapshot creation and persistence
+      - Unit test: Window restoration from snapshot
+      - Unit test: Stale snapshot handling
+      - Unit test: Empty snapshot (cold start)
+    notes: |
+      Store event IDs (not full events) to minimize snapshot size. Fetch full
+      events on restore. Consider snapshot compression if size becomes issue.
+
+  - id: P3-003
+    title: Integrate Snapshot Lifecycle into Service
+    description: |
+      Wire SnapshotManager into event-stream-analyzer-service lifecycle. Start
+      snapshot loop after observer loading, restore on startup, snapshot on
+      shutdown.
+    priority: P0
+    status: completed
+    estimated_hours: 4
+    dependencies: [P3-002]
+    files:
+      - src/apps/event-stream-analyzer-service.ts (modify)
+      - src/services/event-stream-analyzer/rxjs-window-manager.ts (modify)
+    acceptance_criteria:
+      - Snapshot loop starts after observer initialization
+      - Windows restored from last snapshot on startup
+      - Final snapshot created in onShutdown hook
+      - Service startup time < 500ms with 100 observers
+      - Snapshot overhead < 100ms
+    tests:
+      - Integration test: Service restart with snapshot restore
+      - Integration test: Graceful shutdown with final snapshot
+      - Performance test: Startup time with large snapshots
+    notes: |
+      Add getAllWindowStates() method to RxJSWindowManager to expose current
+      state for snapshotting. Ensure snapshot happens before subscriptions
+      destroyed on shutdown.
+
+  - id: P3-004
+    title: Crash Recovery Integration Tests
+    description: |
+      Comprehensive test suite for crash recovery scenarios. Verify max 5-min
+      data loss on crash, zero data loss on graceful shutdown.
+    priority: P0
+    status: completed
+    estimated_hours: 4
+    dependencies: [P3-003]
+    files:
+      - src/services/event-stream-analyzer/crash-recovery-integration.test.ts (create)
+    acceptance_criteria:
+      - Mid-window crash test: events restored after restart
+      - Graceful shutdown test: full recovery with zero data loss
+      - No snapshot test: clean initialization
+      - Stale snapshot test: old data discarded correctly
+      - All tests pass with fake timers
+    tests:
+      - Integration test: Mid-window crash recovery
+      - Integration test: Graceful shutdown recovery
+      - Integration test: Cold start (no snapshots)
+      - Integration test: Stale snapshot handling
+    notes: |
+      Use jest.useFakeTimers() for deterministic testing. Simulate crash by
+      calling close() without onShutdown hook. Verify event IDs match before
+      and after recovery.
+
+  - id: P3-005
+    title: Graceful Shutdown Implementation
+    description: |
+      Implement proper shutdown sequence: stop accepting events, trigger final
+      snapshot, cleanup subscriptions. Handle SIGTERM/SIGINT signals.
+    priority: P1
+    status: completed
+    estimated_hours: 2
+    dependencies: [P3-003]
+    notes: |
+      Completed as part of P3-003. gracefulShutdown() method implemented with:
+      - Stop periodic snapshot timer
+      - Stop SnapshotManager
+      - Take final snapshot (zero data loss)
+      - Cleanup subscriptions (windowManager.destroy(), subscriptionManager.destroy())
+      - Wired to onShutdown() hook
+    files:
+      - src/apps/event-stream-analyzer-service.ts (modify)
+    acceptance_criteria:
+      - SIGTERM/SIGINT trigger onShutdown hook
+      - Subscriptions stopped before snapshot
+      - Final snapshot created successfully
+      - RxJS subscriptions cleaned up
+      - Exit code 0 on clean shutdown
+    tests:
+      - Integration test: SIGTERM handling
+      - Integration test: SIGINT handling
+      - Unit test: Shutdown sequence order
+    notes: |
+      Set isShuttingDown flag to reject new events during shutdown. Ensure
+      snapshot completes before closing database connection. Add 30-second
+      timeout for graceful shutdown.
+
+  - id: P3-006
+    title: Database Migration for Window Snapshots
+    description: |
+      Create PostgreSQL migration for window_snapshots table. Store observer_id,
+      window state (JSONB), and snapshot timestamp.
+    priority: P0
+    status: completed
+    estimated_hours: 1
+    dependencies: []
+    files:
+      - infrastructure/postgres/migrations/019-add-window-snapshots.sql (create)
+    acceptance_criteria:
+      - Migration creates window_snapshots table
+      - Indexes on observer_id (PK), snapshot_at, and data (GIN)
+      - Foreign key to stream_observers with CASCADE delete
+      - Migration runs successfully in local/staging
+    tests:
+      - Manual test: Run migration in local PostgreSQL
+      - Manual test: Verify indexes created
+      - Manual test: Insert/query snapshot data
+    notes: |
+      Use JSONB for flexible schema evolution. GIN index enables fast queries
+      on window state properties. CASCADE delete ensures orphaned snapshots
+      cleaned up when observer deleted.
+
+---
+
+## Week 2: Memory Management & Observability
+
+tasks:
+  - id: P3-007
+    title: Implement MemoryManager for Event Eviction
+    description: |
+      Create MemoryManager to track total events across all windows and evict
+      oldest when threshold reached. Prevent OOM errors under high load.
+    priority: P1
+    status: completed
+    estimated_hours: 6
+    dependencies: []
+    files:
+      - src/services/event-stream-analyzer/memory-manager.ts (create)
+      - src/services/event-stream-analyzer/memory-manager.test.ts (create)
+    acceptance_criteria:
+      - Tracks events per observer
+      - Detects when adding events would exceed limit
+      - Returns eviction candidates (oldest or largest-window strategy)
+      - Provides current memory stats
+      - Unit tests for both eviction strategies pass
+    tests:
+      - Unit test: Event tracking across observers
+      - Unit test: Eviction candidate selection (oldest strategy)
+      - Unit test: Eviction candidate selection (largest-window strategy)
+      - Unit test: Warning threshold detection
+    notes: |
+      Default limit: 10,000 events total. Warning at 80%. Eviction strategies:
+      'oldest' (FIFO across all windows) or 'largest-window' (evict from
+      window with most events). Make strategy configurable.
+
+  - id: P3-008
+    title: Integrate MemoryManager into Window Processing
+    description: |
+      Wire MemoryManager into event processing pipeline. Check limits before
+      adding events, trigger eviction when needed, update stats.
+    priority: P1
+    status: completed
+    estimated_hours: 3
+    dependencies: [P3-007]
+    files:
+      - src/apps/event-stream-analyzer-service.ts (modify)
+      - src/services/event-stream-analyzer/rxjs-window-manager.ts (modify)
+    acceptance_criteria:
+      - Events rejected when memory limit reached
+      - Eviction triggered automatically
+      - Stats updated on every event add/remove
+      - Eviction logged with context
+      - Overhead < 5ms per event
+    tests:
+      - Integration test: Memory limit enforcement
+      - Integration test: Automatic eviction
+      - Performance test: Overhead measurement
+    notes: |
+      Add evictOldestEvents(observerId, count) method to RxJSWindowManager.
+      Log evictions with observerId, strategy, and count. Emit metrics for
+      eviction events.
+
+  - id: P3-009
+    title: Implement Prometheus Metrics Collection
+    description: |
+      Create MetricsCollector to export Prometheus metrics for monitoring.
+      Track window size, processing latency, memory usage, and errors.
+    priority: P1
+    status: completed
+    estimated_hours: 6
+    dependencies: []
+    files:
+      - src/services/event-stream-analyzer/metrics-collector.ts (create)
+      - src/services/event-stream-analyzer/metrics-collector.test.ts (create)
+      - src/apps/event-stream-analyzer-service.ts (modify)
+    acceptance_criteria:
+      - Metrics exported on /metrics endpoint
+      - Window metrics (size, age, event count) by observer
+      - Processing metrics (received, filtered, evicted, latency)
+      - Resource metrics (memory, total events, subscriptions)
+      - Error metrics by type and observer
+    tests:
+      - Unit test: Metric registration
+      - Unit test: Metric value updates
+      - Integration test: /metrics endpoint returns valid Prometheus format
+    notes: |
+      Implemented without prom-client dependency. MetricsCollector provides both
+      JSON and Prometheus text format export. MCP tool event_stream_analyzer.metrics.get
+      exposes metrics via control plane. Rolling average for latency (last 100 samples).
+
+  - id: P3-010
+    title: Enhanced Structured Logging
+    description: |
+      Improve logging across event-stream-analyzer with correlation IDs,
+      consistent structured fields, and appropriate log levels.
+    priority: P2
+    status: completed
+    estimated_hours: 3
+    dependencies: []
+    files:
+      - src/apps/event-stream-analyzer-service.ts (modify)
+      - src/services/event-stream-analyzer/*.ts (modify all components)
+    acceptance_criteria:
+      - All logs include observerId (when applicable)
+      - Structured fields for queryability (JSON)
+      - Correlation IDs for request tracing
+      - Appropriate log levels (ERROR, WARN, INFO, DEBUG)
+      - Performance overhead < 2ms per log entry
+    tests:
+      - Unit test: Log structure validation
+      - Performance test: Logging overhead
+    notes: |
+      Enhanced logging throughout service with:
+      - Correlation IDs: correlationId, requestId, evictionId, snapshotId, shutdownId
+      - Context fields: observerId, windowType, eventCount, analysisLatencyMs, platform
+      - Log levels: ERROR (failures), WARN (evictions, memory warnings), INFO (lifecycle), DEBUG (details)
+      - Error tracking: errorType, stack traces
+      - Performance metrics: durationMs, latencyMs
+
+  - id: P3-011
+    title: Health Checks and Readiness Probes
+    description: |
+      Implement /healthz (liveness) and /readyz (readiness) endpoints for
+      Kubernetes integration and operational monitoring.
+    priority: P2
+    status: pending
+    estimated_hours: 2
+    dependencies: []
+    files:
+      - src/apps/event-stream-analyzer-service.ts (modify)
+    acceptance_criteria:
+      - GET /healthz returns 200 OK if service running
+      - GET /readyz returns 200 OK if ready for traffic
+      - Readiness checks: DB connection, NATS connection, observers loaded
+      - Health checks work in Kubernetes
+    tests:
+      - Integration test: /healthz endpoint
+      - Integration test: /readyz endpoint
+      - Integration test: Readiness fails when DB down
+    notes: |
+      Follow standard Bit health check pattern. Readiness should fail if:
+      PostgreSQL unreachable, NATS disconnected, no observers loaded, or
+      snapshot manager unhealthy (if enabled).
+
+  - id: P3-012
+    title: Alert Rule Definitions
+    description: |
+      Define Prometheus alert rules for operational issues: memory pressure,
+      high error rate, slow analysis. Create Grafana dashboard.
+    priority: P2
+    status: pending
+    estimated_hours: 2
+    dependencies: [P3-009]
+    files:
+      - infrastructure/alerts/event-stream-analyzer.yaml (create)
+      - infrastructure/grafana/event-stream-analyzer-dashboard.json (create)
+    acceptance_criteria:
+      - Alert on memory usage > 90% for 5 minutes
+      - Alert on error rate > 10% for 5 minutes
+      - Alert on analysis latency > 30s (p95) for 10 minutes
+      - Grafana dashboard shows key metrics
+    tests:
+      - Manual test: Trigger alerts in staging
+      - Manual test: Verify dashboard in Grafana
+    notes: |
+      Use Prometheus AlertManager integration. Dashboard panels: window count,
+      event rate, analysis latency, memory usage, error rate. Add panels for
+      top observers by event count and analysis frequency.
+
+---
+
+## Week 3: REMOVED PER USER REQUEST
+
+# Tasks P3-013 through P3-016 removed:
+# - P3-013: Load Testing Script and Execution
+# - P3-014: Performance Tuning and Optimization
+# - P3-015: Agent-Dev Proactive Validation
+# - P3-016: Staging Deployment and 24-Hour Validation
+#
+# These tasks were deferred to future work.
+# Sprint completion will be based on Week 1-2 deliverables only.
+
+---
+
+## Summary
+
+total_tasks: 12
+total_estimated_hours: 47
+removed_tasks: 4  # P3-013 through P3-016 (Week 3 removed per user request)
+phases:
+  - name: "Week 1: LLM Integration & Snapshot Foundation"
+    tasks: [P3-001, P3-002, P3-003, P3-004, P3-005, P3-006]
+    estimated_hours: 25
+    status: pending
+  - name: "Week 2: Memory Management & Observability"
+    tasks: [P3-007, P3-008, P3-009, P3-010, P3-011, P3-012]
+    estimated_hours: 22
+    status: pending
+  - name: "Week 3: Load Testing & Production Validation"
+    tasks: []
+    estimated_hours: 0
+    status: removed
+    note: "Removed per user request - tasks P3-013 through P3-016 deferred"
+
+critical_path:
+  - P3-006 (Database migration) → blocks P3-002
+  - P3-002 (SnapshotManager) → blocks P3-003
+  - P3-003 (Integration) → blocks P3-004, P3-005
+  - All tasks complete after P3-012 (no agent-dev/staging validation in scope)
+
+success_criteria:
+  functional:
+    - Real LLM analysis replacing stub summaries
+    - Snapshot/restore with max 5-min data loss
+    - Graceful shutdown with zero data loss
+    - Memory management with auto-eviction
+    - Prometheus metrics exported
+    - Health checks operational
+  quality:
+    - 25+ new tests passing (adjusted for scope reduction)
+    - 85%+ code coverage
+    - No TypeScript/linting errors
+  operational:
+    - Grafana dashboard created
+    - Alert rules defined
+
+  # REMOVED (Week 3 scope):
+  # - Load tests pass at scale
+  # - Performance benchmarks (memory, CPU, latency)
+  # - Agent-dev deployment validation
+  # - Staging 24-hour soak test
+  # - Runbook documentation
+
+risks:
+  - risk: LLM cost explosion
+    mitigation: Use gpt-4o-mini, pre-filter events, set cost limits
+  - risk: Snapshot overhead impacts performance
+    mitigation: Batch writes, async snapshots, benchmark early
+  - risk: Memory eviction loses important events
+    mitigation: Configurable thresholds, alert on eviction frequency
+  - risk: Crash during snapshot causes corruption
+    mitigation: Atomic writes, transaction rollback on failure
+
+next_phase:
+  phase: 4
+  title: Advanced Features
+  scope:
+    - Hybrid mode (stream + database backup)
+    - Condition-based triggers (threshold detection)
+    - Advanced aggregations (pre-LLM filtering)
+    - Multi-platform correlation
+  estimated_sprints: 2-3
+
+---
+
+**Backlog Status**: APPROVED (with Week 3 removed)
+**User Change**: Skip Week 3 (Load Testing & Production Validation)
+**Tasks Removed**: P3-013, P3-014, P3-015, P3-016
+**Revised Scope**: 12 tasks, 47 hours
+**Target Completion**: 2-3 weeks from start
+
+**IMPORTANT**: Keep backlog status updated as tasks change from pending → in_progress → complete

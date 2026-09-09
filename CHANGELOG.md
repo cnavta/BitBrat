@@ -22,6 +22,406 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [0.41.1] - 2026-09-08
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.41.0] - 2026-09-06
+
+### Added
+- **Composition Schema Visibility**: LLMs can now see composition input schemas via MCP protocol
+  - Implemented `JsonSchemaStandardAdapter` in `src/common/schemas/` for JSON Schema → Standard Schema conversion
+  - Compositions with JSON Schema now properly expose parameters to LLMs for better tool discovery
+  - Added comprehensive unit tests (33 tests, 96.66% coverage) and integration tests (5 tests)
+  - Dependencies: `ajv@^8.20.0`, `ajv-formats@^2.1.1`
+  - Documentation: Added "Input Schema Format" section to `documentation/guides/composition-usage.md`
+
+### Changed
+- **tool-gateway**: Enhanced composition registration with Standard Schema adapter (Sprint 43)
+  - New private method: `wrapJsonSchemaWithAdapter()` wraps JSON Schema for MCP SDK 2.0
+  - Modified `registerCompositionTool()` to use Standard Schema adapter instead of `z.any()`
+  - Fail-open strategy: Invalid schemas fall back to `z.any()` with warning logs
+  - Added logging: `composition.schema.wrapped` (success) and `composition.schema.wrap_failed` (failures)
+
+### Fixed
+- **Issue**: LLMs reported "tool has no input defined" for compositions (Sprint 42 analysis)
+  - **Root cause**: MCP SDK 2.0 requires Standard Schema interface; compositions used plain JSON Schema
+  - **Solution**: Created adapter that wraps JSON Schema in Standard Schema interface using Ajv validator
+  - **Impact**: LLMs now see full parameter details (types, descriptions, constraints, required fields)
+  - **Fallback**: Compositions with invalid/missing schemas still work (degrades to `z.any()`)
+
+### Performance
+- Adapter creation: ~3-5ms per composition (one-time cost at registration)
+- Validation: ~0.1-0.5ms per tool call (unchanged from current)
+- Memory: ~40KB per composition (Standard Schema adapter + compiled Ajv validator)
+
+### Migration
+- **No breaking changes**: Fully backward compatible
+- Existing compositions work without modification
+- Invalid schemas automatically fall back to current behavior (`z.any()`)
+- No database migrations required
+- No configuration changes required
+
+## [0.40.0] - 2026-09-05
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.39.0] - 2026-09-04
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.38.1] - 2026-09-02
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.38.0] - 2026-09-02
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.37.4] - 2026-09-02
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.37.3] - 2026-09-02
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.37.2] - 2026-09-01
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.37.1] - 2026-09-01
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.37.0] - 2026-08-31
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.36.4] - 2026-08-31
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.36.3] - 2026-08-31
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.36.2] - 2026-08-30
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.36.1] - 2026-08-30
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.36.0] - 2026-08-30
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.35.0] - 2026-08-29
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.34.4] - 2026-08-29
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.34.3] - 2026-08-26
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.34.2] - 2026-08-26
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.34.1] - 2026-08-25
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.34.0] - 2026-08-25
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.33.3] - 2026-08-22
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.33.2] - 2026-08-22
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.33.1] - 2026-08-21
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.33.0] - 2026-08-20
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.32.0] - 2026-08-19
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.31.0] - 2026-08-19
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.30.1] - 2026-08-18
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
 ## [0.30.0] - 2026-08-17
 ### Added
 

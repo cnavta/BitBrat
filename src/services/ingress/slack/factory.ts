@@ -52,7 +52,7 @@ import path from 'path';
  * @throws Error if slackAppToken or slackBotToken is missing
  */
 export const createSlackConnector: ConnectorFactory = async (config: IConfig, opts) => {
-  const { egressDestinationTopic, publisherFactory } = opts;
+  const { egressDestinationTopic, publisherFactory, onSnapshotPublished } = opts;
 
   // Extract and validate required credentials
   const slackAppToken = config.slackAppToken;
@@ -69,7 +69,8 @@ export const createSlackConnector: ConnectorFactory = async (config: IConfig, op
   // Create publisher for ingress events
   // IMPORTANT: Always use createSlackIngressPublisherFromConfig wrapper
   // It wraps MessagePublisher (publishJson) with IngressPublisher interface (publish)
-  const publisher = createSlackIngressPublisherFromConfig(config, publisherFactory);
+  // Sprint 24: Pass onSnapshotPublished callback for unified persistence flow
+  const publisher = createSlackIngressPublisherFromConfig(config, publisherFactory, onSnapshotPublished);
 
   // Sprint 13: Check feature flag for YAML-driven event gateway
   const flags = getFeatureFlags();

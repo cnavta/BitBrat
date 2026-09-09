@@ -58,7 +58,27 @@ export class RbacEvaluator {
   }
 
   isAllowedTool(tool: BitBratTool, serverConfig: McpServerConfig | undefined, context: SessionContext): boolean {
-    return this.isAllowedItem(tool, serverConfig, context);
+    const result = this.isAllowedItem(tool, serverConfig, context);
+
+    // Sprint 27: CRITICAL - Debug RBAC filtering (log BOTH allow and deny)
+    console.error(result ? '[RBAC ALLOW]' : '[RBAC DENY]', {
+      toolId: tool.id,
+      originServer: tool.originServer,
+      serverConfigExists: !!serverConfig,
+      serverHasRequiredRoles: !!(serverConfig?.requiredRoles && serverConfig.requiredRoles.length > 0),
+      serverRequiredRoles: serverConfig?.requiredRoles,
+      serverHasAgentAllowlist: !!(serverConfig?.agentAllowlist && serverConfig.agentAllowlist.length > 0),
+      serverAgentAllowlist: serverConfig?.agentAllowlist,
+      toolHasRequiredRoles: !!(tool.requiredRoles && tool.requiredRoles.length > 0),
+      toolRequiredRoles: tool.requiredRoles,
+      toolHasAgentAllowlist: !!(tool.agentAllowlist && tool.agentAllowlist.length > 0),
+      toolAgentAllowlist: tool.agentAllowlist,
+      contextRoles: context.roles,
+      contextAgent: context.agentName,
+      result
+    });
+
+    return result;
   }
 
   isAllowedResource(resource: BitBratResource, serverConfig: McpServerConfig | undefined, context: SessionContext): boolean {

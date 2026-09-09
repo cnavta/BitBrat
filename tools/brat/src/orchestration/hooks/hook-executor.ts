@@ -258,11 +258,43 @@ export class HookExecutor {
       `BRAT_REPO_ROOT=${context.remoteDir}`,
       `BRAT_TARGET_HOST=${context.targetHost}`,
       `BRAT_REMOTE_DIR=${context.remoteDir}`,
-    ].join(' ');
+    ];
+
+    // For pre-deploy hooks, generate GCP access token if gcloud is available
+    // This enables GCP Artifact Registry authentication on remote hosts without gcloud
+    if (hookType === 'pre-deploy') {
+      try {
+        console.log('[hooks] Generating GCP access token for remote authentication...');
+        const gcpTokenResult = await execCmd('gcloud', ['auth', 'print-access-token'], {
+          cwd: context.repoRoot,
+        });
+
+        if (gcpTokenResult.code === 0 && gcpTokenResult.stdout.trim()) {
+          const token = gcpTokenResult.stdout.trim();
+          envVars.push(`GCP_ACCESS_TOKEN="${token}"`);
+          console.log('[hooks] ✓ Generated GCP access token for remote authentication');
+        } else {
+          console.log(
+            `[hooks] WARNING: gcloud auth print-access-token returned code ${gcpTokenResult.code}`
+          );
+          console.log(`[hooks] stdout: ${gcpTokenResult.stdout}`);
+          console.log(`[hooks] stderr: ${gcpTokenResult.stderr}`);
+        }
+      } catch (error: any) {
+        // Log the error so we can debug token generation issues
+        console.log(
+          `[hooks] WARNING: Could not generate GCP access token: ${error.message || error}`
+        );
+        console.log('[hooks] Remote hook will need to handle missing GCP_ACCESS_TOKEN');
+      }
+    }
+
+    const envVarsString = envVars.join(' ');
 
     // Build SSH command to execute hook remotely
-    // Format: ssh user@host "cd /remote/dir && VARS bash /remote/dir/hook.sh"
-    const sshCommand = `cd "${context.remoteDir}" && ${envVars} bash "${remoteHookPath}"`;
+    // Format: ssh user@host "cd /remote/dir && VARS sh /remote/dir/hook.sh"
+    // Use sh instead of bash for Alpine Linux compatibility
+    const sshCommand = `cd "${context.remoteDir}" && ${envVarsString} sh "${remoteHookPath}"`;
 
     // Execute remote hook via SSH
     const result = await execCmd('ssh', [sshHost, sshCommand], {

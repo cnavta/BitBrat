@@ -1,0 +1,359 @@
+# Sprint 31 Prioritized Backlog
+# Test Infrastructure Phase 2 - NATS & Legitimate Bug Fixes
+
+sprint:
+  id: sprint-31-ayaq0a
+  title: "Test Infrastructure Phase 2 - NATS & Legitimate Bug Fixes"
+  goal: "Apply Sprint 30 quick wins, systematically investigate NATS connectivity failures, identify and fix ACTUAL failing tests, achieve <10 failing test suites"
+  status: planning
+  duration_estimate: "2.5 - 3 hours"
+
+# Phase 0: Setup & Quick Wins
+phase_0_quick_wins:
+  title: "Setup & Quick Wins"
+  duration: "25 minutes"
+  priority: P0
+  dependencies: []
+
+  tasks:
+    - id: T0
+      title: "Environment Setup"
+      description: "npm ci && npm run build in sprint worktree"
+      priority: P0
+      estimate: "5 min"
+      dependencies: []
+      deliverable: "Working development environment"
+
+    - id: T1
+      title: "Quick Win 1: NATS_URL Default"
+      description: "Add NATS_URL default to test-setup.js to fix ENOTFOUND errors"
+      priority: P0
+      estimate: "5 min"
+      dependencies: [T0]
+      files:
+        - test-setup.js
+      expected_impact: "May fix 5 NATS-related test suites"
+      deliverable: "NATS_URL default in test setup"
+      validation: "npm test -- test-final-check-service.test.ts"
+
+    - id: T2
+      title: "Quick Win 2: Skip Docker Tests When Unavailable"
+      description: "Add hasDocker() check and conditional skip logic to jest.config.js"
+      priority: P0
+      estimate: "10 min"
+      dependencies: [T0]
+      files:
+        - jest.config.js
+      expected_impact: "8 test suites skip gracefully instead of failing"
+      deliverable: "Conditional Docker test skipping"
+      validation: "Stop Docker, run npm test, verify skip message"
+
+    - id: T3
+      title: "Quick Win 3: Document Known Test Failures"
+      description: "Add 'Known Test Issues' section to README.md"
+      priority: P0
+      estimate: "5 min"
+      dependencies: [T0]
+      files:
+        - README.md
+      expected_impact: "Developer awareness of environmental vs bug failures"
+      deliverable: "Updated README with test documentation"
+
+# Phase 1: Current State Assessment
+phase_1_assessment:
+  title: "Current State Assessment"
+  duration: "30 minutes"
+  priority: P0
+  dependencies: [phase_0_quick_wins]
+
+  tasks:
+    - id: T4
+      title: "Run Full Test Suite & Capture Baseline"
+      description: "Run npm test after quick wins, capture output, extract ACTUAL failing test names"
+      priority: P0
+      estimate: "15 min"
+      dependencies: [T1, T2, T3]
+      deliverable: "baseline-test-output.txt, baseline-metrics.md"
+      critical_requirement: "Extract ACTUAL test file names (no placeholders)"
+
+    - id: T5
+      title: "Categorize Failures by Root Cause"
+      description: "Use Sprint 30 framework to categorize: Docker/NATS/Main Repo/Bugs"
+      priority: P0
+      estimate: "15 min"
+      dependencies: [T4]
+      deliverable: "failure-categorization.md"
+      method: "Isolation testing for NATS, verify Docker skip worked, identify actual bugs"
+
+# Phase 2: NATS Investigation
+phase_2_nats:
+  title: "NATS Investigation"
+  duration: "45 minutes"
+  priority: P1
+  dependencies: [phase_1_assessment]
+
+  tasks:
+    - id: T6
+      title: "Isolation Testing for NATS Failures"
+      description: "Run each NATS failure individually to determine environmental vs bug"
+      priority: P1
+      estimate: "30 min"
+      dependencies: [T5]
+      deliverable: "nats-isolation-results.md"
+      method: |
+        For each Category B test:
+        - npm test -- <test-file>.test.ts
+        - If PASS in isolation → Environmental (concurrency)
+        - If FAIL in isolation → Code bug
+      sprint_30_learning: "Tests passing in isolation = environmental, not bugs"
+
+    - id: T7
+      title: "Fix NATS Code Bugs"
+      description: "Fix tests that fail in BOTH full suite AND isolation"
+      priority: P1
+      estimate: "15 min"
+      dependencies: [T6]
+      scope: "Only tests identified as 'Code bug' in T6"
+      deliverable: "Fixed NATS tests passing in isolation and full suite"
+      validation: "npm test -- <fixed-test>.test.ts && npm test"
+
+# Phase 3: Legitimate Bug Fixes
+phase_3_bugs:
+  title: "Legitimate Bug Fixes (Category D)"
+  duration: "45-60 minutes"
+  priority: P1
+  dependencies: [phase_1_assessment]
+
+  tasks:
+    - id: T8
+      title: "Investigate Category D Failures"
+      description: "Analyze each non-Docker, non-NATS failure to understand root cause"
+      priority: P1
+      estimate: "30 min"
+      dependencies: [T5]
+      deliverable: "category-d-analysis.md"
+      template: |
+        For each failure:
+        - Run in isolation
+        - Read test code
+        - Determine test bug vs production bug
+        - Document fix approach
+        - Assess risk
+      sprint_30_learning: "No placeholders - verify file existence first"
+
+    - id: T9
+      title: "Fix Category D Bugs"
+      description: "Apply fixes identified in T8"
+      priority: P1
+      estimate: "30 min"
+      dependencies: [T8]
+      scope: "All Category D bugs (test and production)"
+      deliverable: "All Category D tests passing"
+      validation: "Run each test in isolation, then full suite"
+
+# Phase 4: Validation & Documentation
+phase_4_validation:
+  title: "Validation & Documentation"
+  duration: "30 minutes"
+  priority: P0
+  dependencies: [phase_2_nats, phase_3_bugs]
+
+  tasks:
+    - id: T10
+      title: "Post-Fix Validation"
+      description: "Run full test suite, capture metrics, compare to baseline and Sprint 30"
+      priority: P0
+      estimate: "15 min"
+      dependencies: [T7, T9]
+      deliverable: "post-fix-test-output.txt, metrics-comparison.md"
+      success_criteria:
+        - "<10 failing test suites"
+        - "100% reproducible (no flaky failures)"
+        - ">98% pass rate (nice to have)"
+
+    - id: T11
+      title: "Create Sprint Artifacts"
+      description: "Complete sprint documentation"
+      priority: P0
+      estimate: "15 min"
+      dependencies: [T10]
+      deliverables:
+        - verification-report.md
+        - retro.md
+        - key-learnings.md
+        - request-log.md (update)
+      template: "Follow Sprint 30 format"
+
+# Success Criteria
+success_criteria:
+  must_have:
+    - title: "Quick wins applied"
+      tasks: [T1, T2, T3]
+      status: pending
+
+    - title: "ACTUAL failing tests identified (no placeholders)"
+      tasks: [T4, T5]
+      status: pending
+      sprint_30_learning: "Avoid placeholder test names like Sprint 30 Category D"
+
+    - title: "NATS failures categorized (environmental vs bugs)"
+      tasks: [T6, T7]
+      status: pending
+
+    - title: "Category D bugs analyzed and fixed"
+      tasks: [T8, T9]
+      status: pending
+
+    - title: "<10 failing test suites"
+      tasks: [T10]
+      status: pending
+      baseline: "19 failing suites (Sprint 30 end)"
+      target: "<10 failing suites"
+
+    - title: "100% reproducible test runs"
+      tasks: [T10]
+      status: pending
+      description: "No flaky failures, consistent results across runs"
+
+  nice_to_have:
+    - title: ">98% pass rate"
+      tasks: [T10]
+      status: pending
+      baseline: "96.6% (Sprint 30 end)"
+
+    - title: "All environmental failures skip gracefully"
+      tasks: [T2]
+      status: pending
+
+    - title: "Comprehensive failure categorization framework"
+      tasks: [T5]
+      status: pending
+
+  out_of_scope:
+    - "Docker infrastructure fixes (Sprint 32)"
+    - "Test stratification - unit/integration/e2e (Sprint 33)"
+    - "Bit.close() cleanup refactoring (Sprint 33)"
+    - "Parallel test execution (Sprint 33)"
+
+# Metrics Tracking
+metrics:
+  sprint_30_end:
+    runtime: "116s"
+    files_checked: 966
+    test_files: 499
+    failing_suites: 19
+    failing_tests: 57
+    pass_rate: "96.6%"
+
+  sprint_31_targets:
+    runtime: "<120s (maintain Sprint 30 gains)"
+    failing_suites: "<10"
+    failing_tests: "<20"
+    pass_rate: ">98%"
+
+  sprint_31_actual:
+    # To be filled during execution
+    after_quick_wins:
+      runtime: null
+      failing_suites: null
+      failing_tests: null
+      pass_rate: null
+
+    after_fixes:
+      runtime: null
+      failing_suites: null
+      failing_tests: null
+      pass_rate: null
+
+# Risk Management
+risks:
+  - id: RISK-1
+    description: "Category D test names might still be placeholders"
+    likelihood: high
+    impact: medium
+    mitigation: "T4-T5 extract ACTUAL names from test output, verify file existence"
+
+  - id: RISK-2
+    description: "NATS failures all environmental (nothing to fix)"
+    likelihood: medium
+    impact: low
+    mitigation: "Quick wins still provide value (defaults, documentation)"
+
+  - id: RISK-3
+    description: "More than 10 failures remain after all fixes"
+    likelihood: medium
+    impact: medium
+    mitigation: "Document remaining for Sprint 32, categorize for future work"
+
+  - id: RISK-4
+    description: "Production bugs discovered during test investigation"
+    likelihood: low
+    impact: high
+    mitigation: "Fix and validate thoroughly, assess impact, document"
+
+# Sprint 30 Learnings Applied
+learnings_applied:
+  - learning: "Categorize by root cause before fixing"
+    application: "Categories A/B/C/D framework in T5"
+
+  - learning: "Verify file existence before creating tasks"
+    application: "T4 extracts ACTUAL test names from output, no placeholders"
+
+  - learning: "Isolation testing for environmental vs bugs"
+    application: "T6 NATS investigation methodology"
+
+  - learning: "Baseline metrics before and after"
+    application: "T4 and T10 capture comprehensive metrics"
+
+  - learning: "Configuration > constraints"
+    application: "Quick wins use defaults and skip logic, not restrictions"
+
+  - learning: "User questions lead to better solutions"
+    application: "Open to feedback, willing to revise approach"
+
+# Dependencies & Execution Order
+execution_order:
+  - phase: phase_0_quick_wins
+    sequence: [T0, T1, T2, T3]
+    can_parallelize: [T1, T2, T3]  # After T0, these can run in parallel
+
+  - phase: phase_1_assessment
+    sequence: [T4, T5]
+    blocking: true  # Must complete before Phase 2 and 3
+
+  - phase: phase_2_nats
+    sequence: [T6, T7]
+    depends_on: phase_1_assessment
+
+  - phase: phase_3_bugs
+    sequence: [T8, T9]
+    depends_on: phase_1_assessment
+    can_parallelize_with: phase_2_nats
+
+  - phase: phase_4_validation
+    sequence: [T10, T11]
+    depends_on: [phase_2_nats, phase_3_bugs]
+    blocking: false  # T11 can partially overlap with T10
+
+# Future Work (Post-Sprint 31)
+future_sprints:
+  sprint_32:
+    title: "Test Infrastructure Phase 3 - Docker & Environmental Fixes"
+    focus: "Complete environmental test fixes"
+    tasks:
+      - "Implement NATS test isolation (maxWorkers reduction or mocking)"
+      - "Fix obs-mcp Docker image build"
+      - "Fix JetStream validation tests"
+      - "Document Docker test prerequisites"
+    estimate: "2-3 hours"
+
+  sprint_33:
+    title: "Test Infrastructure Phase 4 - Stratification & Refactoring"
+    focus: "Complete original Sprint 30 Phase 4-5 goals"
+    tasks:
+      - "Separate unit/integration/e2e tests via Jest projects"
+      - "Refactor Bit.close() for proper listener cleanup"
+      - "Create BitTestFactory helper class"
+      - "Achieve 100% pass rate"
+      - "Enable parallel test execution"
+    estimate: "3-4 hours"

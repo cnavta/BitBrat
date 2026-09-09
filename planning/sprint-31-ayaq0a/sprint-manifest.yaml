@@ -1,0 +1,11 @@
+id: sprint-31-ayaq0a
+title: Test Infrastructure Phase 2 - NATS & Legitimate Bug Fixes
+goal: Apply Sprint 30 quick wins, systematically investigate NATS connectivity
+  failures, identify and fix ACTUAL failing tests (not placeholders), achieve
+  <10 failing test suites and 100% reproducible test runs
+owner: "@bitbrat"
+createdAt: 2026-08-30T18:11:26.977Z
+status: in-progress
+links:
+  branch: feature/sprint-31-ayaq0a-test-infrastructure-phase-2-na
+notes: Sprint initialized via MCP start-sprint tool

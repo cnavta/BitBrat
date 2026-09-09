@@ -8,11 +8,11 @@
  * Early exit optimization: If conditions don't match, skip pattern matching.
  */
 
-import { Reflex } from '../../types/reflex.js';
+import { Reflex, MatchResult, MatchCaptures } from '../../types/reflex.js';
 import { logger } from '../../common/logging';
 import { InternalEventV2 } from '../../types/events.js';
 import { evaluateConditions } from './condition-evaluator.js';
-import { matchPattern } from './pattern-matcher.js';
+import { matchPattern, matchPatternWithCaptures } from './pattern-matcher.js';
 import { getFieldValue } from './field-accessor.js';
 
 /**
@@ -168,5 +168,95 @@ export function matchReflexSilent(event: InternalEventV2, reflex: Reflex): boole
     });
   } catch {
     return false;
+  }
+}
+
+/**
+ * Determines if a reflex matches an event and extracts capture groups.
+ *
+ * This is the capture-aware version of matchReflex(). Returns a MatchResult
+ * containing both the match status and any captured substrings from the pattern.
+ *
+ * Process:
+ * 1. Early exit: Check if conditions match (fast filter)
+ * 2. Extract field value from event
+ * 3. Apply pattern matching with capture extraction
+ * 4. Return MatchResult with captures if matched
+ *
+ * @param event - Event to test
+ * @param reflex - Reflex rule to match against
+ * @returns MatchResult with matched status and optional captures
+ *
+ * @example
+ * const reflex = {
+ *   match: { type: 'regex', pattern: '^!bid (\\d+)$', field: 'message.text' },
+ *   conditions: { eventTypes: ['chat.message.v1'] }
+ * };
+ *
+ * matchReflexWithCaptures(event, reflex)
+ * // { matched: true, captures: { 0: '!bid 50', 1: '50' } }
+ */
+export function matchReflexWithCaptures(event: InternalEventV2, reflex: Reflex): MatchResult {
+  const startTime = performance.now();
+
+  try {
+    // Step 1: Evaluate conditions first (early exit if they don't match)
+    const conditionsMatch = evaluateConditions(event, reflex.conditions);
+
+    if (!conditionsMatch) {
+      logMatchAttempt(reflex, event, false, performance.now() - startTime, 'conditions_failed');
+      return { matched: false };
+    }
+
+    // Step 2: Extract field value from event
+    const fieldValue = getFieldValue(event, reflex.match.field);
+
+    // If field doesn't exist or isn't a string, no match
+    if (fieldValue === undefined || fieldValue === null) {
+      logMatchAttempt(
+        reflex,
+        event,
+        false,
+        performance.now() - startTime,
+        'field_missing',
+        reflex.match.field
+      );
+      return { matched: false };
+    }
+
+    // Convert to string for pattern matching
+    const stringValue = String(fieldValue);
+
+    // Step 3: Apply pattern matching with capture extraction
+    const matchResult = matchPatternWithCaptures(stringValue, reflex.match.pattern, reflex.match.type, {
+      caseSensitive: reflex.match.caseSensitive,
+      flags: reflex.match.flags,
+    });
+
+    const latency = performance.now() - startTime;
+
+    if (matchResult.matched) {
+      logMatchAttempt(reflex, event, true, latency, 'success');
+    } else {
+      logMatchAttempt(reflex, event, false, latency, 'pattern_mismatch');
+    }
+
+    return matchResult;
+  } catch (error) {
+    // Log error but don't throw - gracefully return no match
+    logger.error('reflex.matcher.error', {
+      reflexId: reflex.id,
+      reflexName: reflex.name,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    logMatchAttempt(
+      reflex,
+      event,
+      false,
+      performance.now() - startTime,
+      'error',
+      error instanceof Error ? error.message : String(error)
+    );
+    return { matched: false };
   }
 }

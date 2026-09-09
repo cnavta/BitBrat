@@ -13,7 +13,7 @@
 
 import safeRegex from 'safe-regex';
 import { logger } from '../../common/logging';
-import { PatternMatchType } from '../../types/reflex.js';
+import { PatternMatchType, MatchResult, MatchCaptures } from '../../types/reflex.js';
 
 /**
  * Error thrown when an unsafe regex pattern is detected.
@@ -205,6 +205,117 @@ function matchRegex(value: string, pattern: string, flags?: string): boolean {
 }
 
 /**
+ * Performs regular expression matching with capture group extraction.
+ *
+ * Uses regex.exec() to extract the full match (index 0) and capture groups (index 1+).
+ *
+ * @param value - Value to test
+ * @param pattern - Regular expression pattern
+ * @param flags - Optional regex flags (i, m, s, etc.)
+ * @returns MatchResult with captures if matched
+ * @throws {UnsafeRegexError} If the pattern is potentially vulnerable to ReDoS
+ *
+ * @example
+ * // Single capture group
+ * matchRegexWithCaptures('!bid 50', '^!bid (\\d+)$')
+ * // Returns: { matched: true, captures: { 0: '!bid 50', 1: '50' } }
+ *
+ * @example
+ * // Multiple capture groups
+ * matchRegexWithCaptures('!timer 30 Break time', '^!timer (\\d+) (.+)$')
+ * // Returns: { matched: true, captures: { 0: '!timer 30 Break time', 1: '30', 2: 'Break time' } }
+ *
+ * @example
+ * // No match
+ * matchRegexWithCaptures('hello', '^!bid (\\d+)$')
+ * // Returns: { matched: false }
+ */
+function matchRegexWithCaptures(value: string, pattern: string, flags?: string): MatchResult {
+  const regex = getCompiledRegex(pattern, flags);
+  const match = regex.exec(value);
+
+  if (!match) {
+    return { matched: false };
+  }
+
+  // Build captures object: index 0 = full match, index 1+ = capture groups
+  const captures: MatchCaptures = { 0: match[0] };
+  for (let i = 1; i < match.length; i++) {
+    captures[i] = match[i];
+  }
+
+  return { matched: true, captures };
+}
+
+/**
+ * Extracts the matched portion from a non-regex match.
+ *
+ * For non-regex patterns (exact, contains, prefix, suffix), the captures object
+ * only contains index 0 with the matched substring.
+ *
+ * @param value - Original value
+ * @param pattern - Pattern that was matched
+ * @param type - Type of match performed
+ * @param caseSensitive - Whether match was case-sensitive
+ * @returns MatchCaptures with index 0 = matched portion
+ *
+ * @example
+ * // Exact match
+ * extractNonRegexCaptures('!ping', '!ping', 'exact', true)
+ * // Returns: { 0: '!ping' }
+ *
+ * @example
+ * // Contains match (case-insensitive)
+ * extractNonRegexCaptures('HELLO subscribe WORLD', 'subscribe', 'contains', false)
+ * // Returns: { 0: 'subscribe' } (original casing from value)
+ */
+function extractNonRegexCaptures(
+  value: string,
+  pattern: string,
+  type: PatternMatchType,
+  caseSensitive: boolean
+): MatchCaptures {
+  let matchedPortion: string;
+
+  switch (type) {
+    case 'exact':
+      // Exact match: the entire value is the match
+      matchedPortion = value;
+      break;
+
+    case 'contains':
+      // Contains: find the matched substring (preserving original casing)
+      if (caseSensitive) {
+        const index = value.indexOf(pattern);
+        matchedPortion = value.substring(index, index + pattern.length);
+      } else {
+        // Case-insensitive: find position then extract with original casing
+        const lowerValue = value.toLowerCase();
+        const lowerPattern = pattern.toLowerCase();
+        const index = lowerValue.indexOf(lowerPattern);
+        matchedPortion = value.substring(index, index + pattern.length);
+      }
+      break;
+
+    case 'prefix':
+      // Prefix: matched portion is the prefix
+      matchedPortion = value.substring(0, pattern.length);
+      break;
+
+    case 'suffix':
+      // Suffix: matched portion is the suffix
+      matchedPortion = value.substring(value.length - pattern.length);
+      break;
+
+    default:
+      // Should never happen (regex handled separately)
+      matchedPortion = value;
+  }
+
+  return { 0: matchedPortion };
+}
+
+/**
  * Matches a value against a pattern using the specified match type.
  *
  * @param value - Value to test (typically from event field)
@@ -295,4 +406,94 @@ export function clearRegexCache(): void {
  */
 export function getRegexCacheSize(): number {
   return regexCache.size;
+}
+
+/**
+ * Matches a value against a pattern and returns detailed match results with captures.
+ *
+ * This is the capture-aware version of matchPattern(). It returns a MatchResult
+ * containing both the match status and any captured substrings.
+ *
+ * For regex patterns:
+ * - Index 0: Full matched string
+ * - Index 1+: Capture groups from parentheses in the regex
+ *
+ * For non-regex patterns (exact, contains, prefix, suffix):
+ * - Index 0: The matched portion of the value
+ *
+ * @param value - Value to test (typically from event field)
+ * @param pattern - Pattern to match against
+ * @param type - Type of matching to perform
+ * @param options - Additional matching options
+ * @param options.caseSensitive - Case sensitivity for non-regex matches (default: true)
+ * @param options.flags - Regex flags for regex type matches
+ * @returns MatchResult with matched status and optional captures
+ * @throws {UnsafeRegexError} If regex pattern is unsafe
+ * @throws {Error} If regex pattern is invalid
+ *
+ * @example
+ * // Regex with single capture group
+ * matchPatternWithCaptures('!bid 50', '^!bid (\\d+)$', 'regex')
+ * // Returns: { matched: true, captures: { 0: '!bid 50', 1: '50' } }
+ *
+ * @example
+ * // Regex with multiple capture groups
+ * matchPatternWithCaptures('!timer 30 Break time', '^!timer (\\d+) (.+)$', 'regex')
+ * // Returns: { matched: true, captures: { 0: '!timer 30 Break time', 1: '30', 2: 'Break time' } }
+ *
+ * @example
+ * // Exact match
+ * matchPatternWithCaptures('!ping', '!ping', 'exact')
+ * // Returns: { matched: true, captures: { 0: '!ping' } }
+ *
+ * @example
+ * // Contains match
+ * matchPatternWithCaptures('subscribe now!', 'subscribe', 'contains')
+ * // Returns: { matched: true, captures: { 0: 'subscribe' } }
+ *
+ * @example
+ * // No match
+ * matchPatternWithCaptures('hello', '^!bid (\\d+)$', 'regex')
+ * // Returns: { matched: false }
+ */
+export function matchPatternWithCaptures(
+  value: string,
+  pattern: string,
+  type: PatternMatchType,
+  options: {
+    caseSensitive?: boolean;
+    flags?: string;
+  } = {}
+): MatchResult {
+  const { caseSensitive = true, flags } = options;
+
+  const startTime = performance.now();
+
+  let result: MatchResult;
+
+  if (type === 'regex') {
+    // Regex: Use exec() to extract captures
+    result = matchRegexWithCaptures(value, pattern, flags);
+  } else {
+    // Non-regex: First check if it matches, then extract capture
+    const matched = matchPattern(value, pattern, type, { caseSensitive, flags });
+
+    if (matched) {
+      const captures = extractNonRegexCaptures(value, pattern, type, caseSensitive);
+      result = { matched: true, captures };
+    } else {
+      result = { matched: false };
+    }
+  }
+
+  const latency = performance.now() - startTime;
+
+  // Log if matching takes longer than target (<10ms)
+  if (latency > 10) {
+    logger.warn(
+      `[pattern-matcher] Slow pattern match: ${latency.toFixed(2)}ms (type: ${type}, pattern: ${pattern})`
+    );
+  }
+
+  return result;
 }

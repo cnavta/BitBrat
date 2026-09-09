@@ -44,6 +44,20 @@ export interface ResolvedPersistence {
 }
 
 /**
+ * Resolved Loki configuration
+ * Sprint 46: Added for fleet.logs Loki integration
+ */
+export interface ResolvedLoki {
+  /** Direct URL to Loki (e.g., http://bitbrat.lan:3100) */
+  url?: string;
+  /** SSH tunnel details (if direct access not available) */
+  tunnel?: {
+    localPort: number;
+    remotePort: number;
+  };
+}
+
+/**
  * Resolved runtime configuration
  */
 export interface ResolvedRuntime {
@@ -51,6 +65,8 @@ export interface ResolvedRuntime {
   gateway: ResolvedGateway;
   /** Persistence configuration */
   persistence: ResolvedPersistence;
+  /** Loki configuration (optional, Sprint 46) */
+  loki?: ResolvedLoki;
   /** Merged environment variables from overlays */
   envVars: Record<string, string>;
 }

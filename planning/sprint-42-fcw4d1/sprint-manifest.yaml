@@ -1,0 +1,13 @@
+id: sprint-42-fcw4d1
+title: Composition Tool Registration Fix
+goal: Fix composition tool registration in tool-gateway so that compositions
+  stored in the database (like grockle) are properly exposed as MCP tools to LLM
+  models
+owner: christophernavta
+createdAt: 2026-09-04T14:08:07.804Z
+status: complete
+links:
+  branch: feature/sprint-42-fcw4d1-composition-tool-registration-
+notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-09-04T20:34:44.203Z
+completionMode: normal

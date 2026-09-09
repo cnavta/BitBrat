@@ -1,0 +1,11 @@
+id: sprint-34-1geg3z
+title: Reflex Command Arguments
+goal: "Enable arguments to be passed to reflex commands and made available to
+  MCP tool calls and candidate templates as variables (e.g., !bid 34 →
+  create_bid(amount: ${1}))"
+owner: navta3
+createdAt: 2026-08-31T03:44:10.532Z
+status: in-progress
+links:
+  branch: feature/sprint-34-1geg3z-reflex-command-arguments
+notes: Sprint initialized via MCP start-sprint tool

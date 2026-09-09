@@ -1,0 +1,1620 @@
+# ============================================================================
+# SPRINT 41 EXECUTION BACKLOG
+# ============================================================================
+# Sprint ID: sprint-41-u18tqc
+# Title: MCP Behavioral Compilation Architecture (Foundation Layer)
+# Owner: christophernavta
+# Lead Implementor: Claude (Agent)
+# Generated: 2026-09-03
+# Status: Planning → Ready for Execution
+#
+# This backlog represents the prioritized, executable task breakdown aligned
+# with execution-plan.md and incorporates the DocumentStore architecture
+# revision.
+#
+# Total Effort: 48 hours (6 days)
+# Total Tasks: 26 (checkpoints included)
+# Critical Path: 12 tasks
+# ============================================================================
+
+metadata:
+  sprint: sprint-41-u18tqc
+  version: 2.0  # Updated from original backlog.yaml
+  revision: documentstore
+  generatedDate: 2026-09-03T09:30:00Z
+  totalTasks: 26
+  totalHours: 48
+  totalDays: 6
+  phases: 5
+
+# ============================================================================
+# SUMMARY & METRICS
+# ============================================================================
+
+summary:
+  effort:
+    phase1: 16h  # Core Infrastructure
+    phase2: 8h   # Registry & Persistence
+    phase3: 12h  # Tool-Gateway Integration
+    phase4: 8h   # Examples & E2E
+    phase5: 4h   # Testing & Validation
+    total: 48h
+
+  priority:
+    P0_critical: 12     # Must complete
+    P1_high: 11         # Core functionality
+    P2_medium: 2        # Enhancement
+    P3_low: 0           # Deferred to future
+    checkpoints: 5      # Validation gates
+
+  testCoverage:
+    target: 80%
+    unitTests: 68
+    integrationTests: 18
+    e2eTests: 1
+    agentDevValidation: true
+
+# ============================================================================
+# PHASE 1: CORE INFRASTRUCTURE (Days 1-2, 16 hours)
+# Goal: Implement DSL, parser, compiler, executor with comprehensive tests
+# ============================================================================
+
+tasks:
+  # --------------------------------------------------------------------------
+  # COMP-003: Type System Foundation
+  # --------------------------------------------------------------------------
+  - id: COMP-003
+    title: "Define TypeScript type system for compositions"
+    phase: phase1_core_infrastructure
+    day: 1
+    priority: P0
+    status: pending
+    effort: 2h
+    dependencies: []
+    criticalPath: true
+
+    description: |
+      Create comprehensive TypeScript type definitions for the composition
+      DSL. This is the foundational contract for the entire system.
+
+    files:
+      create:
+        - src/common/composition/types.ts
+
+    acceptance:
+      - CompositionDefinition interface complete
+      - CompositionSpec with all step types
+      - ValueExpression union (Reference | Literal | Object | Array)
+      - Reference interface ($ref with namespace + pointer)
+      - Condition operators (exists, equals, comparisons, all, any, not)
+      - Step types (CallStep, IfValueStep)
+      - CompiledComposition with validation metadata
+      - No 'any' types (use 'unknown' if needed)
+      - JSDoc comments on all exports
+      - TypeScript strict mode passes
+
+    subtasks:
+      - Define CompositionDefinition (apiVersion, kind, metadata, spec)
+      - Define CompositionMetadata (name, description, version, labels)
+      - Define CompositionSpec (inputSchema, steps, return, contextSchema)
+      - Define Step union type (CallStep | IfValueStep)
+      - Define CallStep (id, call, with, when)
+      - Define IfValueStep (id, if.condition/then/else)
+      - Define ValueExpression recursive union
+      - Define Reference ($ref object)
+      - Define Condition union (all operators)
+      - Define CompiledComposition (includes hash, dependencies)
+      - Define ValidationReport (valid, errors, warnings)
+      - Define ToolDependency (toolId, schemaFingerprint)
+      - Add JSDoc to all interfaces
+
+    tags: [foundation, types, critical-path]
+
+  # --------------------------------------------------------------------------
+  # COMP-004: Parser Implementation
+  # --------------------------------------------------------------------------
+  - id: COMP-004
+    title: "Implement composition parser (YAML/JSON → AST)"
+    phase: phase1_core_infrastructure
+    day: 1
+    priority: P0
+    status: pending
+    effort: 3h
+    dependencies: [COMP-003]
+    criticalPath: true
+
+    description: |
+      Implement CompositionParser class that parses YAML or JSON input into
+      canonical AST. Includes reference canonicalization (shorthand expansion).
+
+    files:
+      create:
+        - src/common/composition/parser.ts
+
+    acceptance:
+      - Parses valid YAML to CompositionDefinition
+      - Parses valid JSON to CompositionDefinition
+      - Auto-detects format (YAML vs JSON)
+      - Canonicalizes references ($input/foo → {$ref: {...}})
+      - Validates top-level structure (apiVersion, kind, metadata.name)
+      - Throws descriptive errors for invalid input
+      - Handles nested objects and arrays
+      - Recursively canonicalizes conditions
+      - JSON Pointer format for references
+
+    subtasks:
+      - Create CompositionParser class
+      - Implement parse(source: string | object) method
+      - Add YAML support via js-yaml library
+      - Add JSON parsing fallback
+      - Implement validateTopLevel() checks
+      - Implement canonicalize() for full AST conversion
+      - Implement parseReference() for $namespace/path syntax
+      - Implement canonicalizeStep() for steps
+      - Implement canonicalizeValue() for recursive resolution
+      - Implement canonicalizeCondition() for conditions
+      - Add error handling with clear messages
+      - Add JSDoc documentation
+
+    tags: [parser, core, critical-path]
+
+  # --------------------------------------------------------------------------
+  # COMP-005: Parser Unit Tests
+  # --------------------------------------------------------------------------
+  - id: COMP-005
+    title: "Write parser unit tests (12 tests)"
+    phase: phase1_core_infrastructure
+    day: 1
+    priority: P1
+    status: pending
+    effort: 2h
+    dependencies: [COMP-004]
+
+    description: |
+      Comprehensive unit tests for CompositionParser covering valid/invalid
+      inputs, reference canonicalization, error cases.
+
+    files:
+      create:
+        - src/common/composition/parser.test.ts
+        - src/common/composition/__tests__/fixtures/valid-yaml-composition.yaml
+        - src/common/composition/__tests__/fixtures/valid-json-composition.json
+
+    acceptance:
+      - Valid YAML parses correctly (3 tests)
+      - Valid JSON parses correctly (2 tests)
+      - Reference canonicalization works (4 tests)
+      - Invalid structure throws errors (3 tests)
+      - Edge cases handled (null, empty, malformed)
+      - Test coverage >90%
+      - All tests passing
+
+    testCases:
+      - test_valid_yaml_minimal
+      - test_valid_yaml_full_featured
+      - test_valid_yaml_nested_objects
+      - test_valid_json_basic
+      - test_valid_json_complex
+      - test_reference_input_canonicalization
+      - test_reference_context_canonicalization
+      - test_reference_steps_canonicalization
+      - test_reference_nested_path_canonicalization
+      - test_invalid_apiversion_error
+      - test_invalid_kind_error
+      - test_missing_metadata_name_error
+      - test_malformed_yaml_error
+      - test_malformed_reference_error
+      - test_empty_composition_error
+
+    tags: [testing, parser]
+
+  # --------------------------------------------------------------------------
+  # COMP-006: Compiler Implementation
+  # --------------------------------------------------------------------------
+  - id: COMP-006
+    title: "Implement composition compiler/validator"
+    phase: phase1_core_infrastructure
+    day: 1-2
+    priority: P0
+    status: pending
+    effort: 4h
+    dependencies: [COMP-003, COMP-004]
+    criticalPath: true
+
+    description: |
+      Implement CompositionCompiler class that validates compositions,
+      resolves tool dependencies, detects cycles, and computes content hashes.
+
+    files:
+      create:
+        - src/common/composition/compiler.ts
+
+    acceptance:
+      - Validates all tool IDs exist in ToolRegistry
+      - Detects circular dependencies (DFS algorithm)
+      - Validates references point to valid step IDs
+      - Computes SHA-256 content hash (deterministic)
+      - Generates ToolDependency list with schema fingerprints
+      - Returns ValidationReport with errors/warnings
+      - Throws on validation failure
+      - Error codes defined (COMPOSE-TOOL-001, COMPOSE-CYCLE-001, etc.)
+
+    subtasks:
+      - Create CompositionCompiler class (takes ToolRegistry)
+      - Implement compile(def: CompositionDefinition) method
+      - Implement validate(def) with comprehensive checks
+      - Implement extractToolIds() helper
+      - Implement detectCycles() using DFS
+      - Implement validateReferences() for step ID checks
+      - Implement resolveDependencies() for tool lookup
+      - Implement computeHash() for SHA-256 of canonical AST
+      - Implement hashSchema() for tool schema fingerprints
+      - Define error codes and messages
+      - Add JSDoc documentation
+
+    tags: [compiler, validation, critical-path]
+
+  # --------------------------------------------------------------------------
+  # COMP-007: Compiler Unit Tests
+  # --------------------------------------------------------------------------
+  - id: COMP-007
+    title: "Write compiler unit tests (15 tests)"
+    phase: phase1_core_infrastructure
+    day: 2
+    priority: P1
+    status: pending
+    effort: 2.5h
+    dependencies: [COMP-006]
+
+    description: |
+      Comprehensive unit tests for CompositionCompiler covering tool
+      resolution, cycle detection, reference validation, error cases.
+
+    files:
+      create:
+        - src/common/composition/compiler.test.ts
+        - src/common/composition/__tests__/mocks/mock-tool-registry.ts
+
+    acceptance:
+      - Tool resolution success (3 tests)
+      - Tool not found errors (2 tests)
+      - Cycle detection (4 tests: direct, indirect, no cycle, self-reference)
+      - Reference validation (4 tests)
+      - Hash computation deterministic (2 tests)
+      - Test coverage >90%
+      - All tests passing
+
+    testCases:
+      - test_compile_valid_composition
+      - test_compile_with_all_tools_present
+      - test_compile_with_nested_composition
+      - test_error_tool_not_found
+      - test_error_multiple_tools_missing
+      - test_cycle_direct_A_to_A
+      - test_cycle_A_to_B_to_A
+      - test_cycle_A_to_B_to_C_to_A
+      - test_no_cycle_linear_deps
+      - test_reference_valid_step_ids
+      - test_reference_undefined_step_error
+      - test_reference_forward_reference_error
+      - test_reference_nested_path_valid
+      - test_hash_deterministic
+      - test_hash_changes_on_modification
+
+    tags: [testing, compiler]
+
+  # --------------------------------------------------------------------------
+  # COMP-008: Executor Implementation
+  # --------------------------------------------------------------------------
+  - id: COMP-008
+    title: "Implement composition executor"
+    phase: phase1_core_infrastructure
+    day: 2
+    priority: P0
+    status: pending
+    effort: 5h
+    dependencies: [COMP-003, COMP-004, COMP-006]
+    criticalPath: true
+
+    description: |
+      Implement CompositionExecutor class that executes compiled compositions
+      by sequentially executing steps and resolving references.
+
+    files:
+      create:
+        - src/common/composition/executor.ts
+
+    acceptance:
+      - Executes steps sequentially
+      - Resolves $input references correctly
+      - Resolves $context references correctly
+      - Resolves $steps references (including nested paths)
+      - Evaluates all condition operators correctly
+      - Invokes primitive tools via ToolRegistry
+      - Handles guarded steps (when: false → skip)
+      - Validates input against inputSchema (AJV)
+      - Validates output against outputSchema (AJV)
+      - Constructs return value from return expression
+      - Logs execution trace (debug level)
+      - Handles errors gracefully
+
+    subtasks:
+      - Create CompositionExecutor class (ToolRegistry + Logger)
+      - Implement execute(compiled, ctx: ExecutionContext) method
+      - Implement executeStep() dispatcher
+      - Implement executeCallStep() for tool invocation
+      - Implement executeIfStep() for conditional values
+      - Implement resolveValue() for ValueExpression resolution
+      - Implement resolveReference() for namespace resolution
+      - Implement navigatePointer() for JSON Pointer traversal
+      - Implement evaluateCondition() for all operators
+      - Add input/output schema validation (AJV)
+      - Add execution state management (ExecutionState)
+      - Add comprehensive logging
+      - Add error handling
+      - Add JSDoc documentation
+
+    tags: [executor, runtime, critical-path]
+
+  # --------------------------------------------------------------------------
+  # COMP-009: Executor Unit Tests
+  # --------------------------------------------------------------------------
+  - id: COMP-009
+    title: "Write executor unit tests (21 tests)"
+    phase: phase1_core_infrastructure
+    day: 2
+    priority: P1
+    status: pending
+    effort: 3h
+    dependencies: [COMP-008]
+
+    description: |
+      Comprehensive unit tests for CompositionExecutor covering step
+      execution, reference resolution, condition evaluation, edge cases.
+
+    files:
+      create:
+        - src/common/composition/executor.test.ts
+
+    acceptance:
+      - Sequential execution (3 tests)
+      - Reference resolution ($input, $context, $steps) (6 tests)
+      - Condition evaluation (all operators) (6 tests)
+      - Guarded steps (2 tests)
+      - Nested resolution (1 test)
+      - Error handling (3 tests)
+      - Test coverage >90%
+      - All tests passing
+
+    testCases:
+      - test_execute_single_call_step
+      - test_execute_multi_step_sequential
+      - test_execute_with_dependencies
+      - test_resolve_input_reference
+      - test_resolve_context_reference
+      - test_resolve_steps_simple_reference
+      - test_resolve_steps_nested_path
+      - test_resolve_steps_array_element
+      - test_resolve_missing_reference_error
+      - test_condition_exists_true
+      - test_condition_exists_false
+      - test_condition_equals
+      - test_condition_greaterThan
+      - test_condition_lessThan
+      - test_condition_all_combinator
+      - test_condition_any_combinator
+      - test_condition_not_combinator
+      - test_guarded_step_when_true
+      - test_guarded_step_when_false
+      - test_nested_object_construction
+      - test_error_tool_not_found
+      - test_error_tool_execution_failed
+      - test_error_schema_validation_failed
+
+    tags: [testing, executor]
+
+  # --------------------------------------------------------------------------
+  # CHECKPOINT: Phase 1 Complete
+  # --------------------------------------------------------------------------
+  - id: COMP-009-CHECKPOINT
+    title: "CHECKPOINT: Phase 1 core infrastructure validation"
+    phase: phase1_core_infrastructure
+    day: 2
+    priority: P0
+    status: pending
+    effort: 0.5h
+    dependencies: [COMP-005, COMP-007, COMP-009]
+    criticalPath: true
+
+    description: |
+      Validation gate: Ensure Phase 1 is complete and all core components
+      are working before proceeding to Phase 2.
+
+    acceptance:
+      - npm run build succeeds (no TypeScript errors)
+      - npm test (parser/compiler/executor) passes (48+ tests)
+      - Test coverage >75% for core modules
+      - No ESLint errors
+      - All core types defined and exported
+      - Parser handles YAML and JSON
+      - Compiler validates and detects cycles
+      - Executor runs multi-step compositions
+
+    validationSteps:
+      - Run: npm run build
+      - Run: npm test -- parser.test
+      - Run: npm test -- compiler.test
+      - Run: npm test -- executor.test
+      - Run: npm run lint -- src/common/composition
+      - Check: Test coverage report (>75%)
+      - Verify: No errors in console output
+
+    tags: [checkpoint, validation, gate]
+
+# ============================================================================
+# PHASE 2: REGISTRY & PERSISTENCE (Day 3, 8 hours)
+# Goal: Implement DocumentStore-based composition storage
+# ============================================================================
+
+  # --------------------------------------------------------------------------
+  # COMP-010: DocumentStore Indexes (Optional)
+  # --------------------------------------------------------------------------
+  - id: COMP-010
+    title: "Create DocumentStore indexes for compositions (optional)"
+    phase: phase2_registry
+    day: 3
+    priority: P2
+    status: pending
+    effort: 0.5h
+    dependencies: []
+
+    description: |
+      Create optional PostgreSQL GIN indexes for fast JSONB queries on
+      compositions collection. Performance optimization, not required.
+
+    files:
+      create:
+        - infrastructure/sql/migrations/001_composition_indexes.sql
+
+    acceptance:
+      - Index on data->>'name' created
+      - Index on data->>'status' created
+      - Index on data->>'contentHash' created
+      - Composite index on (status, name) created
+      - Migration is idempotent (IF NOT EXISTS)
+      - Indexes apply only to collection='compositions'
+
+    sqlStatements:
+      - CREATE INDEX IF NOT EXISTS idx_compositions_name ON documents ((data->>'name')) WHERE collection='compositions'
+      - CREATE INDEX IF NOT EXISTS idx_compositions_status ON documents ((data->>'status')) WHERE collection='compositions'
+      - CREATE INDEX IF NOT EXISTS idx_compositions_content_hash ON documents ((data->>'contentHash')) WHERE collection='compositions'
+      - CREATE INDEX IF NOT EXISTS idx_compositions_active_name ON documents ((data->>'status'), (data->>'name')) WHERE collection='compositions' AND (data->>'status')='active'
+
+    tags: [database, performance, optional]
+
+  # --------------------------------------------------------------------------
+  # COMP-011: Registry Implementation
+  # --------------------------------------------------------------------------
+  - id: COMP-011
+    title: "Implement DocumentStoreCompositionRegistry"
+    phase: phase2_registry
+    day: 3
+    priority: P0
+    status: pending
+    effort: 3h
+    dependencies: [COMP-003, COMP-010]
+    criticalPath: true
+
+    description: |
+      Implement DocumentStoreCompositionRegistry class using IDocumentStore
+      interface. Provides CRUD operations for compositions.
+
+    files:
+      create:
+        - src/common/composition/registry.ts
+
+    acceptance:
+      - create() stores composition in 'compositions' collection
+      - get() retrieves by ID
+      - getByName() queries by name + status=active
+      - listActive() returns all active compositions
+      - updateStatus() merges status update (preserves other fields)
+      - delete() removes composition
+      - Documents include all required fields (see CompositionDocument)
+      - Uses DocumentStore.query() for filtering
+      - Graceful error handling (not found returns null)
+
+    subtasks:
+      - Define CompositionRegistry interface
+      - Define CompositionDocument interface
+      - Implement DocumentStoreCompositionRegistry class
+      - Implement create(compiled, sourceYaml) → ID
+      - Implement get(id) → CompiledComposition | null
+      - Implement getByName(name) → CompiledComposition | null
+      - Implement listActive() → CompiledComposition[]
+      - Implement updateStatus(id, status)
+      - Implement delete(id)
+      - Implement docToCompiled() helper
+      - Add error handling
+      - Add logging
+      - Add JSDoc documentation
+
+    tags: [registry, persistence, critical-path]
+
+  # --------------------------------------------------------------------------
+  # COMP-012: Registry Unit Tests
+  # --------------------------------------------------------------------------
+  - id: COMP-012
+    title: "Write registry unit tests (12 tests, mocked DocumentStore)"
+    phase: phase2_registry
+    day: 3
+    priority: P1
+    status: pending
+    effort: 2h
+    dependencies: [COMP-011]
+
+    description: |
+      Unit tests for DocumentStoreCompositionRegistry using mocked
+      IDocumentStore to verify CRUD logic without database.
+
+    files:
+      create:
+        - src/common/composition/registry.test.ts
+        - src/common/composition/__tests__/mocks/mock-document-store.ts
+
+    acceptance:
+      - Create composition (2 tests)
+      - Get by ID (2 tests: found, not found)
+      - Get by name (2 tests: found, not found)
+      - List active (2 tests: empty, multiple)
+      - Update status (1 test)
+      - Delete (1 test)
+      - Error cases (2 tests)
+      - Tests use mocked DocumentStore
+      - No real database needed
+      - Test coverage >85%
+
+    testCases:
+      - test_create_composition
+      - test_create_assigns_id
+      - test_get_by_id_found
+      - test_get_by_id_not_found
+      - test_get_by_name_found
+      - test_get_by_name_not_found
+      - test_list_active_empty
+      - test_list_active_multiple
+      - test_update_status
+      - test_delete_composition
+      - test_error_composition_not_found
+      - test_error_duplicate_name
+
+    tags: [testing, registry]
+
+  # --------------------------------------------------------------------------
+  # COMP-012-INT: Registry Integration Tests
+  # --------------------------------------------------------------------------
+  - id: COMP-012-INT
+    title: "Write registry integration tests (8 tests, real DocumentStore)"
+    phase: phase2_registry
+    day: 3
+    priority: P1
+    status: pending
+    effort: 2h
+    dependencies: [COMP-011]
+
+    description: |
+      Integration tests for DocumentStoreCompositionRegistry using real
+      PostgreSQL DocumentStore to verify end-to-end CRUD operations.
+
+    files:
+      create:
+        - src/common/composition/registry-integration.test.ts
+
+    acceptance:
+      - Full CRUD lifecycle test with PostgreSQL
+      - Query performance test (100 compositions)
+      - Concurrent access test
+      - Cleanup after tests (delete test data)
+      - All tests passing
+
+    testCases:
+      - test_full_crud_lifecycle
+      - test_query_by_name_performance
+      - test_list_active_performance
+      - test_concurrent_create
+      - test_concurrent_read
+      - test_status_filtering
+      - test_version_ordering
+      - test_cleanup
+
+    tags: [testing, integration, registry]
+
+  # --------------------------------------------------------------------------
+  # CHECKPOINT: Phase 2 Complete
+  # --------------------------------------------------------------------------
+  - id: COMP-012-CHECKPOINT
+    title: "CHECKPOINT: Phase 2 registry validation"
+    phase: phase2_registry
+    day: 3
+    priority: P0
+    status: pending
+    effort: 0.5h
+    dependencies: [COMP-012, COMP-012-INT]
+    criticalPath: true
+
+    description: |
+      Validation gate: Ensure Phase 2 is complete and registry is working.
+
+    acceptance:
+      - Registry unit tests passing (12 tests)
+      - Registry integration tests passing (8 tests)
+      - DocumentStore operations working
+      - No TypeScript errors
+      - No ESLint errors
+
+    validationSteps:
+      - Run: npm test -- registry.test
+      - Run: npm test -- registry-integration.test
+      - Verify: CRUD operations work
+      - Verify: Queries use correct filters
+      - Check: Test coverage report
+
+    tags: [checkpoint, validation, gate]
+
+# ============================================================================
+# PHASE 3: TOOL-GATEWAY INTEGRATION (Day 4, 12 hours)
+# Goal: Expose compositions as MCP tools and REST endpoints
+# ============================================================================
+
+  # --------------------------------------------------------------------------
+  # COMP-013: Tool-Gateway Integration
+  # --------------------------------------------------------------------------
+  - id: COMP-013
+    title: "Integrate composition subsystem into tool-gateway"
+    phase: phase3_tool_gateway
+    day: 4
+    priority: P0
+    status: pending
+    effort: 4h
+    dependencies: [COMP-008, COMP-011]
+    criticalPath: true
+
+    description: |
+      Modify ToolGatewayServer to initialize composition subsystem
+      (registry + executor), load compositions from DocumentStore on
+      startup, handle graceful degradation if DocumentStore unavailable.
+
+    files:
+      modify:
+        - src/apps/tool-gateway.ts
+
+    acceptance:
+      - Get documentStore resource from Bit base class
+      - Initialize CompositionRegistry with documentStore
+      - Initialize CompositionExecutor with ToolRegistry + Logger
+      - Load all active compositions on startup (setup())
+      - Log composition count (tool_gateway.compositions.loaded)
+      - Graceful degradation if documentStore unavailable
+      - No breaking changes to existing functionality
+      - Feature flag support (ENABLE_COMPOSITIONS, default true)
+
+    subtasks:
+      - Import composition modules
+      - Add compositionRegistry field
+      - Add compositionExecutor field
+      - Get documentStore in constructor
+      - Initialize registry in constructor
+      - Initialize executor in constructor
+      - Create loadCompositions() method
+      - Call loadCompositions() in setup()
+      - Add error handling
+      - Add logging
+      - Test graceful degradation
+
+    tags: [integration, tool-gateway, critical-path]
+
+  # --------------------------------------------------------------------------
+  # COMP-014: MCP Tool Registration
+  # --------------------------------------------------------------------------
+  - id: COMP-014
+    title: "Register compositions as MCP tools"
+    phase: phase3_tool_gateway
+    day: 4
+    priority: P0
+    status: pending
+    effort: 3h
+    dependencies: [COMP-013]
+    criticalPath: true
+
+    description: |
+      Implement registerCompositionTool() method that registers each
+      composition as a callable MCP tool.
+
+    files:
+      modify:
+        - src/apps/tool-gateway.ts
+
+    acceptance:
+      - Each composition registered in ToolRegistry
+      - Each composition registered via Bit.registerTool()
+      - Tool ID = composition metadata.name
+      - Tool description from composition metadata
+      - Tool inputSchema from composition spec.inputSchema
+      - Tool execute() calls CompositionExecutor.execute()
+      - Tool source marked as 'composition'
+      - Compositions appear in MCP tools/list
+      - Log registration (tool_gateway.composition.registered)
+
+    subtasks:
+      - Create registerCompositionTool(comp) method
+      - Register in ToolRegistry
+      - Register via Bit MCP interface
+      - Create executeComposition(comp, args, extra) method
+      - Add ExecutionContext construction
+      - Add error handling
+      - Add logging
+      - Test MCP tools/list
+      - Test MCP tools/call
+
+    tags: [integration, mcp, tool-gateway, critical-path]
+
+  # --------------------------------------------------------------------------
+  # COMP-015: REST API Endpoints
+  # --------------------------------------------------------------------------
+  - id: COMP-015
+    title: "Implement REST API for composition management"
+    phase: phase3_tool_gateway
+    day: 4
+    priority: P1
+    status: pending
+    effort: 4h
+    dependencies: [COMP-013]
+
+    description: |
+      Add REST API endpoints to tool-gateway for composition CRUD and
+      execution. Enables reflex service to invoke compositions.
+
+    files:
+      modify:
+        - src/apps/tool-gateway.ts
+
+    acceptance:
+      - POST /compositions - Create/register (YAML/JSON body)
+      - GET /compositions - List all active
+      - GET /compositions/:id - Get by ID
+      - POST /compositions/:id/execute - Execute (JSON body)
+      - DELETE /compositions/:id - Delete
+      - Proper HTTP status codes (200, 201, 400, 404, 500)
+      - JSON responses
+      - Error handling (invalid YAML, compilation errors, etc.)
+
+    endpoints:
+      - POST /compositions (Content-Type: application/yaml or application/json)
+      - GET /compositions (returns array of compositions)
+      - GET /compositions/:id (returns single composition or 404)
+      - POST /compositions/:id/execute (body: {input, context, sessionId, userRoles})
+      - DELETE /compositions/:id (returns 200 on success)
+
+    tags: [rest-api, tool-gateway]
+
+  # --------------------------------------------------------------------------
+  # COMP-016: Tool-Gateway Unit Tests
+  # --------------------------------------------------------------------------
+  - id: COMP-016
+    title: "Write tool-gateway unit tests (8 tests)"
+    phase: phase3_tool_gateway
+    day: 4
+    priority: P1
+    status: pending
+    effort: 2h
+    dependencies: [COMP-013, COMP-014]
+
+    description: |
+      Unit tests for tool-gateway composition integration.
+
+    files:
+      modify:
+        - src/apps/tool-gateway.test.ts
+
+    acceptance:
+      - Load compositions on startup (2 tests)
+      - Register composition as MCP tool (2 tests)
+      - Execute composition via MCP tools/call (2 tests)
+      - Graceful degradation (documentStore unavailable) (1 test)
+      - Error handling (compilation failure) (1 test)
+      - All tests passing
+
+    testCases:
+      - test_load_compositions_on_startup
+      - test_load_empty_composition_list
+      - test_register_composition_tool
+      - test_composition_appears_in_tools_list
+      - test_execute_composition_via_mcp_success
+      - test_execute_composition_via_mcp_error
+      - test_graceful_degradation_no_documentstore
+      - test_error_compilation_failure
+
+    tags: [testing, tool-gateway]
+
+  # --------------------------------------------------------------------------
+  # COMP-017: REST API Tests
+  # --------------------------------------------------------------------------
+  - id: COMP-017
+    title: "Write REST API integration tests (9 tests)"
+    phase: phase3_tool_gateway
+    day: 4
+    priority: P1
+    status: pending
+    effort: 2h
+    dependencies: [COMP-015]
+
+    description: |
+      Integration tests for tool-gateway REST API endpoints.
+
+    files:
+      create:
+        - tests/apps/tool-gateway-composition-rest.test.ts
+
+    acceptance:
+      - POST /compositions (create valid) (2 tests)
+      - POST /compositions (invalid YAML → 400) (1 test)
+      - GET /compositions (list) (1 test)
+      - GET /compositions/:id (retrieve) (1 test)
+      - POST /compositions/:id/execute (execute) (1 test)
+      - DELETE /compositions/:id (delete) (1 test)
+      - Error cases (404, 400, 500) (2 tests)
+      - All tests passing
+
+    testCases:
+      - test_post_compositions_valid_yaml
+      - test_post_compositions_valid_json
+      - test_post_compositions_invalid_yaml_400
+      - test_get_compositions_list
+      - test_get_composition_by_id_found
+      - test_get_composition_by_id_not_found_404
+      - test_post_execute_success
+      - test_post_execute_not_found_404
+      - test_delete_composition_success
+
+    tags: [testing, rest-api, integration]
+
+  # --------------------------------------------------------------------------
+  # CHECKPOINT: Phase 3 Complete
+  # --------------------------------------------------------------------------
+  - id: COMP-017-CHECKPOINT
+    title: "CHECKPOINT: Phase 3 tool-gateway integration validation"
+    phase: phase3_tool_gateway
+    day: 4
+    priority: P0
+    status: pending
+    effort: 0.5h
+    dependencies: [COMP-016, COMP-017]
+    criticalPath: true
+
+    description: |
+      Validation gate: Ensure Phase 3 is complete and tool-gateway
+      integration is working.
+
+    acceptance:
+      - Tool-gateway unit tests passing (8 tests)
+      - REST API integration tests passing (9 tests)
+      - No breaking changes to existing tool-gateway
+      - No TypeScript errors
+      - No ESLint errors
+      - Compositions load on startup
+      - MCP tools/list includes compositions
+      - REST API endpoints work
+
+    validationSteps:
+      - Run: npm test -- tool-gateway.test
+      - Run: npm test -- tool-gateway-composition-rest.test
+      - Verify: MCP integration works
+      - Verify: REST API works
+      - Check: No regressions in existing tests
+
+    tags: [checkpoint, validation, gate]
+
+# ============================================================================
+# PHASE 4: EXAMPLES & E2E TESTS (Day 5, 8 hours)
+# Goal: Create working examples and validate E2E flow
+# ============================================================================
+
+  # --------------------------------------------------------------------------
+  # COMP-019: Example Composition - viewer_greeting
+  # --------------------------------------------------------------------------
+  - id: COMP-019
+    title: "Create viewer_greeting example composition"
+    phase: phase4_examples
+    day: 5
+    priority: P1
+    status: pending
+    effort: 1.5h
+    dependencies: [COMP-017-CHECKPOINT]
+    criticalPath: true
+
+    description: |
+      Create viewer_greeting.yaml example composition demonstrating
+      multi-step workflow: get user → get memory → determine greeting type
+      → show alert.
+
+    files:
+      create:
+        - compositions/examples/viewer_greeting.yaml
+
+    acceptance:
+      - Valid mcp-compose/v1 format
+      - inputSchema requires user_id
+      - contextSchema requires channel_id
+      - Steps: user, memory, greeting_type, alert
+      - Return structured output (handled, viewer_id, greeting_type)
+      - YAML is well-documented (comments)
+      - Parses without errors
+      - Compiles without errors
+
+    yamlStructure:
+      apiVersion: mcp-compose/v1
+      kind: Composition
+      metadata:
+        name: viewer_greeting
+        description: Resolve viewer, retrieve memory, determine greeting, display alert
+      spec:
+        inputSchema: {user_id}
+        contextSchema: {channel_id}
+        steps:
+          - user: twitch.get_user
+          - memory: viewer_memory.get
+          - greeting_type: conditional (returning vs new)
+          - alert: obs.show_alert
+        return: {handled, viewer_id, greeting_type}
+
+    tags: [examples, documentation, critical-path]
+
+  # --------------------------------------------------------------------------
+  # COMP-020: Example Composition - user_lookup
+  # --------------------------------------------------------------------------
+  - id: COMP-020
+    title: "Create user_lookup example composition"
+    phase: phase4_examples
+    day: 5
+    priority: P2
+    status: pending
+    effort: 1h
+    dependencies: [COMP-017-CHECKPOINT]
+
+    description: |
+      Create user_lookup.yaml example composition demonstrating simpler
+      pattern: resolve user by name or ID.
+
+    files:
+      create:
+        - compositions/examples/user_lookup.yaml
+
+    acceptance:
+      - Valid mcp-compose/v1 format
+      - inputSchema allows user_id OR username
+      - Steps: Conditional lookup based on field
+      - Return user object
+      - YAML is well-documented
+      - Parses and compiles without errors
+
+    tags: [examples, documentation]
+
+  # --------------------------------------------------------------------------
+  # COMP-021: E2E Integration Test
+  # --------------------------------------------------------------------------
+  - id: COMP-021
+    title: "Write E2E integration test (full lifecycle)"
+    phase: phase4_examples
+    day: 5
+    priority: P0
+    status: pending
+    effort: 3h
+    dependencies: [COMP-019, COMP-020]
+    criticalPath: true
+
+    description: |
+      End-to-end integration test validating complete composition
+      lifecycle: load → parse → compile → register → execute via MCP.
+
+    files:
+      create:
+        - tests/integration/composition-e2e.test.ts
+
+    acceptance:
+      - Load viewer_greeting.yaml from disk
+      - Parse YAML to CompositionDefinition
+      - Compile to CompiledComposition
+      - Register in tool-gateway (via REST API)
+      - Verify appears in MCP tools/list
+      - Execute via MCP tools/call
+      - Verify structured output matches outputSchema
+      - Execute via REST API
+      - Verify REST response
+      - Cleanup (delete composition)
+      - All assertions passing
+
+    testFlow:
+      - Setup: Start tool-gateway with DocumentStore
+      - Step 1: Load viewer_greeting.yaml
+      - Step 2: Parse composition
+      - Step 3: Compile composition
+      - Step 4: POST /compositions (register)
+      - Step 5: Verify in MCP tools/list
+      - Step 6: Execute via MCP tools/call
+      - Step 7: Verify output
+      - Step 8: Execute via REST POST /compositions/:id/execute
+      - Step 9: Verify REST response
+      - Teardown: DELETE /compositions/:id, stop tool-gateway
+
+    tags: [testing, e2e, integration, critical-path]
+
+  # --------------------------------------------------------------------------
+  # COMP-022: Agent-Dev Validation Script
+  # --------------------------------------------------------------------------
+  - id: COMP-022
+    title: "Create agent-dev validation script"
+    phase: phase4_examples
+    day: 5
+    priority: P1
+    status: pending
+    effort: 2h
+    dependencies: [COMP-021]
+
+    description: |
+      Create bash script that automates agent-dev validation protocol:
+      provision → deploy → test → cleanup.
+
+    files:
+      create:
+        - planning/sprint-41-u18tqc/validate-sprint-41.sh
+
+    acceptance:
+      - Script provisions agent-dev context
+      - Deploys tool-gateway to agent-dev
+      - Registers sample composition via REST API
+      - Verifies composition in MCP tools/list
+      - Executes composition via REST API
+      - Checks logs for expected output
+      - Cleans up agent-dev context
+      - Exit code 0 on success, non-zero on failure
+      - Outputs clear progress messages
+
+    scriptSteps:
+      - Provision agent-dev context (MCP agent_dev.provision)
+      - Deploy tool-gateway (MCP bit.deploy)
+      - Verify service started (MCP fleet.info)
+      - Check logs for composition loading (MCP fleet.logs)
+      - Register composition (curl POST /compositions)
+      - Execute composition (curl POST /compositions/:id/execute)
+      - Verify response
+      - Check execution logs
+      - Cleanup (MCP agent_dev.destroy)
+
+    tags: [validation, agent-dev, testing]
+
+  # --------------------------------------------------------------------------
+  # CHECKPOINT: Phase 4 Complete
+  # --------------------------------------------------------------------------
+  - id: COMP-022-CHECKPOINT
+    title: "CHECKPOINT: Phase 4 E2E validation"
+    phase: phase4_examples
+    day: 5
+    priority: P0
+    status: pending
+    effort: 0.5h
+    dependencies: [COMP-021, COMP-022]
+    criticalPath: true
+
+    description: |
+      Validation gate: Ensure Phase 4 is complete and E2E flow works.
+
+    acceptance:
+      - E2E integration test passing (1 test)
+      - Agent-dev validation script executes successfully
+      - Example compositions parse and compile
+      - No errors in validation logs
+      - Full lifecycle validated
+
+    validationSteps:
+      - Run: npm test -- composition-e2e.test
+      - Run: bash planning/sprint-41-u18tqc/validate-sprint-41.sh
+      - Verify: Script exit code 0
+      - Verify: No errors in output
+      - Check: Compositions work end-to-end
+
+    tags: [checkpoint, validation, gate]
+
+# ============================================================================
+# PHASE 5: TESTING & VALIDATION (Day 6, 4 hours)
+# Goal: Comprehensive testing, coverage validation, final acceptance
+# ============================================================================
+
+  # --------------------------------------------------------------------------
+  # COMP-023: Full Test Suite
+  # --------------------------------------------------------------------------
+  - id: COMP-023
+    title: "Run full test suite and generate coverage report"
+    phase: phase5_validation
+    day: 6
+    priority: P0
+    status: pending
+    effort: 1h
+    dependencies: [COMP-022-CHECKPOINT]
+    criticalPath: true
+
+    description: |
+      Run complete test suite (all phases), generate coverage report,
+      validate >80% coverage target.
+
+    acceptance:
+      - npm test runs all test suites
+      - All tests passing (>90 total tests expected)
+      - npm run test:coverage generates report
+      - Coverage >80% for composition modules
+      - Coverage report saved
+      - No test failures
+      - No flaky tests (run 3 times to verify)
+
+    testSuites:
+      - parser.test.ts (12 tests)
+      - compiler.test.ts (15 tests)
+      - executor.test.ts (21 tests)
+      - registry.test.ts (12 tests)
+      - registry-integration.test.ts (8 tests)
+      - tool-gateway.test.ts (8 tests)
+      - tool-gateway-composition-rest.test.ts (9 tests)
+      - composition-e2e.test.ts (1 test)
+
+    expectedResults:
+      totalTests: 86
+      unitTests: 68
+      integrationTests: 17
+      e2eTests: 1
+      coverage: ">80%"
+
+    tags: [testing, validation, coverage, critical-path]
+
+  # --------------------------------------------------------------------------
+  # COMP-024: Agent-Dev Validation
+  # --------------------------------------------------------------------------
+  - id: COMP-024
+    title: "Execute agent-dev validation protocol"
+    phase: phase5_validation
+    day: 6
+    priority: P0
+    status: pending
+    effort: 1.5h
+    dependencies: [COMP-022, COMP-023]
+    criticalPath: true
+
+    description: |
+      Execute agent-dev validation script and document results.
+
+    files:
+      create:
+        - planning/sprint-41-u18tqc/agent-dev-validation-report.md
+
+    acceptance:
+      - Script executes without errors
+      - Tool-gateway deploys successfully
+      - Compositions load from DocumentStore
+      - Composition registration succeeds
+      - MCP tools/list includes composition
+      - MCP tools/call executes successfully
+      - REST API execute returns 200 OK
+      - Logs show expected execution trace
+      - Report documents all validation steps
+      - All acceptance criteria met
+
+    reportSections:
+      - Deployment Results
+      - Registration Test
+      - MCP Execution Test
+      - REST API Execution Test
+      - Log Analysis
+      - Acceptance Checklist
+      - Issues/Notes
+
+    tags: [validation, agent-dev, critical-path]
+
+  # --------------------------------------------------------------------------
+  # COMP-025: Performance Benchmarks
+  # --------------------------------------------------------------------------
+  - id: COMP-025
+    title: "Run performance benchmarks"
+    phase: phase5_validation
+    day: 6
+    priority: P2
+    status: pending
+    effort: 1h
+    dependencies: [COMP-024]
+
+    description: |
+      Benchmark composition loading, compilation, and execution performance.
+
+    files:
+      create:
+        - planning/sprint-41-u18tqc/performance-report.md
+
+    acceptance:
+      - Composition load time <100ms (10 compositions)
+      - Execution overhead <10ms vs direct tool calls (100 runs)
+      - Memory usage stable (no leaks after 1000 executions)
+      - Benchmark results documented
+      - All targets met
+
+    benchmarks:
+      - Composition load time (average, p50, p95, p99)
+      - Compilation time (average)
+      - Execution overhead (vs direct tool calls)
+      - Memory usage (baseline, peak, after 1000 runs)
+
+    tags: [performance, validation]
+
+  # --------------------------------------------------------------------------
+  # COMP-026: Sprint Documentation
+  # --------------------------------------------------------------------------
+  - id: COMP-026
+    title: "Complete sprint documentation and retrospective"
+    phase: phase5_validation
+    day: 6
+    priority: P1
+    status: pending
+    effort: 0.5h
+    dependencies: [COMP-024, COMP-025]
+
+    description: |
+      Write sprint retrospective, update request log, finalize documentation.
+
+    files:
+      create:
+        - planning/sprint-41-u18tqc/retrospective.md
+        - planning/sprint-41-u18tqc/test-report.md
+      modify:
+        - planning/sprint-41-u18tqc/request-log.md
+        - planning/sprint-41-u18tqc/execution-plan.md (mark complete)
+        - planning/sprint-41-u18tqc/backlog-execution.yaml (update status)
+
+    acceptance:
+      - Retrospective includes: what went well, challenges, learnings
+      - Test report summarizes all test results
+      - Request log documents all implementation decisions
+      - Execution plan marked complete
+      - Backlog updated with final status
+      - All sprint artifacts complete
+
+    retrospectiveSections:
+      - Sprint Overview
+      - What Went Well
+      - Challenges Encountered
+      - Lessons Learned
+      - Metrics vs Targets
+      - Technical Debt
+      - Recommendations for Next Sprint
+
+    tags: [documentation, retrospective]
+
+  # --------------------------------------------------------------------------
+  # FINAL CHECKPOINT: Sprint Complete
+  # --------------------------------------------------------------------------
+  - id: COMP-027
+    title: "FINAL VALIDATION: Sprint completion checklist"
+    phase: phase5_validation
+    day: 6
+    priority: P0
+    status: pending
+    effort: 0h
+    dependencies: [COMP-023, COMP-024, COMP-026]
+    criticalPath: true
+
+    description: |
+      Final validation gate: Ensure all sprint acceptance criteria met.
+
+    acceptance:
+      - All COMP-* tasks completed
+      - All tests passing (>86 tests)
+      - Coverage >80%
+      - Agent-dev validation successful
+      - Performance benchmarks meet targets
+      - Documentation complete
+      - No regressions in existing functionality
+      - Ready to merge to main
+
+    finalChecklist:
+      code:
+        - npm run build succeeds
+        - npm test passes (all suites)
+        - npm run lint passes
+        - No imports from /deprecated
+        - Follows naming conventions
+      testing:
+        - Unit tests >80% coverage
+        - Integration tests passing
+        - E2E test passing
+        - Agent-dev validation passing
+      documentation:
+        - Code comments complete
+        - JSDoc for public interfaces
+        - Execution plan complete
+        - Retrospective complete
+      integration:
+        - No breaking changes
+        - Graceful degradation works
+        - Feature flag implemented
+      performance:
+        - Load time <100ms
+        - Execution overhead <10ms
+        - No memory leaks
+
+    tags: [checkpoint, final-validation, gate, critical-path]
+
+# ============================================================================
+# CRITICAL PATH
+# ============================================================================
+
+criticalPath:
+  sequence:
+    - COMP-003  # Types
+    - COMP-004  # Parser
+    - COMP-006  # Compiler
+    - COMP-008  # Executor
+    - COMP-009-CHECKPOINT  # Phase 1 gate
+    - COMP-011  # Registry
+    - COMP-012-CHECKPOINT  # Phase 2 gate
+    - COMP-013  # Tool-gateway integration
+    - COMP-014  # MCP registration
+    - COMP-017-CHECKPOINT  # Phase 3 gate
+    - COMP-019  # Example composition
+    - COMP-021  # E2E test
+    - COMP-022-CHECKPOINT  # Phase 4 gate
+    - COMP-023  # Test suite
+    - COMP-024  # Agent-dev validation
+    - COMP-027  # Final validation
+
+  totalTasks: 15
+  totalHours: 32
+  percentOfTotal: 66.7%
+
+# ============================================================================
+# DEPENDENCY GRAPH
+# ============================================================================
+
+dependencyGraph:
+  # Phase 1
+  COMP-003: []
+  COMP-004: [COMP-003]
+  COMP-005: [COMP-004]
+  COMP-006: [COMP-003, COMP-004]
+  COMP-007: [COMP-006]
+  COMP-008: [COMP-003, COMP-004, COMP-006]
+  COMP-009: [COMP-008]
+  COMP-009-CHECKPOINT: [COMP-005, COMP-007, COMP-009]
+
+  # Phase 2
+  COMP-010: []
+  COMP-011: [COMP-003, COMP-010]
+  COMP-012: [COMP-011]
+  COMP-012-INT: [COMP-011]
+  COMP-012-CHECKPOINT: [COMP-012, COMP-012-INT]
+
+  # Phase 3
+  COMP-013: [COMP-008, COMP-011]
+  COMP-014: [COMP-013]
+  COMP-015: [COMP-013]
+  COMP-016: [COMP-013, COMP-014]
+  COMP-017: [COMP-015]
+  COMP-017-CHECKPOINT: [COMP-016, COMP-017]
+
+  # Phase 4
+  COMP-019: [COMP-017-CHECKPOINT]
+  COMP-020: [COMP-017-CHECKPOINT]
+  COMP-021: [COMP-019, COMP-020]
+  COMP-022: [COMP-021]
+  COMP-022-CHECKPOINT: [COMP-021, COMP-022]
+
+  # Phase 5
+  COMP-023: [COMP-022-CHECKPOINT]
+  COMP-024: [COMP-022, COMP-023]
+  COMP-025: [COMP-024]
+  COMP-026: [COMP-024, COMP-025]
+  COMP-027: [COMP-023, COMP-024, COMP-026]
+
+# ============================================================================
+# RISK REGISTER
+# ============================================================================
+
+risks:
+  - id: RISK-001
+    title: "ToolRegistry integration complexity"
+    probability: medium
+    impact: high
+    mitigation: "Review existing registry code early; prototype executor integration on Day 1"
+    owner: COMP-008
+    status: open
+
+  - id: RISK-002
+    title: "DocumentStore not available in tool-gateway"
+    probability: low
+    impact: high
+    mitigation: "Verify resource injection in Bit base class; implement graceful degradation"
+    owner: COMP-013
+    status: open
+
+  - id: RISK-003
+    title: "Circular dependency detection bugs"
+    probability: medium
+    impact: medium
+    mitigation: "Use proven DFS algorithm; comprehensive test cases"
+    owner: COMP-006
+    status: open
+
+  - id: RISK-004
+    title: "Reference resolution edge cases"
+    probability: medium
+    impact: medium
+    mitigation: "Extensive unit tests; fuzzing with varied reference patterns"
+    owner: COMP-008
+    status: open
+
+  - id: RISK-005
+    title: "Performance regression in tool-gateway"
+    probability: low
+    impact: medium
+    mitigation: "Benchmark existing performance; compare after integration"
+    owner: COMP-025
+    status: open
+
+# ============================================================================
+# SUCCESS METRICS
+# ============================================================================
+
+successMetrics:
+  functionality:
+    - name: "Parse YAML composition"
+      target: "100% success rate"
+      validation: COMP-005
+
+    - name: "Detect circular dependencies"
+      target: "100% detection rate"
+      validation: COMP-007
+
+    - name: "Execute multi-step composition"
+      target: "100% success rate"
+      validation: COMP-009
+
+    - name: "Expose via MCP tools/list"
+      target: "Compositions visible"
+      validation: COMP-014
+
+    - name: "Execute via MCP tools/call"
+      target: "Correct output"
+      validation: COMP-021
+
+    - name: "Execute via REST API"
+      target: "200 OK response"
+      validation: COMP-021
+
+  performance:
+    - name: "Composition load time"
+      target: "<100ms"
+      validation: COMP-025
+
+    - name: "Execution overhead"
+      target: "<10ms vs direct calls"
+      validation: COMP-025
+
+    - name: "Memory stability"
+      target: "No leaks after 1000 executions"
+      validation: COMP-025
+
+  quality:
+    - name: "Unit test coverage"
+      target: ">80%"
+      validation: COMP-023
+
+    - name: "All tests passing"
+      target: "100% pass rate"
+      validation: COMP-023
+
+    - name: "No TypeScript errors"
+      target: "Zero errors"
+      validation: COMP-027
+
+    - name: "No ESLint errors"
+      target: "Zero errors"
+      validation: COMP-027
+
+    - name: "Agent-dev validation"
+      target: "All checks pass"
+      validation: COMP-024
+
+# ============================================================================
+# DELIVERABLES
+# ============================================================================
+
+deliverables:
+  - name: "Core Composition Runtime"
+    tasks: [COMP-003, COMP-004, COMP-006, COMP-008]
+    artifacts:
+      - src/common/composition/types.ts
+      - src/common/composition/parser.ts
+      - src/common/composition/compiler.ts
+      - src/common/composition/executor.ts
+    status: pending
+
+  - name: "DocumentStore Registry"
+    tasks: [COMP-010, COMP-011]
+    artifacts:
+      - src/common/composition/registry.ts
+      - infrastructure/sql/migrations/001_composition_indexes.sql
+    status: pending
+
+  - name: "Tool-Gateway Integration"
+    tasks: [COMP-013, COMP-014, COMP-015]
+    artifacts:
+      - src/apps/tool-gateway.ts (modified)
+    status: pending
+
+  - name: "Test Coverage"
+    tasks: [COMP-005, COMP-007, COMP-009, COMP-012, COMP-012-INT, COMP-016, COMP-017, COMP-021]
+    artifacts:
+      - "*.test.ts files"
+      - Coverage report >80%
+    status: pending
+
+  - name: "Example Compositions"
+    tasks: [COMP-019, COMP-020]
+    artifacts:
+      - compositions/examples/viewer_greeting.yaml
+      - compositions/examples/user_lookup.yaml
+    status: pending
+
+  - name: "Sprint Documentation"
+    tasks: [COMP-024, COMP-025, COMP-026]
+    artifacts:
+      - planning/sprint-41-u18tqc/agent-dev-validation-report.md
+      - planning/sprint-41-u18tqc/performance-report.md
+      - planning/sprint-41-u18tqc/retrospective.md
+      - planning/sprint-41-u18tqc/test-report.md
+    status: pending
+
+# ============================================================================
+# NOTES
+# ============================================================================
+
+notes: |
+  This backlog is the executable, prioritized task list for Sprint 41.
+
+  Key differences from original backlog.yaml:
+  - Tighter timeline: 6 days (48h) vs 17 days (75h)
+  - 5 phases (not 6): Core, Registry, Tool-Gateway, Examples, Validation
+  - Incorporates DocumentStore architecture revision
+  - More aggressive parallelization
+  - Clearer critical path (15 tasks)
+  - Validation gates after each phase (checkpoints)
+
+  Use this backlog in conjunction with:
+  - execution-plan.md (strategic overview)
+  - technical-architecture.md (detailed design)
+  - architecture-revision-documentstore.md (storage pattern)
+
+  Task numbering:
+  - COMP-003 to COMP-027 (aligned with original for continuity)
+  - Checkpoints: COMP-009-CHECKPOINT, COMP-012-CHECKPOINT, etc.
+
+  Parallel work opportunities:
+  - Tests can run alongside implementation (COMP-005, 007, 009 parallel)
+  - Examples can be created while integration work continues
+  - Documentation can be written incrementally
+
+  Mandatory gates:
+  - COMP-009-CHECKPOINT: Core infrastructure must work
+  - COMP-012-CHECKPOINT: Registry must work
+  - COMP-017-CHECKPOINT: Tool-gateway must work
+  - COMP-022-CHECKPOINT: E2E must work
+  - COMP-027: Final validation must pass
+
+  Ready for execution when:
+  - Execution plan approved
+  - Backlog reviewed and prioritized
+  - Sprint status updated to "in-progress"

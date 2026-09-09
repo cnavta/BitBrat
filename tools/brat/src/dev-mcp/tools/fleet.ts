@@ -288,8 +288,8 @@ const fleetLogsSchema = z.object({
     .describe('Start time (ISO timestamp or duration like "1h", "30m")'),
   until: z.string().optional()
     .describe('End time (ISO timestamp)'),
-  limit: z.number().default(100)
-    .describe('Maximum number of log entries to return'),
+  limit: z.coerce.number().optional()
+    .describe('Maximum number of log entries to return (default: platform-specific - Docker: 2000, Loki: unlimited)'),
   correlationId: z.string().optional()
     .describe('Filter by correlation ID'),
   format: z.enum(['text', 'json', 'raw']).default('text')
@@ -302,8 +302,10 @@ async function fleetLogsHandler(
   connection: TargetConnection
 ): Promise<any> {
   try {
-    // Parse and validate args
-    const parsed = fleetLogsSchema.parse(args);
+    // NOTE: MCP argument preprocessing (JSON string → array conversion) now happens
+    // in ToolRouter.preprocessMCPArguments() BEFORE this handler is called (Sprint 46 fix).
+    // Args are already preprocessed and validated by the time we reach here.
+    const parsed = args as z.infer<typeof fleetLogsSchema>;
     // Create LogRetriever
     const logRetriever = new LogRetriever(connection);
 
@@ -349,7 +351,43 @@ async function fleetLogsHandler(
           break;
       }
 
-      const header = `Retrieved ${response.count} log entries from ${args.bit} (${response.deploymentType})\nTarget: ${connection.name}\n\n`;
+      // Build header with stats (Sprint 46)
+      let header = `Retrieved ${response.count} log entries from ${args.bit} (${response.deploymentType})\nTarget: ${connection.name}\n`;
+
+      // Add stats if available (Sprint 46)
+      if (response.stats) {
+        const { scanned, parsed, failed, filtered, returned, backend, lokiFallback, warnings } = response.stats;
+
+        header += `\n=== Pipeline Stats ===\n`;
+
+        // Loki backend (server-side filtering) - simplified stats
+        if (backend === 'loki') {
+          header += `Backend:  Loki (server-side filtering)\n`;
+          header += `Returned: ${returned} entries\n`;
+          header += `Note: Loki performs server-side parsing/filtering. Stats show returned count only.\n`;
+        } else {
+          // Docker backend - detailed stats
+          header += `Scanned:  ${scanned} log lines from ${backend}${lokiFallback ? ' (Loki fallback)' : ''}\n`;
+          header += `Parsed:   ${parsed} successfully\n`;
+          if (failed > 0) {
+            header += `Failed:   ${failed} (malformed or invalid JSON)\n`;
+          }
+          if (filtered > 0) {
+            header += `Filtered: ${filtered} (excluded by level/correlation filters)\n`;
+          }
+          header += `Returned: ${returned} final entries\n`;
+        }
+
+        // Add warnings if present
+        if (warnings && warnings.length > 0) {
+          header += `\n`;
+          for (const warning of warnings) {
+            header += `⚠️  ${warning}\n`;
+          }
+        }
+      }
+
+      header += `\n`;
 
       return {
         content: [{

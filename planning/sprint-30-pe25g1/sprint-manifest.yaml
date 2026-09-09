@@ -1,0 +1,14 @@
+id: sprint-30-pe25g1
+title: Test Infrastructure Remediation & Optimization
+goal: Fix failing integration tests, eliminate worktree test duplication,
+  resolve EventEmitter memory leaks, and establish clear test execution paths
+  (unit/integration/e2e). Improve test suite execution time from 5-10 minutes to
+  2-3 minutes through immediate fixes (Phase 1 of analysis document).
+owner: "@bitbrat"
+createdAt: 2026-08-30T02:05:44.534Z
+status: complete
+links:
+  branch: feature/sprint-30-pe25g1-test-infrastructure-remediatio
+notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-08-30T16:37:38.355Z
+completionMode: normal

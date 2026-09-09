@@ -1,17 +1,8 @@
 import request from "supertest";
 import { Bit } from "../../src/common/base-server";
 
-// Mock SSEServerTransport so /sse does not hang the test runner.
-jest.mock("@modelcontextprotocol/sdk/server/sse.js", () => ({
-  SSEServerTransport: jest.fn().mockImplementation((_path, res) => {
-    res.end();
-    return {
-      sessionId: "conformance-session",
-      onclose: jest.fn(),
-      handlePostMessage: jest.fn().mockResolvedValue(undefined),
-    };
-  }),
-}));
+// Sprint 28: MCP SDK 2.0 - No need to mock SSEServerTransport (stateless per-request architecture)
+// The v2.0 server doesn't use persistent SSE sessions, so these mocks are obsolete
 
 /**
  * Bit model (sprint-324) — Platform Ring conformance suite.
@@ -54,12 +45,10 @@ describe("Bit Platform Ring conformance", () => {
     }
   });
 
-  it("wires the MCP transport (/sse + POST /message) when enabled", async () => {
+  it("wires the MCP transport (POST /mcp) when enabled", async () => {
     bit = new HelloBit({ serviceName: "hello-bit", mcpExposure: "platform-only" });
-    const sse = await request(bit.getApp()).get("/sse");
-    expect(sse.status).not.toBe(404);
-    const msg = await request(bit.getApp()).post("/message");
-    expect(msg.status).not.toBe(404);
+    const mcp = await request(bit.getApp()).post("/mcp");
+    expect(mcp.status).not.toBe(404);
   });
 
   it("bit.info reports identity and effective exposure", async () => {
@@ -112,7 +101,7 @@ describe("Bit Platform Ring conformance", () => {
     bit = new HelloBit({ serviceName: "unlisted-fixture-bit-xyz" });
     const tools = (bit as any).registeredTools as Map<string, any>;
     expect(tools.size).toBe(0);
-    const sse = await request(bit.getApp()).get("/sse");
-    expect(sse.status).toBe(404);
+    const mcp = await request(bit.getApp()).post("/mcp");
+    expect(mcp.status).toBe(404);
   });
 });

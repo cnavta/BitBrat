@@ -1,0 +1,11 @@
+id: sprint-43-bt55ep
+title: Composition Schema Visibility Fix
+goal: Implement JsonSchemaStandardAdapter to expose composition input schemas to
+  LLMs via MCP SDK 2.0, enabling proper parameter discovery and type-aware tool
+  calls
+owner: navta3
+createdAt: 2026-09-05T15:59:11.541Z
+status: validating
+links:
+  branch: feature/sprint-43-bt55ep-composition-schema-visibility-
+notes: Sprint initialized via MCP start-sprint tool
