@@ -193,7 +193,6 @@ export class DockerComposeStrategy implements DeploymentStrategy {
   async execute(plan: DeploymentPlan): Promise<DeploymentResult> {
     const startTime = Date.now();
     let tempComposePath: string | null = null;
-    let originalComposeContent: string | null = null;
 
     try {
       // Extract deployment options from plan metadata
@@ -272,12 +271,31 @@ export class DockerComposeStrategy implements DeploymentStrategy {
         );
       }
 
-      // Sprint 375: Read original compose file FIRST (before any processing)
-      // This ensures we can restore even if merge/secureFiles processing fails
-      originalComposeContent = await fs.promises.readFile(baseComposeFilePath, 'utf-8');
-      tempComposePath = baseComposeFilePath; // Track for cleanup
+      // Sprint 49: FIX-004 - Single-service deploy must NOT include infrastructure
+      //
+      // CRITICAL FIX: Previously, single-service deploys included the full base compose file
+      // which contains infrastructure services (NATS, Redis, PostgreSQL). This caused
+      // infrastructure to restart on every single-service deploy, breaking the platform.
+      //
+      // NEW APPROACH: Create minimal compose file with ONLY:
+      // 1. Network definition (external: true to connect to existing network)
+      // 2. Service being deployed (from service-specific compose file)
+      // 3. No infrastructure services
+      //
+      // Infrastructure is assumed to already be running (deployed via `brat bit deploy --all`)
 
-      // Sprint 375: Merge service-specific compose file with generated compose file
+      console.log(`[docker-compose-strategy] Sprint 49 FIX-004: Single-service deploy without infrastructure`);
+
+      // Read base compose to extract network configuration
+      const baseComposeContent = await fs.promises.readFile(baseComposeFilePath, 'utf-8');
+      const baseCompose = yaml.load(baseComposeContent) as any;
+
+      // Extract network name from base compose (typically 'bitbrat-network')
+      const networkName = Object.keys(baseCompose.networks || {})[0] || 'bitbrat-network';
+
+      console.log(`[docker-compose-strategy] Using external network: ${networkName}`);
+
+      // Sprint 49: Build minimal compose file for single-service deploy
       const serviceComposeFilePath = path.join(
         repoRoot,
         'infrastructure',
@@ -292,33 +310,80 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       // Check if service-specific compose file exists
       if (fs.existsSync(serviceComposeFilePath)) {
         console.log(
-          `[docker-compose-strategy] Merging service-specific compose file: ${serviceComposeFilePath}`
+          `[docker-compose-strategy] Loading service-specific compose file: ${serviceComposeFilePath}`
         );
 
-        // Read service-specific file (base already read above)
+        // Read service-specific file
         const serviceYaml = await fs.promises.readFile(serviceComposeFilePath, 'utf-8');
+        const serviceCompose = yaml.load(serviceYaml) as any;
 
-        // Merge service-specific overrides
-        const mergeResult = merger.merge(originalComposeContent, serviceYaml, {
-          serviceName: plan.service.name,
-          validationMode: 'lenient', // Don't fail if service missing
+        // Create minimal compose structure with ONLY the service (no infrastructure)
+        const minimalCompose: any = {
+          version: baseCompose.version || '3.8',
+          services: serviceCompose.services || {},
+          networks: {
+            [networkName]: {
+              external: true, // Connect to existing network (don't recreate)
+              name: networkName,
+            },
+          },
+        };
+
+        // Include volumes from service-specific file if present
+        if (serviceCompose.volumes) {
+          minimalCompose.volumes = serviceCompose.volumes;
+        }
+
+        // Convert to YAML
+        finalComposeYaml = yaml.dump(minimalCompose, {
+          indent: 2,
+          lineWidth: 120,
+          noRefs: true,
         });
 
         console.log(
-          `[docker-compose-strategy] Merge stats: ` +
-            `volumes=${mergeResult.stats.volumesAdded}, ` +
-            `env=${mergeResult.stats.environmentAdded}, ` +
-            `deps=${mergeResult.stats.dependenciesAdded}`
+          `[docker-compose-strategy] Created minimal compose with service '${plan.service.name}' ` +
+            `(${Object.keys(serviceCompose.services || {}).length} service definition(s), ` +
+            `network: ${networkName} external)`
+        );
+      } else {
+        // Fallback: No service-specific file found, create minimal structure from base
+        console.log(
+          `[docker-compose-strategy] WARNING: No service-specific compose file found at ${serviceComposeFilePath}`
         );
 
-        finalComposeYaml = mergeResult.yaml;
-      } else {
-        console.log(
-          `[docker-compose-strategy] No service-specific compose file found at ${serviceComposeFilePath}, ` +
-            `using base compose only`
-        );
-        finalComposeYaml = originalComposeContent; // Use already-read content
+        // Extract just this service from base compose
+        const minimalCompose: any = {
+          version: baseCompose.version || '3.8',
+          services: {},
+          networks: {
+            [networkName]: {
+              external: true,
+              name: networkName,
+            },
+          },
+        };
+
+        // Try to find service in base compose
+        if (baseCompose.services && baseCompose.services[plan.service.name]) {
+          minimalCompose.services[plan.service.name] = baseCompose.services[plan.service.name];
+          console.log(`[docker-compose-strategy] Extracted service '${plan.service.name}' from base compose`);
+        } else {
+          throw new Error(
+            `Service '${plan.service.name}' not found in ${serviceComposeFilePath} or ${baseComposeFilePath}. ` +
+              `Cannot deploy service without compose definition.`
+          );
+        }
+
+        finalComposeYaml = yaml.dump(minimalCompose, {
+          indent: 2,
+          lineWidth: 120,
+          noRefs: true,
+        });
       }
+
+      // Track temp path for cleanup (will be created below)
+      tempComposePath = path.join(repoRoot, `.docker-compose.${plan.service.name}.temp.yaml`);
 
       // Sprint 374/375: Process secure files
       const secureFiles = (plan.metadata.secureFiles || []) as SecureFile[];
@@ -379,10 +444,11 @@ export class DockerComposeStrategy implements DeploymentStrategy {
         );
       }
 
-      // Write merged content to base path (orchestrator will pick it up)
-      await fs.promises.writeFile(baseComposeFilePath, finalComposeYaml, 'utf-8');
+      // Sprint 49: Write minimal compose to TEMP file (don't overwrite base)
+      // This prevents infrastructure from being included in the deployment
+      await fs.promises.writeFile(tempComposePath, finalComposeYaml, 'utf-8');
       console.log(
-        `[docker-compose-strategy] Temporarily replaced ${baseComposeFilePath} with merged content`
+        `[docker-compose-strategy] Sprint 49: Wrote minimal compose to temp file: ${tempComposePath}`
       );
 
       // Map new deployment plan to DockerOrchestratorOptions
@@ -390,6 +456,7 @@ export class DockerComposeStrategy implements DeploymentStrategy {
         repoRoot,
         context: plan.context.name,
         service: plan.service.name,
+        composeFile: tempComposePath, // Sprint 49: Use temp file instead of base file
         dryRun: deployOptions.dryRun || false,
         forceRecreate: deployOptions.forceRecreate || false,
         noCache: deployOptions.forceBuild || false,
@@ -537,24 +604,22 @@ export class DockerComposeStrategy implements DeploymentStrategy {
         error: error.message || String(error),
       };
     } finally {
-      // Sprint 375: ALWAYS restore original compose file (success, failure, or early error)
+      // Sprint 49: ALWAYS delete temp compose file (success, failure, or early error)
       // This finally block ensures cleanup even if errors occur during:
       // - File reading/merging
       // - SecureFiles processing
-      // - File replacement
+      // - File writing
       // - Orchestrator execution
-      if (originalComposeContent !== null && tempComposePath !== null) {
+      if (tempComposePath !== null) {
         try {
-          await fs.promises.writeFile(tempComposePath, originalComposeContent, 'utf-8');
-          console.log(`[docker-compose-strategy] Restored original compose file: ${tempComposePath}`);
-        } catch (restoreError: any) {
-          // Log restoration failure but don't throw (avoid masking original error)
-          console.error(
-            `[docker-compose-strategy] CRITICAL: Failed to restore original compose file: ${tempComposePath}`,
-            restoreError
-          );
-          console.error(
-            `[docker-compose-strategy] MANUAL RECOVERY REQUIRED: Restore from git or backup`
+          await fs.promises.unlink(tempComposePath);
+          console.log(`[docker-compose-strategy] Cleaned up temp compose file: ${tempComposePath}`);
+        } catch (cleanupError: any) {
+          // Log cleanup failure but don't throw (avoid masking original error)
+          // Temp files in repo root are git-ignored, so orphaned files are not critical
+          console.warn(
+            `[docker-compose-strategy] Warning: Failed to delete temp compose file: ${tempComposePath}`,
+            cleanupError
           );
         }
       }
