@@ -400,9 +400,29 @@ export class CompositionExecutor {
     const startTime = Date.now();
 
     try {
+      // TRACE: Log MCP tool request
+      this.logger.trace('mcp_tool_request', {
+        stepId: step.id,
+        toolId: step.call,
+        args: JSON.stringify(args),
+        argsSize: JSON.stringify(args).length,
+      });
+
       const result = await tool.execute(args, execContext);
 
       const executionTime = Date.now() - startTime;
+
+      // TRACE: Log MCP tool response
+      this.logger.trace('mcp_tool_response', {
+        stepId: step.id,
+        toolId: step.call,
+        executionTime,
+        result: JSON.stringify(result),
+        resultSize: JSON.stringify(result).length,
+        hasContent: !!(result as any)?.content,
+        contentLength: Array.isArray((result as any)?.content) ? (result as any).content.length : 0,
+        isError: !!(result as any)?.isError,
+      });
 
       // Validate output against tool's outputSchema
       if (tool.outputSchema) {
@@ -514,6 +534,7 @@ export class CompositionExecutor {
    * Resolve a reference
    *
    * Uses JSON Pointer to extract value from namespace
+   * Sprint 50: Attempts MCP shortcut expansion for steps namespace
    *
    * @param ref - Reference to resolve
    * @param input - Composition input
@@ -554,13 +575,70 @@ export class CompositionExecutor {
       );
     }
 
-    // Use JSON Pointer to extract value
+    // Sprint 50: Attempt MCP shortcut expansion for steps namespace
+    if (namespace === 'steps' && pointer.length > 0) {
+      // Parse pointer into segments
+      const segments = pointer.split('/').slice(1); // Remove leading empty string
+
+      if (segments.length >= 2) {
+        // Format: /stepId/shortcut or /stepId/shortcut/rest...
+        const stepId = segments[0];
+        const shortcut = segments[1];
+        const rest = segments.slice(2);
+
+        // Get step output
+        const stepOutput = stepState[stepId];
+
+        // Check if step output is MCP envelope
+        if (this.isMcpEnvelope(stepOutput)) {
+          this.logger.trace('shortcut_expansion_attempted', {
+            stepId,
+            shortcut,
+            restSegments: rest.length,
+          });
+
+          // Attempt shortcut expansion
+          const expandedValue = this.expandMcpShortcut(stepOutput, shortcut, rest);
+
+          if (expandedValue !== null) {
+            // TRACE: Log resolved value (truncated for large objects)
+            const valuePreview = this.getValuePreview(expandedValue);
+
+            this.logger.debug('shortcut_expansion_succeeded', {
+              namespace,
+              pointer,
+              stepId,
+              shortcut,
+              hasValue: expandedValue !== undefined,
+              valueType: typeof expandedValue,
+              valuePreview,
+            });
+
+            return expandedValue;
+          }
+
+          // Shortcut expansion returned null - fallback to standard resolution
+          this.logger.trace('shortcut_expansion_fallback', {
+            stepId,
+            shortcut,
+            reason: 'unrecognized_or_type_mismatch',
+          });
+        }
+      }
+    }
+
+    // Standard JSON Pointer resolution (fallback or non-steps namespace)
     const value = this.getByPointer(target, pointer);
+
+    // TRACE: Log resolved value (truncated for large objects)
+    const valuePreview = this.getValuePreview(value);
 
     this.logger.trace('reference_resolution_succeeded', {
       namespace,
       pointer,
       hasValue: value !== undefined,
+      valueType: typeof value,
+      valuePreview,
     });
 
     return value;
@@ -596,6 +674,334 @@ export class CompositionExecutor {
     }
 
     return current;
+  }
+
+  /**
+   * Detect MCP CallToolResult envelope format
+   *
+   * Sprint 50: Helper for MCP tool response shortcuts.
+   * Checks if a value matches the MCP CallToolResult envelope structure:
+   * { content: [{ type: 'text', ... }, ...], isError?: boolean }
+   *
+   * @param value - Value to check
+   * @returns True if value is MCP envelope with non-empty content array
+   *
+   * @example
+   * ```typescript
+   * isMcpEnvelope({ content: [{ type: 'text', text: 'hello' }] }) // true
+   * isMcpEnvelope({ content: [] }) // false (empty content)
+   * isMcpEnvelope({ data: 'value' }) // false (no content field)
+   * isMcpEnvelope(null) // false
+   * ```
+   */
+  private isMcpEnvelope(value: unknown): boolean {
+    if (!value || typeof value !== 'object') {
+      return false;
+    }
+
+    const envelope = value as any;
+    return (
+      Array.isArray(envelope.content) &&
+      envelope.content.length > 0 &&
+      typeof envelope.content[0] === 'object' &&
+      'type' in envelope.content[0]
+    );
+  }
+
+  /**
+   * Parse JSON string safely with error handling
+   *
+   * Sprint 50: Helper for /json shortcut support.
+   * Parses JSON strings and returns the result or null on failure.
+   * Never throws - designed for graceful degradation.
+   *
+   * @param value - String to parse as JSON
+   * @param contextPath - Path segments for logging context
+   * @returns Parsed JSON object/array or null on failure
+   *
+   * @example
+   * ```typescript
+   * parseJsonSafely('{"key": "value"}', ['step1', 'text', 'json'])
+   * // Returns: { key: 'value' }
+   *
+   * parseJsonSafely('invalid json', ['step1', 'text', 'json'])
+   * // Returns: null (logs warning)
+   *
+   * parseJsonSafely(123, ['step1', 'text', 'json'])
+   * // Returns: null (logs warning)
+   * ```
+   */
+  private parseJsonSafely(value: unknown, contextPath: string[]): unknown | null {
+    // Non-string input
+    if (typeof value !== 'string') {
+      this.logger.warn('json_parse_not_string', {
+        contextPath: contextPath.join('/'),
+        type: typeof value,
+      });
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(value);
+
+      this.logger.debug('json_parse_succeeded', {
+        contextPath: contextPath.join('/'),
+        resultType: Array.isArray(parsed) ? 'array' : typeof parsed,
+      });
+
+      return parsed;
+    } catch (error) {
+      // Invalid JSON
+      this.logger.warn('json_parse_failed', {
+        contextPath: contextPath.join('/'),
+        error: error instanceof Error ? error.message : String(error),
+        valueSample: value.length > 100 ? value.substring(0, 100) + '...' : value,
+      });
+
+      return null;
+    }
+  }
+
+  /**
+   * Expand MCP shortcut paths to full JSON Pointer
+   *
+   * Sprint 50: Core shortcut expansion logic.
+   * Converts ergonomic shortcuts (/text, /image, /json) to full MCP paths.
+   *
+   * Supported shortcuts:
+   * - /text → /content/0/text (for text content)
+   * - /text/json/field → Parse text as JSON and navigate to field
+   * - /image or /data → /content/0/data (for image content)
+   * - /mimeType → /content/0/mimeType (for image MIME type)
+   * - /uri → /content/0/resource/uri (for resource content)
+   * - /resource/* → /content/0/resource/* (for resource fields)
+   * - /isError → /isError (top-level error flag)
+   *
+   * @param envelope - MCP CallToolResult envelope
+   * @param shortcut - First path segment (shortcut keyword)
+   * @param rest - Remaining path segments
+   * @returns Resolved value or null if shortcut doesn't apply
+   *
+   * @example
+   * ```typescript
+   * // Text shortcut
+   * expandMcpShortcut(
+   *   { content: [{ type: 'text', text: 'hello' }] },
+   *   'text',
+   *   []
+   * ) // Returns: 'hello'
+   *
+   * // JSON shortcut with navigation
+   * expandMcpShortcut(
+   *   { content: [{ type: 'text', text: '{"user": {"name": "Alice"}}' }] },
+   *   'text',
+   *   ['json', 'user', 'name']
+   * ) // Returns: 'Alice'
+   *
+   * // Image shortcut
+   * expandMcpShortcut(
+   *   { content: [{ type: 'image', data: 'base64...', mimeType: 'image/png' }] },
+   *   'data',
+   *   []
+   * ) // Returns: 'base64...'
+   * ```
+   */
+  private expandMcpShortcut(
+    envelope: any,
+    shortcut: string,
+    rest: string[]
+  ): unknown | null {
+    const content = envelope.content;
+    if (!Array.isArray(content) || content.length === 0) {
+      this.logger.trace('mcp_shortcut_no_content', {
+        shortcut,
+        hasContent: !!content,
+        contentLength: Array.isArray(content) ? content.length : 0,
+      });
+      return null;
+    }
+
+    const firstItem = content[0];
+    const itemType = firstItem.type;
+
+    this.logger.trace('mcp_shortcut_expansion', {
+      shortcut,
+      contentType: itemType,
+      restSegments: rest.length,
+    });
+
+    // Text content shortcuts (with /json support)
+    if (shortcut === 'text') {
+      if (itemType === 'text') {
+        const value = firstItem.text;
+
+        // Check for JSON parsing shortcut: /stepId/text/json/...
+        if (rest.length > 0 && rest[0] === 'json') {
+          this.logger.trace('mcp_shortcut_json_parse_attempt', {
+            remainingPath: rest.slice(1),
+          });
+
+          const parsed = this.parseJsonSafely(value, ['text', 'json', ...rest.slice(1)]);
+          if (parsed !== null) {
+            const remainingPath = rest.slice(1); // Skip 'json'
+            const result = remainingPath.length > 0
+              ? this.getByPointer(parsed, '/' + remainingPath.join('/'))
+              : parsed;
+
+            this.logger.debug('mcp_shortcut_json_resolved', {
+              remainingPath,
+              hasResult: result !== undefined,
+            });
+
+            return result;
+          }
+
+          this.logger.trace('mcp_shortcut_json_parse_failed', {
+            reason: 'parse_returned_null',
+          });
+          return null; // JSON parsing failed
+        }
+
+        // Standard text access (with optional nested path)
+        const result = rest.length > 0
+          ? this.getByPointer(value, '/' + rest.join('/'))
+          : value;
+
+        this.logger.trace('mcp_shortcut_text_resolved', {
+          hasNestedPath: rest.length > 0,
+          hasResult: result !== undefined,
+        });
+
+        return result;
+      }
+
+      this.logger.trace('mcp_shortcut_type_mismatch', {
+        shortcut: 'text',
+        expectedType: 'text',
+        actualType: itemType,
+      });
+      return null; // Wrong content type
+    }
+
+    // Image content shortcuts
+    if (shortcut === 'image' || shortcut === 'data') {
+      if (itemType === 'image') {
+        const value = firstItem.data;
+        const result = rest.length > 0
+          ? this.getByPointer(value, '/' + rest.join('/'))
+          : value;
+
+        this.logger.trace('mcp_shortcut_image_resolved', {
+          shortcut,
+          hasNestedPath: rest.length > 0,
+          hasResult: result !== undefined,
+        });
+
+        return result;
+      }
+
+      this.logger.trace('mcp_shortcut_type_mismatch', {
+        shortcut,
+        expectedType: 'image',
+        actualType: itemType,
+      });
+      return null;
+    }
+
+    if (shortcut === 'mimeType') {
+      if (itemType === 'image') {
+        const value = firstItem.mimeType;
+        const result = rest.length > 0
+          ? this.getByPointer(value, '/' + rest.join('/'))
+          : value;
+
+        this.logger.trace('mcp_shortcut_mimetype_resolved', {
+          hasNestedPath: rest.length > 0,
+          hasResult: result !== undefined,
+        });
+
+        return result;
+      }
+
+      this.logger.trace('mcp_shortcut_type_mismatch', {
+        shortcut: 'mimeType',
+        expectedType: 'image',
+        actualType: itemType,
+      });
+      return null;
+    }
+
+    // Resource content shortcuts
+    if (shortcut === 'uri') {
+      if (itemType === 'resource') {
+        const value = firstItem.resource?.uri;
+        const result = rest.length > 0
+          ? this.getByPointer(value, '/' + rest.join('/'))
+          : value;
+
+        this.logger.trace('mcp_shortcut_uri_resolved', {
+          hasNestedPath: rest.length > 0,
+          hasResult: result !== undefined,
+        });
+
+        return result;
+      }
+
+      this.logger.trace('mcp_shortcut_type_mismatch', {
+        shortcut: 'uri',
+        expectedType: 'resource',
+        actualType: itemType,
+      });
+      return null;
+    }
+
+    if (shortcut === 'resource') {
+      if (itemType === 'resource') {
+        const value = firstItem.resource;
+        const result = rest.length > 0
+          ? this.getByPointer(value, '/' + rest.join('/'))
+          : value;
+
+        this.logger.trace('mcp_shortcut_resource_resolved', {
+          hasNestedPath: rest.length > 0,
+          hasResult: result !== undefined,
+        });
+
+        return result;
+      }
+
+      this.logger.trace('mcp_shortcut_type_mismatch', {
+        shortcut: 'resource',
+        expectedType: 'resource',
+        actualType: itemType,
+      });
+      return null;
+    }
+
+    // Error flag shortcut (top-level, not in content array)
+    if (shortcut === 'isError') {
+      const value = envelope.isError;
+      const result = rest.length > 0
+        ? this.getByPointer(value, '/' + rest.join('/'))
+        : value;
+
+      this.logger.trace('mcp_shortcut_error_flag_resolved', {
+        hasNestedPath: rest.length > 0,
+        hasResult: result !== undefined,
+        isError: !!value,
+      });
+
+      return result;
+    }
+
+    // Unrecognized shortcut - return null to fallback to standard resolution
+    this.logger.trace('mcp_shortcut_unrecognized', {
+      shortcut,
+      contentType: itemType,
+      availableShortcuts: ['text', 'image', 'data', 'mimeType', 'uri', 'resource', 'isError'],
+    });
+
+    return null;
   }
 
   /**
@@ -986,5 +1392,48 @@ export class CompositionExecutor {
         `tool[${toolId}].output`
       );
     }
+  }
+
+  /**
+   * Get a preview of a value for logging (truncates large objects/strings)
+   *
+   * @param value - Value to preview
+   * @returns String preview of the value
+   */
+  private getValuePreview(value: unknown): string {
+    if (value === null) {
+      return 'null';
+    }
+    if (value === undefined) {
+      return 'undefined';
+    }
+
+    const valueType = typeof value;
+
+    if (valueType === 'string') {
+      const strValue = value as string;
+      if (strValue.length <= 100) {
+        return strValue;
+      }
+      return strValue.substring(0, 100) + '... (truncated, length: ' + strValue.length + ')';
+    }
+
+    if (valueType === 'number' || valueType === 'boolean') {
+      return String(value);
+    }
+
+    if (valueType === 'object') {
+      try {
+        const jsonStr = JSON.stringify(value);
+        if (jsonStr.length <= 200) {
+          return jsonStr;
+        }
+        return jsonStr.substring(0, 200) + '... (truncated, length: ' + jsonStr.length + ')';
+      } catch (err) {
+        return '[Object: circular or non-serializable]';
+      }
+    }
+
+    return `[${valueType}]`;
   }
 }
