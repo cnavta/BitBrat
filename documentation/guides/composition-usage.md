@@ -292,6 +292,116 @@ execution_time:
     pointer: /timestamp
 ```
 
+### MCP Tool Response Shortcuts (Sprint 50)
+
+**Problem**: MCP tools return responses in a standard envelope format with a `content` array. Accessing values requires verbose paths like `/stepId/content/0/text`.
+
+**Solution**: Path shortcuts automatically expand ergonomic shortcuts to full MCP paths when the step output matches the MCP CallToolResult envelope format.
+
+#### Supported Shortcuts
+
+| Shortcut | Expands To | Use Case |
+|----------|------------|----------|
+| `/text` | `/content/0/text` | Text content from MCP tools |
+| `/text/json/field` | Parse JSON and navigate | JSON-stringified data in text fields |
+| `/image` or `/data` | `/content/0/data` | Base64 image data |
+| `/mimeType` | `/content/0/mimeType` | Image MIME type |
+| `/uri` | `/content/0/resource/uri` | Resource URI |
+| `/resource/*` | `/content/0/resource/*` | Nested resource fields |
+| `/isError` | `/isError` | Top-level error flag |
+
+#### Examples
+
+**Before (Sprint 49):**
+```yaml
+steps:
+  - id: get_state
+    call: get_state
+    with:
+      key: user.preferences
+
+  - id: process
+    call: process_data
+    with:
+      data:
+        $ref:
+          namespace: steps
+          pointer: /get_state/content/0/text  # Verbose!
+```
+
+**After (Sprint 50):**
+```yaml
+steps:
+  - id: get_state
+    call: get_state
+    with:
+      key: user.preferences
+
+  - id: process
+    call: process_data
+    with:
+      data:
+        $ref:
+          namespace: steps
+          pointer: /get_state/text  # 57% shorter!
+```
+
+#### JSON Parsing Shortcut
+
+Many MCP tools return JSON-stringified data in text fields. The `/json` shortcut parses the JSON and allows direct property access:
+
+```yaml
+steps:
+  # Tool returns: { content: [{ type: 'text', text: '{"user": {"name": "Alice", "age": 30}}' }] }
+  - id: get_user
+    call: get_state
+    with:
+      key: current_user
+
+  # Extract nested property from JSON
+  - id: greet
+    call: send_message
+    with:
+      message:
+        template: "Hello, {{name}}!"
+        name:
+          $ref:
+            namespace: steps
+            pointer: /get_user/text/json/user/name  # Parses JSON and extracts user.name
+```
+
+#### Backwards Compatibility
+
+Shortcuts are **opt-in** and **backwards compatible**:
+
+- Explicit paths (e.g., `/content/0/text`) always work unchanged
+- Shortcuts only activate for recognized patterns on MCP envelope responses
+- Non-MCP responses use standard JSON Pointer resolution
+- Zero breaking changes to existing compositions
+
+**When to use shortcuts vs explicit paths:**
+
+✅ **Use shortcuts** when:
+- Accessing MCP tool responses (most platform tools)
+- You want shorter, more readable paths
+- Working with JSON-stringified data in text fields
+
+❌ **Use explicit paths** when:
+- Accessing non-MCP responses (legacy tools, custom structures)
+- You need absolute control over the path
+- Debugging complex data structures
+
+#### Migration Guide
+
+To migrate existing compositions to use shortcuts:
+
+1. Identify MCP tool response paths (look for `/content/0/text` patterns)
+2. Replace with equivalent shortcut (e.g., `/text`)
+3. Test the composition to verify behavior unchanged
+4. Add comments showing the old path for reference
+
+See `examples/compositions/grockle.yaml` for a complete migration example.
+
 ### Condition Operators
 
 #### `equals`
