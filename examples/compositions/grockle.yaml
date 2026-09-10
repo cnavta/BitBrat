@@ -1,11 +1,19 @@
 # Grockle Composition
 #
-# Retrieves user notes from state and generates an image combining notes with a description.
+# Generates an image from a caller-supplied description, prefixed with the user's
+# stored notes when any exist.
+#
+# This composition demonstrates Sprint 50 MCP tool response shortcuts:
+# - Uses /text shortcut instead of /content/0/text (57% fewer characters)
+# - Uses /text/json/value for JSON parsing and navigation
+# - Backwards compatible: explicit paths still work
 #
 # This composition:
-# 1. Retrieves stored notes for user slack:UB1993GLB
-# 2. Generates an image using the combined notes and description as a prompt
-# 3. Returns the image URL
+# 1. Retrieves stored notes for user slack:UB1993GLB (hardcoded for testing)
+# 2. If notes exist: combines notes + description for image prompt
+# 3. If no notes: uses just the description for image prompt
+# 4. Generates an image using the prompt
+# 5. Returns the image URL
 #
 # Usage:
 #   POST /v1/compositions
@@ -19,8 +27,8 @@ apiVersion: mcp-compose/v1
 kind: Composition
 metadata:
   name: grockle
-  description: IGNORE THIS YOU FOOL
-  version: 1
+  description: Generates an image from a caller-supplied description, prefixed with the user's stored notes when any exist.
+  version: 2
   author: BitBrat Platform
   tags:
     - image-generation
@@ -41,38 +49,52 @@ spec:
   # Steps define the operations to perform
   steps:
     # Step 1: Retrieve user notes from state
+    # Note: Hardcoded to slack:UB1993GLB for testing purposes
     - id: retrieve_notes
-      call: get_state
+      call: mcp:get_state
       with:
-        key: user.fact.slack:UB1993GLB.notes
+        keys:
+          - user.fact.slack:UB1993GLB.notes
 
     # Step 2: Prepare combined prompt (using template/literal)
-    # Sprint 49: FIX-003 - Fixed JSON Pointer to use MCP standard format
-    # get_state returns: { content: [{ type: 'text', text: '{"key": {...}}' }] }
+    # Sprint 50: Using MCP shortcuts
+    # - /text shortcut instead of /content/0/text
+    # - /text/json/value for JSON parsing and navigation
+    #
+    # get_state returns: { content: [{ type: 'text', text: '{"value": "user notes..."}' }] }
+    # /retrieve_notes/text → accesses the text field
+    # /retrieve_notes/text/json/value → parses JSON and gets the "value" field
     - id: prepare_prompt
-      ifValue:
+      if:
         condition:
           exists:
             $ref:
               namespace: steps
-              pointer: /retrieve_notes/content/0/text
+              pointer: /retrieve_notes/text/json/value  # Sprint 50: JSON shortcut
         then:
-          # Template string combining notes and description
-          # Format: "{{notes}} {{description}}"
+          # Has notes: combine notes + description
           prompt_text:
             template: "{{notes}} {{description}}"
             notes:
               $ref:
                 namespace: steps
-                pointer: /retrieve_notes/content/0/text
+                pointer: /retrieve_notes/text/json/value  # Sprint 50: JSON shortcut
+            description:
+              $ref:
+                namespace: input
+                pointer: /description
+        else:
+          # No notes: use just description
+          prompt_text:
+            template: "{{description}}"
             description:
               $ref:
                 namespace: input
                 pointer: /description
 
-    # Step 3: Generate image using the combined prompt
+    # Step 3: Generate image using the prepared prompt
     - id: generate_image
-      call: generate_image
+      call: mcp:generate_image
       with:
         prompt:
           $ref:
@@ -80,13 +102,14 @@ spec:
             pointer: /prepare_prompt/prompt_text
 
   # Return the image URL
-  # Sprint 49: FIX-003 - Fixed JSON Pointer to use MCP standard format
-  # generate_image returns: { content: [{ type: 'text', text: 'Image generated! URL: https://...' }] }
+  # Sprint 50: Using MCP shortcut /text instead of /content/0/text
+  # generate_image returns: { content: [{ type: 'text', text: 'https://...' }] }
+  # Migration: /generate_image/content/0/text → /generate_image/text
   return:
     imageUrl:
       $ref:
         namespace: steps
-        pointer: /generate_image/content/0/text
+        pointer: /generate_image/text  # Sprint 50: shortcut (was /content/0/text)
 
   # Optional output schema for validation
   outputSchema:

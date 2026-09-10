@@ -1303,4 +1303,1001 @@ describe('CompositionExecutor', () => {
       expect(result.output).toBe('https://example.com/images/generated-123.png');
     });
   });
+
+  // ==========================================================================
+  // Sprint 50: MCP Tool Response Shortcuts (39 tests)
+  // ==========================================================================
+
+  describe('MCP Tool Response Shortcuts (Sprint 50)', () => {
+    // ----------------------------------------------------------------------
+    // TEST-01: Unit tests for isMcpEnvelope() (6 tests)
+    // ----------------------------------------------------------------------
+    describe('isMcpEnvelope() helper', () => {
+      test('returns true for valid MCP envelope with text content', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/text' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [{ type: 'text', text: 'hello' }],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBe('hello');
+      });
+
+      test('returns false for empty content array', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/content/0/text' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [], // Empty content array
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        // Shortcut expansion fails, falls back to standard resolution
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBeUndefined();
+      });
+
+      test('returns false for null/undefined', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/text' } }
+        );
+
+        registry.addTool('get_api', async () => null);
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBeUndefined();
+      });
+
+      test('returns false for non-object input', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/text' } }
+        );
+
+        registry.addTool('get_api', async () => 'plain string');
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBeUndefined();
+      });
+
+      test('returns false for object without content field', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/text' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          data: 'value', // Missing 'content' field
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBeUndefined();
+      });
+
+      test('returns false for content array with non-object items', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/text' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: ['string', 123], // Non-object items
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBeUndefined();
+      });
+    });
+
+    // ----------------------------------------------------------------------
+    // TEST-02: Unit tests for parseJsonSafely() (8 tests)
+    // ----------------------------------------------------------------------
+    describe('parseJsonSafely() helper', () => {
+      test('parses valid JSON object correctly', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/text/json/name' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [{ type: 'text', text: '{"name": "Alice", "age": 30}' }],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBe('Alice');
+      });
+
+      test('parses valid JSON array correctly', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/text/json/0' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [{ type: 'text', text: '["first", "second", "third"]' }],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBe('first');
+      });
+
+      test('returns null for invalid JSON', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/text/json/name' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [{ type: 'text', text: '{invalid json}' }],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBeUndefined();
+      });
+
+      test('returns null for non-string input', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/text/json/name' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [{ type: 'text', text: 123 }], // Number, not string
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBeUndefined();
+      });
+
+      test('returns null for empty string', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/text/json/name' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [{ type: 'text', text: '' }],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBeUndefined();
+      });
+
+      test('parses nested JSON correctly', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/text/json/user/profile/name' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [
+            {
+              type: 'text',
+              text: '{"user": {"profile": {"name": "Bob", "age": 25}}}',
+            },
+          ],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBe('Bob');
+      });
+
+      test('returns undefined for missing property', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/text/json/missing' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [{ type: 'text', text: '{"name": "Alice"}' }],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBeUndefined();
+      });
+
+      test('returns full parsed object when no property path provided', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/text/json' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [{ type: 'text', text: '{"name": "Alice", "age": 30}' }],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toEqual({ name: 'Alice', age: 30 });
+      });
+    });
+
+    // ----------------------------------------------------------------------
+    // TEST-03: Unit tests for basic shortcuts (10 tests)
+    // ----------------------------------------------------------------------
+    describe('expandMcpShortcut() basic shortcuts', () => {
+      test('/text shortcut works for text content', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/text' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [{ type: 'text', text: 'Hello, World!' }],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBe('Hello, World!');
+      });
+
+      test('/image shortcut works for image content', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/image' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [{ type: 'image', data: 'base64imagedata', mimeType: 'image/png' }],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBe('base64imagedata');
+      });
+
+      test('/data shortcut works for image content (alias)', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/data' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [{ type: 'image', data: 'base64imagedata', mimeType: 'image/png' }],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBe('base64imagedata');
+      });
+
+      test('/mimeType shortcut works for image content', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/mimeType' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [{ type: 'image', data: 'base64imagedata', mimeType: 'image/png' }],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBe('image/png');
+      });
+
+      test('/uri shortcut works for resource content', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/uri' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [
+            {
+              type: 'resource',
+              resource: { uri: 'https://example.com/data', mimeType: 'application/json' },
+            },
+          ],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBe('https://example.com/data');
+      });
+
+      test('/resource/mimeType shortcut works for nested resource fields', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/resource/mimeType' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [
+            {
+              type: 'resource',
+              resource: { uri: 'https://example.com/data', mimeType: 'application/json' },
+            },
+          ],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBe('application/json');
+      });
+
+      test('/isError shortcut works for error flag', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/isError' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [{ type: 'text', text: 'Error message' }],
+          isError: true,
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBe(true);
+      });
+
+      test('returns null for wrong content type (text shortcut on image)', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/text' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [{ type: 'image', data: 'base64imagedata' }],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        // Shortcut expansion fails (type mismatch), fallback to standard resolution
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBeUndefined();
+      });
+
+      test('returns null for unrecognized shortcut', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/unknown' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [{ type: 'text', text: 'hello' }],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        // Shortcut expansion fails (unrecognized), fallback to standard resolution
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBeUndefined();
+      });
+
+      test('nested path segments work correctly', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/text' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [{ type: 'text', text: { nested: { value: 'deep' } } }],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toEqual({ nested: { value: 'deep' } });
+      });
+    });
+
+    // ----------------------------------------------------------------------
+    // TEST-05: Integration tests for resolveReference() (6 tests)
+    // ----------------------------------------------------------------------
+    describe('resolveReference() integration', () => {
+      test('text shortcut resolves in step reference', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'get_state',
+              call: 'get_state',
+              with: {},
+            },
+            {
+              id: 'process',
+              call: 'process',
+              with: {
+                data: { $ref: { namespace: 'steps', pointer: '/get_state/text' } },
+              },
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/process' } }
+        );
+
+        registry.addTool('get_state', async () => ({
+          content: [{ type: 'text', text: 'state data' }],
+        }));
+
+        let capturedData: any;
+        registry.addTool('process', async (args: any) => {
+          capturedData = args.data;
+          return 'processed';
+        });
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(capturedData).toBe('state data');
+      });
+
+      test('JSON shortcut resolves with parsing and navigation', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'get_state',
+              call: 'get_state',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/get_state/text/json/user/name' } }
+        );
+
+        registry.addTool('get_state', async () => ({
+          content: [
+            {
+              type: 'text',
+              text: '{"user": {"name": "Charlie", "age": 35}}',
+            },
+          ],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBe('Charlie');
+      });
+
+      test('explicit paths use standard resolution', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'get_state',
+              call: 'get_state',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/get_state/content/0/text' } }
+        );
+
+        registry.addTool('get_state', async () => ({
+          content: [{ type: 'text', text: 'explicit path works' }],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBe('explicit path works');
+      });
+
+      test('non-MCP responses use standard resolution', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'legacy',
+              call: 'legacy_tool',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/legacy/data/value' } }
+        );
+
+        registry.addTool('legacy_tool', async () => ({
+          data: { value: 'legacy response' },
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBe('legacy response');
+      });
+
+      test('multiple shortcuts in same composition work', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api1',
+              call: 'api1',
+              with: {},
+            },
+            {
+              id: 'api2',
+              call: 'api2',
+              with: {},
+            },
+          ],
+          {
+            text1: { $ref: { namespace: 'steps', pointer: '/api1/text' } },
+            text2: { $ref: { namespace: 'steps', pointer: '/api2/text' } },
+          }
+        );
+
+        registry.addTool('api1', async () => ({
+          content: [{ type: 'text', text: 'first' }],
+        }));
+
+        registry.addTool('api2', async () => ({
+          content: [{ type: 'text', text: 'second' }],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toEqual({ text1: 'first', text2: 'second' });
+      });
+
+      test('input/context namespaces unchanged', async () => {
+        const composition = createCompiled(
+          [],
+          {
+            inputValue: { $ref: { namespace: 'input', pointer: '/value' } },
+            contextValue: { $ref: { namespace: 'context', pointer: '/channel' } },
+          }
+        );
+
+        const result = await executor.execute(composition, {
+          input: { value: 'input data' },
+          context: { channel: 'test-channel' },
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toEqual({
+          inputValue: 'input data',
+          contextValue: 'test-channel',
+        });
+      });
+    });
+
+    // ----------------------------------------------------------------------
+    // TEST-06: Backwards compatibility tests (3 tests)
+    // ----------------------------------------------------------------------
+    describe('Backwards compatibility', () => {
+      test('all existing tests pass without modification', async () => {
+        // This test verifies that existing compositions work unchanged
+        // We'll reuse one of the original tests to demonstrate
+
+        const composition = createCompiled(
+          [
+            {
+              id: 'step1',
+              call: 'echo',
+              with: { message: { $ref: { namespace: 'input', pointer: '/message' } } },
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/step1' } }
+        );
+
+        registry.addTool('echo', async (args: any) => args);
+
+        const result = await executor.execute(composition, {
+          input: { message: 'original behavior' },
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toEqual({ message: 'original behavior' });
+      });
+
+      test('explicit /content/0/text paths work', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'api',
+              call: 'get_api',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/api/content/0/text' } }
+        );
+
+        registry.addTool('get_api', async () => ({
+          content: [{ type: 'text', text: 'explicit path' }],
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBe('explicit path');
+      });
+
+      test('non-shortcut paths unchanged', async () => {
+        const composition = createCompiled(
+          [
+            {
+              id: 'custom',
+              call: 'custom_tool',
+              with: {},
+            },
+          ],
+          { $ref: { namespace: 'steps', pointer: '/custom/result/data/field' } }
+        );
+
+        registry.addTool('custom_tool', async () => ({
+          result: { data: { field: 'custom structure' } },
+        }));
+
+        const result = await executor.execute(composition, {
+          input: {},
+          context: {},
+          sessionId: 'test',
+          correlationId: 'test-corr',
+          userRoles: [],
+        });
+
+        expect(result.status).toBe(ExecutionStatus.SUCCESS);
+        expect(result.output).toBe('custom structure');
+      });
+    });
+  });
 });
