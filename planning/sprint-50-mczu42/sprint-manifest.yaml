@@ -5,7 +5,9 @@ goal: Simplify how mcp-compose compositions access MCP tool responses by
   content array format
 owner: christophernavta
 createdAt: 2026-09-10T01:59:51.251Z
-status: planning
+status: complete
 links:
   branch: feature/sprint-50-mczu42-simplify-mcp-tool-response-acc
 notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-09-10T21:31:33.783Z
+completionMode: normal
