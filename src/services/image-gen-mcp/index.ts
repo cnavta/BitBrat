@@ -143,12 +143,12 @@ export class ImageGenMcpServer extends Bit {
 
           this.getLogger().debug('Generating image with OpenAI SDK', { model, size, prompt: prompt.substring(0, 100) });
 
+          // GPT Image 2.5 models do NOT accept response_format parameter and always return base64
           const genResult = await openai.images.generate({
             model,
             prompt,
             size: size as '1024x1024' | '1536x1024' | '1024x1536',
             n: 1,
-            response_format: 'b64_json',
           });
 
           this.getLogger().info('Image generated successfully, preparing storage upload');
@@ -162,6 +162,10 @@ export class ImageGenMcpServer extends Bit {
           const fileName = `${uuidv4()}.png`;
 
           // Extract image data from OpenAI SDK response
+          if (!genResult.data || genResult.data.length === 0) {
+            throw new Error('No image data returned from generation');
+          }
+
           const imageData = genResult.data[0];
           if (!imageData || !imageData.b64_json) {
             throw new Error('No image data returned from generation');
