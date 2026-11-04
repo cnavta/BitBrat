@@ -2,7 +2,16 @@ import { ImageGenMcpServer } from '../../../src/services/image-gen-mcp/index';
 import { features } from '../../../src/common/feature-flags';
 import { getFirestore } from '../../../src/common/firebase';
 import { redactText } from '../../../src/common/prompt-assembly/redaction';
-import { experimental_generateImage as generateImage } from 'ai';
+
+// Mock OpenAI SDK
+const mockGenerate = jest.fn();
+jest.mock('openai', () => {
+  return jest.fn().mockImplementation(() => ({
+    images: {
+      generate: mockGenerate,
+    },
+  }));
+});
 
 jest.mock('../../../src/common/firebase', () => ({
   getFirestore: jest.fn(),
@@ -10,14 +19,6 @@ jest.mock('../../../src/common/firebase', () => ({
 
 jest.mock('../../../src/common/prompt-assembly/redaction', () => ({
   redactText: jest.fn((text: string) => text), // Default to no redaction for tests
-}));
-
-jest.mock('ai', () => ({
-  experimental_generateImage: jest.fn(),
-}));
-
-jest.mock('../../../src/common/llm/provider-factory', () => ({
-  getLlmProvider: jest.fn(() => ({})),
 }));
 
 describe('image-gen-mcp generate_image — Prompt Logging', () => {
@@ -50,9 +51,13 @@ describe('image-gen-mcp generate_image — Prompt Logging', () => {
     });
     (getFirestore as jest.Mock).mockReturnValue({ collection: mockCollection });
 
-    // Default: image generation succeeds.
-    (generateImage as jest.Mock).mockResolvedValue({
-      image: { base64: Buffer.from('fake-image-bytes').toString('base64') },
+    // Default: image generation succeeds (OpenAI SDK format).
+    mockGenerate.mockResolvedValue({
+      data: [
+        {
+          b64_json: Buffer.from('fake-image-bytes').toString('base64'),
+        },
+      ],
     });
 
     // Default: moderation passes.
@@ -129,12 +134,12 @@ describe('image-gen-mcp generate_image — Prompt Logging', () => {
     expect(doc.moderation).toEqual({ flagged: true, categories: ['violence'] });
     expect(doc.image).toBeUndefined();
     // Generation must never run for a flagged prompt.
-    expect(generateImage as jest.Mock).not.toHaveBeenCalled();
+    expect(mockGenerate).not.toHaveBeenCalled();
   });
 
   test('flag on, error path: writes one log with status error and a redacted error', async () => {
     features.setOverride('llm.promptLogging.enabled', 'true');
-    (generateImage as jest.Mock).mockRejectedValue(new Error('model exploded'));
+    mockGenerate.mockRejectedValue(new Error('model exploded'));
 
     const result = await server.executeTool('generate_image', { prompt: 'a happy cat', aspect_ratio: '1:1' });
 
