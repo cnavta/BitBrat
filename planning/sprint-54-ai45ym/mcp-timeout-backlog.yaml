@@ -1,0 +1,396 @@
+# MCP Timeout and Image Generation Improvements Backlog
+# Generated: 2026-11-04
+# Context: Investigation of event 5344b0bc-e49d-4379-b1ae-72f51c141e79
+# Root Cause: MCP timeout (60s) shorter than image generation time (85-90s)
+
+backlog:
+  # === PRIORITY 1: CRITICAL - Immediate Production Fix ===
+
+  - id: timeout-1
+    title: Increase MCP client timeout for image generation in llm-bot
+    priority: P0-critical
+    status: pending
+    effort: small
+    owner: unassigned
+    description: |
+      llm-bot's MCP client times out at 60s, but image generation takes 85-90s.
+      This causes the LLM to report failure even though images are successfully generated.
+    acceptance_criteria:
+      - MCP client timeout increased from 60s to 120s for image-gen-mcp tool
+      - Existing behavior preserved for other MCP tools
+      - No breaking changes to MCP client interface
+    implementation:
+      location: src/apps/llm-bot-service.ts
+      approach: |
+        Option 1: Per-tool timeout configuration in MCP proxy invoker
+        Option 2: Global timeout increase (simpler but affects all tools)
+        Option 3: Tool metadata with recommended timeout
+      recommendation: Option 1 - per-tool timeout for flexibility
+    testing:
+      - Verify 90s image generation completes successfully
+      - Verify timeout still occurs at 120s if exceeded
+      - Test with multiple concurrent image generation requests
+    dependencies: []
+
+  - id: timeout-2
+    title: Add tool-specific timeout configuration to MCP client
+    priority: P0-critical
+    status: pending
+    effort: medium
+    owner: unassigned
+    description: |
+      Create infrastructure to specify per-tool timeouts in MCP client.
+      Enables different timeouts for fast tools (5s) vs slow tools (120s).
+    acceptance_criteria:
+      - MCP client accepts per-tool timeout configuration
+      - Defaults to 60s if not specified
+      - Tool registration includes optional timeout metadata
+      - Configuration can be overridden via environment variables
+    implementation:
+      location: src/common/mcp/mcp-proxy-invoker.ts
+      changes:
+        - Add timeoutMs field to tool metadata
+        - Update callTool() to use tool-specific timeout
+        - Add MCP_TOOL_TIMEOUT_<TOOL_NAME> env var support
+    example_config: |
+      tools:
+        generate_image:
+          timeoutMs: 120000  # 2 minutes
+        basic_get_current_time:
+          timeoutMs: 5000    # 5 seconds (default)
+    testing:
+      - Unit test: Per-tool timeout configuration
+      - Integration test: Different tools with different timeouts
+      - Edge case: Invalid timeout values
+    dependencies:
+      - timeout-1
+
+  # === PRIORITY 2: HIGH - Observability Improvements ===
+
+  - id: logging-1
+    title: Add correlationId to all image-gen-mcp log statements
+    priority: P1-high
+    status: pending
+    effort: small
+    owner: unassigned
+    description: |
+      image-gen-mcp logs don't include correlationId, making it impossible to
+      trace image generation through the system. This caused significant debugging
+      difficulty during the timeout investigation.
+    acceptance_criteria:
+      - All log statements include correlationId from MCP request context
+      - correlationId propagated through entire image generation lifecycle
+      - Logs joinable with llm-bot and tool-gateway via correlationId
+    implementation:
+      location: src/services/image-gen-mcp/index.ts
+      approach: |
+        1. Extract correlationId from MCP extra context
+        2. Add correlationId to logger context in tool handler
+        3. Ensure correlationId flows through all async operations
+    changes:
+      - Line 58: Add correlationId to "Image generation requested" log
+      - Line 104: Add to "Prompt flagged by moderation" log
+      - Line 144: Add to "Generating image with OpenAI SDK" log
+      - Line 154: Add to "Image generated successfully" log
+      - Line 193: Add to "Image persisted to storage" log
+      - Line 239: Add to "Image generation or persistence failed" log
+    testing:
+      - Generate test image and verify correlationId in all logs
+      - Use fleet.trace to verify end-to-end tracing works
+    dependencies: []
+
+  - id: logging-2
+    title: Add structured timing metrics to image-gen-mcp
+    priority: P1-high
+    status: pending
+    effort: small
+    owner: unassigned
+    description: |
+      Track and log timing breakdowns for image generation pipeline to identify
+      bottlenecks and validate SLAs.
+    acceptance_criteria:
+      - Log timing for moderation check
+      - Log timing for OpenAI image generation
+      - Log timing for storage upload
+      - Log total request duration
+      - Metrics exported in structured format for monitoring
+    implementation:
+      location: src/services/image-gen-mcp/index.ts
+      approach: |
+        Add timing instrumentation at each phase:
+        1. Moderation: start -> moderation complete
+        2. Generation: OpenAI API call -> response received
+        3. Storage: upload start -> upload complete
+        4. Total: request received -> response sent
+    example_log: |
+      {
+        "msg": "image_gen_mcp.timing",
+        "correlationId": "...",
+        "moderationMs": 234,
+        "generationMs": 87456,
+        "storageMs": 1203,
+        "totalMs": 88934
+      }
+    testing:
+      - Verify all timing metrics are logged
+      - Verify metrics sum correctly (total ≈ moderation + generation + storage)
+    dependencies:
+      - logging-1
+
+  - id: logging-3
+    title: Add progress logging to image-gen-mcp for long operations
+    priority: P2-medium
+    status: pending
+    effort: medium
+    owner: unassigned
+    description: |
+      For operations >30s, emit progress logs to help debugging and monitoring.
+      This would have made the timeout investigation much easier.
+    acceptance_criteria:
+      - Log message every 15s during OpenAI API call
+      - Include elapsed time and estimated remaining time
+      - Use INFO level for visibility
+      - No progress logs for fast operations (<15s)
+    implementation:
+      location: src/services/image-gen-mcp/index.ts
+      approach: |
+        Wrap OpenAI API call with progress timer:
+        1. Start interval timer (15s)
+        2. Log progress while API call pending
+        3. Clear timer on completion/error
+    example_logs: |
+      18:14:06 [INFO] Image generation requested
+      18:14:21 [INFO] Image generation in progress (15s elapsed)
+      18:14:36 [INFO] Image generation in progress (30s elapsed)
+      18:14:51 [INFO] Image generation in progress (45s elapsed)
+      18:15:06 [INFO] Image generation in progress (60s elapsed)
+      18:15:21 [INFO] Image generation in progress (75s elapsed)
+      18:15:37 [INFO] Image generated successfully (90s total)
+    testing:
+      - Generate image and verify progress logs appear every 15s
+      - Verify no progress logs for fast generations
+      - Verify timer cleans up on error
+    dependencies:
+      - logging-1
+
+  # === PRIORITY 3: MEDIUM - Metrics and Monitoring ===
+
+  - id: metrics-1
+    title: Add Prometheus metrics for image generation
+    priority: P2-medium
+    status: pending
+    effort: medium
+    owner: unassigned
+    description: |
+      Export structured metrics for monitoring image generation performance,
+      success rates, and timeout occurrences.
+    acceptance_criteria:
+      - Counter: image_gen_requests_total{status=success|timeout|error}
+      - Histogram: image_gen_duration_seconds
+      - Histogram: image_gen_moderation_duration_seconds
+      - Histogram: image_gen_openai_duration_seconds
+      - Histogram: image_gen_storage_duration_seconds
+      - Gauge: image_gen_requests_in_progress
+    implementation:
+      location: src/services/image-gen-mcp/index.ts
+      approach: |
+        1. Add prometheus-client dependency
+        2. Create metric collectors in class constructor
+        3. Instrument tool handler with metric updates
+        4. Expose /metrics endpoint via base-server
+    testing:
+      - Generate images and verify metrics update
+      - Scrape /metrics endpoint and validate format
+      - Verify histogram buckets cover expected range
+    dependencies: []
+
+  - id: metrics-2
+    title: Add MCP timeout alerting to llm-bot
+    priority: P2-medium
+    status: pending
+    effort: small
+    owner: unassigned
+    description: |
+      Track and alert on MCP tool timeout frequency to catch similar issues
+      before they impact users.
+    acceptance_criteria:
+      - Counter: mcp_tool_timeouts_total{tool_name, server_name}
+      - Alert when timeout rate >5% for any tool
+      - Alert when timeout rate >10% for generate_image specifically
+      - Dashboard showing timeout trends
+    implementation:
+      location: src/apps/llm-bot-service.ts
+      approach: |
+        1. Add timeout counter to MCP proxy invoker error handler
+        2. Include tool name and server name as labels
+        3. Create alert rules in monitoring config
+    testing:
+      - Trigger timeout and verify counter increments
+      - Verify alert fires when threshold exceeded
+    dependencies:
+      - timeout-1
+
+  # === PRIORITY 4: LOW - Architecture Improvements ===
+
+  - id: async-1
+    title: Design async pattern for long-running MCP operations
+    priority: P3-low
+    status: pending
+    effort: large
+    owner: unassigned
+    description: |
+      For operations >60s, synchronous request/response is problematic.
+      Design async pattern where tool returns immediately with job ID,
+      and completion is delivered via callback/polling.
+    acceptance_criteria:
+      - RFC document describing async MCP pattern
+      - Backwards compatible with existing synchronous tools
+      - Supports progress updates during execution
+      - Handles job cancellation
+      - Works with LLM tool calling (complex!)
+    implementation:
+      approach: |
+        Option 1: Job queue pattern
+          - Tool returns job_id immediately
+          - Separate "check_job_status" tool for polling
+          - LLM must be taught to poll (training required)
+
+        Option 2: Webhook callback pattern
+          - Tool returns job_id
+          - Completion triggers webhook to tool-gateway
+          - tool-gateway resumes LLM conversation
+          - Requires conversation state management
+
+        Option 3: Streaming response pattern
+          - MCP supports streaming (check spec)
+          - Stream progress updates until completion
+          - Better UX but complex implementation
+      recommendation: Research MCP 2.0 streaming capabilities first
+    research_needed:
+      - MCP SDK streaming support in @modelcontextprotocol/server v2.0
+      - AI SDK compatibility with streaming MCP tools
+      - State management for async tool results
+    dependencies:
+      - timeout-1
+      - timeout-2
+    blocked_by:
+      - Need MCP streaming feasibility assessment
+
+  # === PRIORITY 5: SEPARATE ISSUE - obs-mcp Investigation ===
+
+  - id: obs-1
+    title: Investigate obs-mcp connection failures
+    priority: P3-low
+    status: pending
+    effort: medium
+    owner: unassigned
+    description: |
+      tool-gateway repeatedly fails to connect to obs-mcp with 404 errors.
+      This is noisy in logs and may indicate a real issue.
+    error: |
+      {
+        "code": "CLIENT_HTTP_NOT_IMPLEMENTED",
+        "data": {
+          "status": 404,
+          "statusText": "Not Found",
+          "text": "Cannot POST /mcp"
+        }
+      }
+    acceptance_criteria:
+      - Determine if obs-mcp should expose MCP endpoint
+      - Fix 404 errors or remove from tool-gateway config
+      - Document obs-mcp's expected behavior
+    investigation_steps:
+      - Check architecture.yaml for obs-mcp mcp.exposure setting
+      - Verify obs-mcp service is running
+      - Check if obs-mcp extends Bit or custom server
+      - Review obs-mcp endpoints and routes
+      - Determine if this is expected behavior
+    potential_causes:
+      - obs-mcp marked as mcp-server but doesn't implement MCP
+      - obs-mcp is inactive but still in tool-gateway config
+      - obs-mcp uses different endpoint path
+      - obs-mcp requires different transport (stdio vs HTTP)
+    dependencies: []
+
+  # === PRIORITY 6: TECH DEBT - Sprint 54 Cleanup ===
+
+  - id: sprint54-1
+    title: Merge sprint-54 fixes into main branch
+    priority: P1-high
+    status: pending
+    effort: small
+    owner: unassigned
+    description: |
+      Sprint 54 fixes are in worktree branch but not deployed to staging.
+      This is why the original error persists.
+    acceptance_criteria:
+      - Merge feature/sprint-54-ai45ym-fix-gpt-image-api-compatibilit to main
+      - Deploy to staging
+      - Verify image generation works without response_format error
+      - Close sprint 54
+    files_changed:
+      - src/services/image-gen-mcp/index.ts
+      - src/services/image-gen-mcp/index.test.ts
+      - tests/services/image-gen-mcp/prompt-logging.test.ts
+      - package.json
+    testing:
+      - npm run regen passes
+      - Image generation succeeds in staging
+      - No more "Unknown parameter: 'response_format'" errors
+    dependencies: []
+    notes: |
+      THIS IS BLOCKING ALL OTHER WORK. The current staging deployment
+      is from main branch which still has the OLD code using AI SDK.
+
+# Summary Statistics
+
+total_tasks: 13
+by_priority:
+  P0-critical: 2   # Immediate timeout fixes
+  P1-high: 4       # Observability + sprint merge
+  P2-medium: 3     # Metrics and monitoring
+  P3-low: 3        # Architecture + obs-mcp investigation
+
+by_effort:
+  small: 7
+  medium: 5
+  large: 1
+
+estimated_total_hours: 40-50
+
+# Recommended Sprint Breakdown
+
+sprint_1_immediate:
+  title: Fix MCP Timeout Issue
+  duration: 1-2 days
+  tasks:
+    - sprint54-1  # MUST DO FIRST - Deploy working code
+    - timeout-1   # Increase timeout
+    - logging-1   # Add correlationId
+  outcome: Image generation works reliably in production
+
+sprint_2_observability:
+  title: Improve Image Generation Observability
+  duration: 2-3 days
+  tasks:
+    - timeout-2   # Per-tool timeout config
+    - logging-2   # Timing metrics
+    - logging-3   # Progress logging
+  outcome: Full visibility into image generation pipeline
+
+sprint_3_monitoring:
+  title: Production Monitoring and Alerts
+  duration: 2-3 days
+  tasks:
+    - metrics-1   # Prometheus metrics
+    - metrics-2   # Alerting
+    - obs-1       # Fix obs-mcp errors
+  outcome: Proactive detection of similar issues
+
+sprint_4_architecture:
+  title: Long-Running Operation Pattern (Research)
+  duration: 3-5 days
+  tasks:
+    - async-1    # Design async pattern
+  outcome: RFC for handling long-running MCP operations

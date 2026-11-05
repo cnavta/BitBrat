@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { Bit } from '../../common/base-server';
-import { experimental_generateImage as generateImage } from 'ai';
-import { getLlmProvider } from '../../common/llm/provider-factory';
+import OpenAI from 'openai';
 import { NewStorageManager } from '../../common/resources/storage-manager';
 import type { IStorageDriver } from '../../common/storage/types';
 import { v4 as uuidv4 } from 'uuid';
@@ -41,7 +40,7 @@ export class ImageGenMcpServer extends Bit {
   private setupMcpTools() {
     this.registerTool(
       'generate_image',
-      'Generate an image based on a prompt using DALL-E 3 and persist it to storage.',
+      'Generate an image based on a prompt using GPT Image 2.5 and persist it to storage.',
       z.object({
         prompt: z.string().describe('The descriptive prompt for the image.'),
         aspect_ratio: z.enum(['1:1', '16:9', '9:16']).optional().default('1:1').describe('The aspect ratio of the generated image.'),
@@ -109,7 +108,7 @@ export class ImageGenMcpServer extends Bit {
               prompt,
               response: 'moderation_rejected',
               status: 'rejected',
-              model: this.getConfig('IMAGE_GEN_MODEL', { default: 'gpt-image-1' }),
+              model: this.getConfig('IMAGE_GEN_MODEL', { default: 'gpt-image-2.5-sunburst' }),
               aspectRatio,
               userId,
               moderation: { flagged: true, categories },
@@ -127,29 +126,29 @@ export class ImageGenMcpServer extends Bit {
           }
 
           // 2. Image Generation (BL-003)
-          // Default to OpenAI's current image model (gpt-image-1). DALL-E 3 is being
-          // decommissioned and the OpenAI image endpoint now rejects the `response_format`
-          // parameter that the AI SDK forces for non-gpt-image models, surfacing as
-          // "Unknown parameter: 'response_format'.". The model is overridable via config.
-          const model = this.getConfig('IMAGE_GEN_MODEL', { default: 'gpt-image-1' });
-          const provider = getLlmProvider({
-            provider: 'openai',
-            model,
-            apiKey,
-          });
+          // Use OpenAI SDK directly to avoid the AI SDK's response_format parameter issue.
+          // GPT Image 2.5 models (gpt-image-2.5-sunburst, gpt-image-2.5-flare) do not accept
+          // the response_format parameter and always return base64-encoded images.
+          // DALL-E 2 and DALL-E 3 were deprecated on May 12, 2026.
+          const model = this.getConfig('IMAGE_GEN_MODEL', { default: 'gpt-image-2.5-sunburst' });
 
-          // Map aspectRatio to a model-appropriate size (AI SDK requirement).
-          // gpt-image-* supports 1024x1024 / 1536x1024 / 1024x1536; DALL-E 3 supports
-          // 1024x1024 / 1792x1024 / 1024x1792.
-          const isGptImage = model.startsWith('gpt-image');
-          const landscape = isGptImage ? '1536x1024' : '1792x1024';
-          const portrait = isGptImage ? '1024x1536' : '1024x1792';
+          // Map aspectRatio to appropriate size for GPT Image models
+          // GPT Image supports: 1024x1024, 1536x1024, 1024x1536
+          const landscape = '1536x1024';
+          const portrait = '1024x1536';
           const size = aspectRatio === '16:9' ? landscape : (aspectRatio === '9:16' ? portrait : '1024x1024');
 
-          const genResult = await generateImage({
-            model: provider as any,
+          // Create OpenAI client and generate image
+          const openai = new OpenAI({ apiKey });
+
+          this.getLogger().debug('Generating image with OpenAI SDK', { model, size, prompt: prompt.substring(0, 100) });
+
+          // GPT Image 2.5 models do NOT accept response_format parameter and always return base64
+          const genResult = await openai.images.generate({
+            model,
             prompt,
-            size: size as any,
+            size: size as '1024x1024' | '1536x1024' | '1024x1536',
+            n: 1,
           });
 
           this.getLogger().info('Image generated successfully, preparing storage upload');
@@ -162,15 +161,17 @@ export class ImageGenMcpServer extends Bit {
 
           const fileName = `${uuidv4()}.png`;
 
-          // Resolve the image bytes once for upload
-          let imageBuffer: Buffer;
-          if (genResult.image.base64) {
-            imageBuffer = Buffer.from(genResult.image.base64, 'base64');
-          } else if (genResult.image.uint8Array) {
-            imageBuffer = Buffer.from(genResult.image.uint8Array);
-          } else {
+          // Extract image data from OpenAI SDK response
+          if (!genResult.data || genResult.data.length === 0) {
             throw new Error('No image data returned from generation');
           }
+
+          const imageData = genResult.data[0];
+          if (!imageData || !imageData.b64_json) {
+            throw new Error('No image data returned from generation');
+          }
+
+          const imageBuffer = Buffer.from(imageData.b64_json, 'base64');
 
           // Upload using storage driver abstraction
           // The driver handles retries internally (GCS driver has built-in retry logic)
@@ -183,7 +184,7 @@ export class ImageGenMcpServer extends Bit {
               correlationId,
               prompt: redactText(prompt),
               aspectRatio,
-              model: this.getConfig('IMAGE_GEN_MODEL', { default: 'gpt-image-1' }),
+              model,
             },
           });
 
@@ -248,7 +249,7 @@ export class ImageGenMcpServer extends Bit {
             prompt,
             response: 'error',
             status: 'error',
-            model: this.getConfig('IMAGE_GEN_MODEL', { default: 'gpt-image-1' }),
+            model: this.getConfig('IMAGE_GEN_MODEL', { default: 'gpt-image-2.5-sunburst' }),
             aspectRatio,
             userId,
             error: errorMessage,

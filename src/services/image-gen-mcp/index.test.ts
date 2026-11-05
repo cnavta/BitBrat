@@ -2,17 +2,20 @@ import request from 'supertest';
 import { ImageGenMcpServer } from './index';
 import type { IStorageDriver, StorageUploadResult } from '../../common/storage/types';
 
-// Mock the AI SDK image generation so the handler can run without a real OpenAI call.
-jest.mock('ai', () => ({
-  experimental_generateImage: jest.fn(async () => ({
-    image: { base64: Buffer.from('fake-image-bytes').toString('base64') },
-  })),
-}));
-
-// Mock the provider factory so getLlmProvider doesn't require real credentials.
-jest.mock('../../common/llm/provider-factory', () => ({
-  getLlmProvider: jest.fn(() => ({ modelId: 'gpt-image-1' })),
-}));
+// Mock the OpenAI SDK image generation so the handler can run without a real OpenAI call.
+jest.mock('openai', () => {
+  return jest.fn().mockImplementation(() => ({
+    images: {
+      generate: jest.fn().mockResolvedValue({
+        data: [
+          {
+            b64_json: Buffer.from('fake-image-bytes').toString('base64'),
+          },
+        ],
+      }),
+    },
+  }));
+});
 
 describe('image-gen-mcp', () => {
   let server: ImageGenMcpServer;
