@@ -1,0 +1,13 @@
+id: sprint-55-h17jpp
+title: Tool-Centric Platform Architecture
+goal: Design and implement a tool-centric approach to MCP tooling, moving from
+  server-centric management to individual tool registration, RBAC, metrics, and
+  composition-aware tooling registry
+owner: christophernavta
+createdAt: 2026-11-07T03:13:04.685Z
+status: complete
+links:
+  branch: feature/sprint-55-h17jpp-tool-centric-platform-architec
+notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-11-08T00:05:12.590Z
+completionMode: normal
