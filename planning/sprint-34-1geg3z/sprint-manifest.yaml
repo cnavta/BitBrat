@@ -5,7 +5,9 @@ goal: "Enable arguments to be passed to reflex commands and made available to
   create_bid(amount: ${1}))"
 owner: navta3
 createdAt: 2026-08-31T03:44:10.532Z
-status: in-progress
+status: complete
 links:
   branch: feature/sprint-34-1geg3z-reflex-command-arguments
 notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-11-07T03:13:00.000Z
+completionMode: forced

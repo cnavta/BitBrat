@@ -5,7 +5,9 @@ goal: Apply Sprint 30 quick wins, systematically investigate NATS connectivity
   <10 failing test suites and 100% reproducible test runs
 owner: "@bitbrat"
 createdAt: 2026-08-30T18:11:26.977Z
-status: in-progress
+status: complete
 links:
   branch: feature/sprint-31-ayaq0a-test-infrastructure-phase-2-na
 notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-11-07T03:13:00.000Z
+completionMode: forced
