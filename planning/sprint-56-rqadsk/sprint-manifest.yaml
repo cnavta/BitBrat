@@ -1,0 +1,19 @@
+id: sprint-56-rqadsk
+title: Tool-Centric Platform Implementation Planning
+goal: Create comprehensive implementation plan breaking down Sprint 55's
+  Technical Architecture into executable sprints for coding agents, including
+  task breakdown, dependencies, acceptance criteria, and risk mitigation
+  strategies
+owner: christophernavta
+createdAt: 2026-11-08T17:01:48.608Z
+completedAt: 2026-11-09T20:15:00.000Z
+status: completed
+links:
+  branch: feature/sprint-56-rqadsk-tool-centric-platform-implemen
+notes: Sprint initialized via MCP start-sprint tool
+deliverables:
+  - implementation-plan.md - Comprehensive 6-sprint implementation plan (Sprints 57-62)
+  - Event schema documentation with tool.invocation event type
+  - PostgreSQL migration specifications (024, 025, 026)
+  - Model-based RBAC design with reflex as deterministic model
+  - Risk mitigation strategies and testing approach
