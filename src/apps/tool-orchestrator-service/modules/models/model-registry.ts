@@ -309,9 +309,12 @@ export class ModelRegistry implements IModelRegistry {
   private matchesPattern(toolId: string, pattern: string): boolean {
     // Convert wildcard pattern to regex
     // Example: "mcp.*" -> /^mcp\..*$/
+    // First escape all regex special characters (including . and *),
+    // then convert our escaped wildcards to their regex equivalents
     const regexPattern = pattern
-      .replace(/\./g, '\\.')
-      .replace(/\*/g, '.*');
+      .replace(/[\\^$*+?.()|[\]{}]/g, '\\$&')  // Escape all regex special chars (including * and .)
+      .replace(/\\\*/g, '.*')                   // Convert escaped * to .* for zero-or-more wildcard
+      .replace(/\\\./g, '.');                   // Convert escaped . to . for any-char wildcard
     const regex = new RegExp(`^${regexPattern}$`);
 
     return regex.test(toolId);
