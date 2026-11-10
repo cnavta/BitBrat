@@ -1,0 +1,26 @@
+id: sprint-57-54vza9
+title: Foundation - tool-orchestrator with Persistent Registries
+goal: Create tool-orchestrator Bit skeleton with persistent PostgreSQL-backed
+  tool and model registries, PostgreSQL migrations for 3 new tables, seeded
+  model catalog with LLM and agent models, basic MCP tools, and tool migration
+  from existing tool-gateway - establishing foundation for model-based RBAC
+  transformation
+owner: christophernavta
+createdAt: 2026-11-09T20:34:28.673Z
+status: complete
+completedAt: 2026-11-10T02:30:00.000Z
+completionMode: normal
+links:
+  branch: feature/sprint-57-54vza9-foundation-tool-orchestrator-w
+notes: |
+  Sprint initialized via MCP start-sprint tool
+
+  Completed deliverables:
+  - tool-orchestrator Bit service created and deployed to staging
+  - PostgreSQL migrations applied (3 tables: platform_tool_registry, model_registry, mcp_server_registrations)
+  - Model registry seeded with 8 models (6 LLM, 2 agent)
+  - Tool registry populated with 19 tools from tool-gateway
+  - Custom MCP tools registered (tool.list, tool.get, model.list, model.get)
+  - Tool import script created with composition detection
+  - Fixed onStartup() hook issue in service template
+  - All post-deployment verification complete

@@ -1,0 +1,265 @@
+# Model Registry Seed Data
+# Sprint 57: Foundation - tool-orchestrator with Persistent Registries
+#
+# This file contains initial model definitions for LLM and agent models
+
+models:
+  # LLM Models (6)
+
+  - id: gpt-4
+    provider: openai
+    displayName: GPT-4
+    description: OpenAI's most capable model, great for complex reasoning tasks
+    modelType: llm
+    roles:
+      - model
+      - premium
+      - vision
+      - function-calling
+    tier: premium
+    trust:
+      - scope: tool-use
+        scores:
+          reliability: 95
+          fidelity: 93
+          integrity: 94
+          calibration: 92
+      - scope: general
+        scores:
+          reliability: 93
+          fidelity: 91
+          integrity: 92
+          calibration: 90
+    capabilities:
+      toolCalling: true
+      vision: true
+      streaming: true
+      maxContextTokens: 128000
+      maxOutputTokens: 4096
+    cost:
+      inputTokenCost: 30.0
+      outputTokenCost: 60.0
+    toolPolicy:
+      allowedTools: []
+      deniedTools: []
+    status: active
+
+  - id: gpt-4-turbo
+    provider: openai
+    displayName: GPT-4 Turbo
+    description: Faster and more cost-effective than GPT-4
+    modelType: llm
+    roles:
+      - model
+      - premium
+      - vision
+      - function-calling
+    tier: premium
+    trust:
+      - scope: tool-use
+        scores:
+          reliability: 94
+          fidelity: 92
+          integrity: 93
+          calibration: 91
+    capabilities:
+      toolCalling: true
+      vision: true
+      streaming: true
+      maxContextTokens: 128000
+      maxOutputTokens: 4096
+    cost:
+      inputTokenCost: 10.0
+      outputTokenCost: 30.0
+    toolPolicy:
+      allowedTools: []
+      deniedTools: []
+    status: active
+
+  - id: claude-opus-3.5
+    provider: anthropic
+    displayName: Claude Opus 3.5
+    description: Anthropic's most powerful model for complex tasks
+    modelType: llm
+    roles:
+      - model
+      - premium
+      - vision
+      - function-calling
+    tier: premium
+    trust:
+      - scope: tool-use
+        scores:
+          reliability: 96
+          fidelity: 95
+          integrity: 96
+          calibration: 94
+    capabilities:
+      toolCalling: true
+      vision: true
+      streaming: true
+      maxContextTokens: 200000
+      maxOutputTokens: 4096
+    cost:
+      inputTokenCost: 15.0
+      outputTokenCost: 75.0
+    toolPolicy:
+      allowedTools: []
+      deniedTools: []
+    status: active
+
+  - id: claude-sonnet-3.5
+    provider: anthropic
+    displayName: Claude Sonnet 3.5
+    description: Balanced performance and cost for most tasks
+    modelType: llm
+    roles:
+      - model
+      - premium
+      - function-calling
+    tier: premium
+    trust:
+      - scope: tool-use
+        scores:
+          reliability: 93
+          fidelity: 92
+          integrity: 94
+          calibration: 91
+    capabilities:
+      toolCalling: true
+      vision: false
+      streaming: true
+      maxContextTokens: 200000
+      maxOutputTokens: 4096
+    cost:
+      inputTokenCost: 3.0
+      outputTokenCost: 15.0
+    toolPolicy:
+      allowedTools: []
+      deniedTools: []
+    status: active
+
+  - id: gpt-3.5-turbo
+    provider: openai
+    displayName: GPT-3.5 Turbo
+    description: Fast and affordable model for simpler tasks
+    modelType: llm
+    roles:
+      - model
+      - basic
+      - function-calling
+    tier: basic
+    trust:
+      - scope: tool-use
+        scores:
+          reliability: 85
+          fidelity: 83
+          integrity: 86
+          calibration: 82
+    capabilities:
+      toolCalling: true
+      vision: false
+      streaming: true
+      maxContextTokens: 16000
+      maxOutputTokens: 4096
+    cost:
+      inputTokenCost: 0.5
+      outputTokenCost: 1.5
+    toolPolicy:
+      allowedTools: []
+      deniedTools: []
+    status: active
+
+  - id: ollama/llama3
+    provider: ollama
+    displayName: Llama 3 (Ollama)
+    description: Open-source model running locally via Ollama
+    modelType: llm
+    roles:
+      - model
+      - free
+      - local
+    tier: free
+    trust:
+      - scope: tool-use
+        scores:
+          reliability: 75
+          fidelity: 72
+          integrity: 78
+          calibration: 70
+    capabilities:
+      toolCalling: true
+      vision: false
+      streaming: true
+      maxContextTokens: 8192
+      maxOutputTokens: 2048
+    cost:
+      inputTokenCost: 0.0
+      outputTokenCost: 0.0
+    toolPolicy:
+      allowedTools: []
+      deniedTools: []
+    status: active
+
+  # Agent Models (2)
+
+  - id: reflex
+    provider: bitbrat
+    displayName: Reflex
+    description: Deterministic rule-based agent for tool execution with metrics tracking
+    modelType: rule-based
+    roles:
+      - agent
+      - deterministic
+      - system
+    tier: deterministic
+    trust:
+      - scope: tool-use
+        scores:
+          reliability: 100
+          fidelity: 100
+          integrity: 100
+          calibration: 100
+    capabilities:
+      toolCalling: true
+      vision: false
+      streaming: false
+      maxContextTokens: 0
+      maxOutputTokens: 0
+    cost:
+      inputTokenCost: 0.0
+      outputTokenCost: 0.0
+    toolPolicy:
+      allowedTools: []
+      deniedTools: []
+    status: active
+
+  - id: system
+    provider: bitbrat
+    displayName: System
+    description: Internal platform agent for administrative operations
+    modelType: rule-based
+    roles:
+      - system
+      - admin
+    tier: system
+    trust:
+      - scope: tool-use
+        scores:
+          reliability: 100
+          fidelity: 100
+          integrity: 100
+          calibration: 100
+    capabilities:
+      toolCalling: true
+      vision: false
+      streaming: false
+      maxContextTokens: 0
+      maxOutputTokens: 0
+    cost:
+      inputTokenCost: 0.0
+      outputTokenCost: 0.0
+    toolPolicy:
+      allowedTools: []
+      deniedTools: []
+    status: active

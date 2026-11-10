@@ -595,8 +595,6 @@ services:
     topics:
       publishes:
         - internal.ingress.v1
-        # Sprint 24: Publishes 'initial' snapshots for unified persistence flow
-        # All ingested events immediately published as 'initial' snapshots after successful ingress
         - internal.persistence.snapshot.v1
       consumes:
         - internal.egress.v1.{instanceId}
@@ -754,7 +752,7 @@ services:
         - persistence
     topics:
       consumes:
-        - internal.persistence.snapshot.v1  # Sprint 24: Snapshot-only persistence flow
+        - internal.persistence.snapshot.v1
         - internal.persistence.finalize.v1
         - internal.deadletter.v1
         - internal.router.dlq.v1
@@ -1053,6 +1051,15 @@ services:
       - COUNTER_MAX_TTL_SECONDS
       - REDIS_URL
       - DATABASE_URL
+  tool-orchestrator:
+    profile: core
+    mcp:
+      exposure: platform-only
+    active: true
+    description: 'Generated Bit: tool-orchestrator'
+    kind: pipeline-service
+    entry: src/apps/tool-orchestrator-service.ts
+    port: 3000
 executionContexts:
   local:
     description: Local Docker development environment

@@ -19,7 +19,7 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*", "tools/**/*"],
+  "include": ["src/**/*", "tools/**/*", "scripts/**/*"],
   "exclude": [
     "node_modules",
     "dist",
@@ -27,6 +27,7 @@
     "**/*.test.ts",
     "**/*.spec.ts",
     "**/__tests__/**",
-    "src/apps/stream-analyst-service.ts"
+    "src/apps/stream-analyst-service.ts",
+    "scripts/postgres/**/*"
   ]
 }
