@@ -1,0 +1,34 @@
+services:
+  tool-orchestrator:
+    env_file:
+      - .env.brat
+    build:
+      context: ../..  # Sprint 375: Build context is repository root (for Dockerfile.base/Dockerfile.service)
+      dockerfile: Dockerfile.service
+      args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
+        SERVICE_NAME: tool-orchestrator
+        SERVICE_ENTRY: dist/apps/tool-orchestrator-service.js
+        SERVICE_PORT: "3000"
+    environment:
+      - MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN}
+    ports:
+      - "${TOOL_ORCHESTRATOR_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - tool-orchestrator.bitbrat.local
+
+networks:
+  bitbrat-network:
+    external: true
