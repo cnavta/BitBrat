@@ -19,6 +19,11 @@ import { IModelRegistry } from '../models/interfaces';
 import { ToolRegistryDocument } from '../types/tool-registry-document';
 import { ModelRegistryDocument } from '../types/model-registry-document';
 import { McpClientManager } from '../../../../common/mcp/client-manager';
+import {
+  createToolInvocationEvent,
+  truncatePreview,
+  ToolInvocationEvent,
+} from '../../types/tool-invocation-event';
 
 /**
  * LRU Cache Entry
@@ -171,6 +176,20 @@ export class ToolGateway implements IToolGateway {
       );
 
       if (!rbacResult.allowed) {
+        const duration = Date.now() - startTime;
+
+        // Log structured invocation event (status: denied)
+        this.logToolInvocationEvent({
+          tool,
+          model,
+          status: 'denied',
+          durationMs: duration,
+          context,
+          rbacResult,
+          args,
+        });
+
+        // Log legacy event (for backward compatibility)
         this.logEvent('rbac_denied', {
           toolId,
           userId: context.userId,
@@ -178,6 +197,7 @@ export class ToolGateway implements IToolGateway {
           reason: rbacResult.reason,
           details: rbacResult.details,
         }, true);
+
         throw new Error(`Access denied: ${rbacResult.details || rbacResult.reason}`);
       }
 
@@ -203,6 +223,20 @@ export class ToolGateway implements IToolGateway {
 
       // Step 5: Log success
       const duration = Date.now() - startTime;
+
+      // Log structured invocation event (status: success)
+      this.logToolInvocationEvent({
+        tool,
+        model,
+        status: 'success',
+        durationMs: duration,
+        context,
+        rbacResult,
+        args,
+        result,
+      });
+
+      // Log legacy event (for backward compatibility)
       this.logEvent('tool_execution_success', {
         toolId,
         userId: context.userId,
@@ -214,6 +248,33 @@ export class ToolGateway implements IToolGateway {
     } catch (error: any) {
       // Log error
       const duration = Date.now() - startTime;
+
+      // Try to get tool/model for structured logging (may not be available if error occurred early)
+      const tool = await this.getToolCached(toolId).catch(() => undefined);
+      const model = await this.getModelCached(context.modelId).catch(() => undefined);
+
+      // Log structured invocation event (status: error) if we have tool/model
+      if (tool && model) {
+        // Create a simple RBAC result (error case - validation not reached or failed)
+        const rbacResult: RBACValidationResult = {
+          allowed: false,
+          reason: 'execution_failed',
+          details: error.message,
+        };
+
+        this.logToolInvocationEvent({
+          tool,
+          model,
+          status: 'error',
+          durationMs: duration,
+          context,
+          rbacResult,
+          args,
+          error,
+        });
+      }
+
+      // Log legacy event (for backward compatibility)
       this.logEvent('tool_execution_error', {
         toolId,
         userId: context.userId,
@@ -530,6 +591,100 @@ export class ToolGateway implements IToolGateway {
       this.logger?.error(logData);
     } else {
       this.logger?.info(logData);
+    }
+  }
+
+  /**
+   * Log structured tool invocation event for observability (Sprint 59)
+   *
+   * Emits a ToolInvocationEvent to stdout, which is:
+   * - Scraped by Promtail
+   * - Indexed by Loki (labels: service, eventType, toolId, modelId, status, correlationId, level)
+   * - Queryable via ToolObserver for metrics, health, and tracing
+   *
+   * Logging is fire-and-forget (asynchronous, non-blocking).
+   */
+  private logToolInvocationEvent(params: {
+    tool: ToolRegistryDocument;
+    model: ModelRegistryDocument;
+    status: 'success' | 'error' | 'denied';
+    durationMs: number;
+    context: ToolExecutionContext;
+    rbacResult: RBACValidationResult;
+    args?: unknown;
+    result?: ToolResult;
+    error?: Error;
+  }): void {
+    if (!this.config.enableLogging) return;
+
+    try {
+      // Truncate input/output previews
+      const inputPreview = params.args
+        ? truncatePreview(JSON.stringify(params.args), 500)
+        : undefined;
+
+      const outputPreview = params.result
+        ? truncatePreview(JSON.stringify(params.result), 500)
+        : undefined;
+
+      // Estimate cost (if available from model metadata)
+      let estimatedCost: ToolInvocationEvent['estimatedCost'] | undefined;
+      if (params.model.cost && params.result) {
+        // Simple token estimation based on input/output length
+        const inputTokens = inputPreview ? Math.ceil(inputPreview.length / 4) : 0;
+        const outputTokens = outputPreview ? Math.ceil(outputPreview.length / 4) : 0;
+        const totalTokens = inputTokens + outputTokens;
+
+        // Calculate cost (ModelCost has inputTokenCost and outputTokenCost per 1M tokens)
+        const inputCost = (inputTokens / 1000000) * (params.model.cost.inputTokenCost || 0);
+        const outputCost = (outputTokens / 1000000) * (params.model.cost.outputTokenCost || 0);
+
+        estimatedCost = {
+          tokens: totalTokens,
+          costUsd: inputCost + outputCost,
+        };
+      }
+
+      // Create the event
+      const event = createToolInvocationEvent({
+        toolId: params.tool.id,
+        toolName: params.tool.canonicalName, // Use canonicalName
+        modelId: params.model.id,
+        modelName: params.model.displayName, // Use displayName
+        status: params.status,
+        correlationId: params.context.correlationId || 'unknown',
+        durationMs: params.durationMs,
+        rbacDecision: {
+          allowed: params.rbacResult.allowed,
+          reason: params.rbacResult.reason,
+          userRoles: params.context.userRoles,
+          modelTier: params.model.tier,
+          requiredRoles: params.tool.rbac?.userRoles?.required,
+          deniedRoles: params.tool.rbac?.userRoles?.denied,
+        },
+        userId: params.context.userId,
+        sessionId: params.context.sessionId,
+        traceId: undefined, // ToolExecutionContext doesn't have traceId
+        inputPreview,
+        outputPreview,
+        errorMessage: params.error?.message,
+        errorStack: process.env.NODE_ENV !== 'production' ? params.error?.stack : undefined,
+        estimatedCost,
+      });
+
+      // Log as JSON to stdout (Promtail will scrape and send to Loki)
+      // Use logger.info for success/denied, logger.error for errors
+      if (params.status === 'error') {
+        this.logger?.error(event);
+      } else {
+        this.logger?.info(event);
+      }
+    } catch (loggingError) {
+      // Fail-open: Logging errors should never block tool execution
+      this.logger?.warn(
+        { error: (loggingError as Error).message },
+        'tool_invocation_event.logging_failed'
+      );
     }
   }
 

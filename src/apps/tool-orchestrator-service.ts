@@ -1,6 +1,8 @@
 import { Bit } from '../common/base-server';
 import { ToolRegistry } from './tool-orchestrator-service/modules/registry/tool-registry';
 import { ModelRegistry } from './tool-orchestrator-service/modules/models/model-registry';
+import { ToolObserver } from './tool-orchestrator-service/modules/observer/tool-observer';
+import { HealthUpdater } from './tool-orchestrator-service/modules/observer/health-updater';
 import { createDocumentStore } from '../common/persistence/factory';
 import { z } from 'zod';
 
@@ -16,6 +18,8 @@ import { z } from 'zod';
 export class ToolOrchestratorServer extends Bit {
   private toolRegistry?: ToolRegistry;
   private modelRegistry?: ModelRegistry;
+  private toolObserver?: ToolObserver;
+  private healthUpdater?: HealthUpdater;
 
   constructor() {
     super({ mcpExposure: 'platform-only' });
@@ -45,6 +49,57 @@ export class ToolOrchestratorServer extends Bit {
       this.modelRegistry = new ModelRegistry(store, this.getLogger() as any);
       this.getLogger().info('tool_orchestrator.model_registry_initialized');
 
+      // Initialize ToolObserver module (Sprint 59)
+      const lokiUrl = process.env.LOKI_URL || 'http://localhost:3100';
+      const lokiTimeoutMs = parseInt(process.env.LOKI_TIMEOUT_MS || '10000', 10);
+      const healthyErrorThreshold = parseFloat(process.env.HEALTHY_ERROR_THRESHOLD || '0.05');
+      const degradedErrorThreshold = parseFloat(process.env.DEGRADED_ERROR_THRESHOLD || '0.20');
+
+      this.toolObserver = new ToolObserver(
+        {
+          url: lokiUrl,
+          timeoutMs: lokiTimeoutMs,
+          healthyErrorThreshold,
+          degradedErrorThreshold,
+        },
+        this.getLogger() as any
+      );
+      this.getLogger().info('tool_orchestrator.tool_observer_initialized', {
+        lokiUrl,
+        lokiTimeoutMs,
+        healthyErrorThreshold,
+        degradedErrorThreshold,
+      });
+
+      // Initialize HealthUpdater module (Sprint 59)
+      const healthUpdateIntervalMs = parseInt(
+        process.env.HEALTH_UPDATE_INTERVAL_MS || '300000',
+        10
+      ); // Default: 5 minutes
+      const healthStaleThresholdMs = parseInt(
+        process.env.HEALTH_STALE_THRESHOLD_MS || '3600000',
+        10
+      ); // Default: 1 hour
+
+      this.healthUpdater = new HealthUpdater(
+        this.toolObserver,
+        this.toolRegistry,
+        {
+          updateIntervalMs: healthUpdateIntervalMs,
+          staleThresholdMs: healthStaleThresholdMs,
+          healthyErrorThreshold,
+          degradedErrorThreshold,
+        },
+        this.getLogger() as any
+      );
+
+      // Start background health updates
+      this.healthUpdater.start();
+      this.getLogger().info('tool_orchestrator.health_updater_started', {
+        updateIntervalMs: healthUpdateIntervalMs,
+        staleThresholdMs: healthStaleThresholdMs,
+      });
+
       // Register MCP tools
       this.registerMcpTools();
       this.getLogger().info('tool_orchestrator.mcp_tools_registered');
@@ -66,6 +121,13 @@ export class ToolOrchestratorServer extends Bit {
 
   public async close(reason: string = 'manual'): Promise<void> {
     this.getLogger().info('tool_orchestrator.shutdown', { reason });
+
+    // Stop health updater
+    if (this.healthUpdater) {
+      this.healthUpdater.stop();
+      this.getLogger().info('tool_orchestrator.health_updater_stopped');
+    }
+
     await super.close(reason);
   }
 
@@ -186,7 +248,165 @@ export class ToolOrchestratorServer extends Bit {
       }
     );
 
-    this.getLogger().info('tool_orchestrator.mcp_tools_registration_complete', { toolsRegistered: 4 });
+    // Observability tools (Sprint 59)
+
+    // tool.get_metrics - Query Loki for tool metrics
+    this.registerTool(
+      'tool.get_metrics',
+      'Query tool invocation metrics from Loki for a specific time range',
+      z.object({
+        toolId: z.string().describe('Tool ID to query metrics for'),
+        timeRange: z.object({
+          start: z.string().describe('Start time (ISO 8601)'),
+          end: z.string().describe('End time (ISO 8601)'),
+        }).describe('Time range for metrics query'),
+      }),
+      async (args) => {
+        if (!this.toolObserver) {
+          throw new Error('ToolObserver not initialized');
+        }
+
+        try {
+          const metrics = await this.toolObserver.queryToolMetrics(
+            args.toolId,
+            args.timeRange
+          );
+
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify(metrics, null, 2),
+            }],
+          };
+        } catch (err) {
+          this.getLogger().error('tool.get_metrics.error', { error: err instanceof Error ? err.message : String(err) });
+          throw err;
+        }
+      }
+    );
+
+    // model.get_metrics - Query Loki for model metrics
+    this.registerTool(
+      'model.get_metrics',
+      'Query model invocation metrics from Loki for a specific time range',
+      z.object({
+        modelId: z.string().describe('Model ID to query metrics for'),
+        timeRange: z.object({
+          start: z.string().describe('Start time (ISO 8601)'),
+          end: z.string().describe('End time (ISO 8601)'),
+        }).describe('Time range for metrics query'),
+      }),
+      async (args) => {
+        if (!this.toolObserver) {
+          throw new Error('ToolObserver not initialized');
+        }
+
+        try {
+          const metrics = await this.toolObserver.queryModelMetrics(
+            args.modelId,
+            args.timeRange
+          );
+
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify(metrics, null, 2),
+            }],
+          };
+        } catch (err) {
+          this.getLogger().error('model.get_metrics.error', { error: err instanceof Error ? err.message : String(err) });
+          throw err;
+        }
+      }
+    );
+
+    // tool.trace_request - Trace request by correlationId
+    this.registerTool(
+      'tool.trace_request',
+      'Trace all tool invocations for a specific request using its correlationId',
+      z.object({
+        correlationId: z.string().describe('Correlation ID to trace'),
+      }),
+      async (args) => {
+        if (!this.toolObserver) {
+          throw new Error('ToolObserver not initialized');
+        }
+
+        try {
+          const events = await this.toolObserver.traceToolInvocation(args.correlationId);
+
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify({ correlationId: args.correlationId, events, count: events.length }, null, 2),
+            }],
+          };
+        } catch (err) {
+          this.getLogger().error('tool.trace_request.error', { error: err instanceof Error ? err.message : String(err) });
+          throw err;
+        }
+      }
+    );
+
+    // tool.get_health - Get tool health status
+    this.registerTool(
+      'tool.get_health',
+      'Get health status for a specific tool based on recent invocations and error rates',
+      z.object({
+        toolId: z.string().describe('Tool ID to check health for'),
+        windowMs: z.number().optional().describe('Time window in milliseconds (default: 3600000 = 1 hour)'),
+      }),
+      async (args) => {
+        if (!this.toolObserver) {
+          throw new Error('ToolObserver not initialized');
+        }
+
+        try {
+          const health = await this.toolObserver.getToolHealth(
+            args.toolId,
+            args.windowMs
+          );
+
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify(health, null, 2),
+            }],
+          };
+        } catch (err) {
+          this.getLogger().error('tool.get_health.error', { error: err instanceof Error ? err.message : String(err) });
+          throw err;
+        }
+      }
+    );
+
+    // tool.refresh_health - Manually trigger health status update for all tools
+    this.registerTool(
+      'tool.refresh_health',
+      'Manually trigger health status update for all registered tools',
+      z.object({}),
+      async () => {
+        if (!this.healthUpdater) {
+          throw new Error('HealthUpdater not initialized');
+        }
+
+        try {
+          await this.healthUpdater.updateHealthStatus();
+
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify({ success: true, message: 'Health status updated for all tools' }, null, 2),
+            }],
+          };
+        } catch (err) {
+          this.getLogger().error('tool.refresh_health.error', { error: err instanceof Error ? err.message : String(err) });
+          throw err;
+        }
+      }
+    );
+
+    this.getLogger().info('tool_orchestrator.mcp_tools_registration_complete', { toolsRegistered: 9 });
   }
 
   // Getter methods for modules (used externally if needed)

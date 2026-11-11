@@ -51,7 +51,16 @@ export interface IToolRegistry {
   resolveConflict(toolId: string, preferredSource: string): Promise<void>;
 
   // Health tracking
-  updateHealth(toolId: string, health: { status: HealthStatus; lastError?: string }): Promise<void>;
+  updateHealth(
+    toolId: string,
+    health: {
+      status: HealthStatus;
+      lastError?: string;
+      lastInvocationAt?: string;
+      lastSuccessAt?: string;
+      lastErrorAt?: string;
+    }
+  ): Promise<void>;
 
   // Import pipeline
   importFromMcp(serverName: string, tools: McpToolDefinition[]): Promise<string[]>;

@@ -32,3 +32,16 @@ FIRESTORE_EMULATOR_HOST: firebase-emulator:8080
 PUBSUB_API_ENDPOINT: "firebase-emulator:8085"
 PUBSUB_EMULATOR_HOST: "firebase-emulator:8085"
 PUBSUB_ENSURE_MODE: "off"
+
+# Loki Observability (Sprint 59)
+# Points to existing Grafana/Loki infrastructure on bitbrat.lan
+LOKI_URL: http://bitbrat.lan:3100
+LOKI_TIMEOUT_MS: 10000
+HEALTHY_ERROR_THRESHOLD: 0.05
+DEGRADED_ERROR_THRESHOLD: 0.20
+
+# Health Tracking (Sprint 59)
+# How often to update tool health status (default: 5 minutes)
+HEALTH_UPDATE_INTERVAL_MS: 300000
+# How long ago last invocation can be before marking unhealthy (default: 1 hour)
+HEALTH_STALE_THRESHOLD_MS: 3600000
