@@ -4,7 +4,7 @@ description: >-
   Node/TypeScript, Twurple, Firestore, OpenAI. Deployed on Cloud Run.
 project:
   name: BitBrat Platform
-  version: 0.43.0
+  version: 0.44.0
   status: experimental
   description: >
     A cloud-native microservices suite that listens to Twitch, Kick and other events and provides tools to react to
@@ -1060,6 +1060,14 @@ services:
     kind: pipeline-service
     entry: src/apps/tool-orchestrator-service.ts
     port: 3000
+    env:
+      - LOKI_URL
+      - LOKI_TIMEOUT_MS
+      - HEALTHY_ERROR_THRESHOLD
+      - DEGRADED_ERROR_THRESHOLD
+      - HEALTH_UPDATE_INTERVAL_MS
+      - HEALTH_STALE_THRESHOLD_MS
+      - DATABASE_URL
 executionContexts:
   local:
     description: Local Docker development environment

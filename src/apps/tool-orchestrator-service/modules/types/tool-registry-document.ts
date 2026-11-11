@@ -61,6 +61,8 @@ export interface ToolHealth {
   status: HealthStatus;
   lastError?: string;
   lastErrorAt?: Date;
+  lastInvocationAt?: Date;
+  lastSuccessAt?: Date;
   consecutiveFailures?: number;
 }
 

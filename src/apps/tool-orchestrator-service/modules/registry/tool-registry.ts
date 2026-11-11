@@ -210,7 +210,13 @@ export class ToolRegistry implements IToolRegistry {
    */
   async updateHealth(
     toolId: string,
-    health: { status: HealthStatus; lastError?: string }
+    health: {
+      status: HealthStatus;
+      lastError?: string;
+      lastInvocationAt?: string;
+      lastSuccessAt?: string;
+      lastErrorAt?: string;
+    }
   ): Promise<void> {
     this.logger.debug({ toolId, health }, 'tool_registry.update_health');
 
@@ -224,7 +230,13 @@ export class ToolRegistry implements IToolRegistry {
       health: {
         status: health.status,
         lastError: health.lastError,
-        lastErrorAt: health.lastError ? new Date() : undefined,
+        lastErrorAt: health.lastErrorAt ? new Date(health.lastErrorAt) : undefined,
+        lastInvocationAt: health.lastInvocationAt
+          ? new Date(health.lastInvocationAt)
+          : undefined,
+        lastSuccessAt: health.lastSuccessAt
+          ? new Date(health.lastSuccessAt)
+          : undefined,
         consecutiveFailures:
           health.status === 'healthy'
             ? 0

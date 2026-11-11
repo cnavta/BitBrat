@@ -1,0 +1,683 @@
+# Sprint 59 Trackable Backlog: Observability - ToolObserver + Loki Integration
+# Sprint ID: sprint-59-ig0sr1
+# Owner: christophernavta
+# Created: 2026-11-11
+# Status: planning
+
+metadata:
+  sprint_id: sprint-59-ig0sr1
+  sprint_title: "Observability - ToolObserver + Loki Integration"
+  owner: christophernavta
+  duration_estimate: "1.5-2 weeks"
+  start_date: "2026-11-11"
+  status: planning
+
+# ============================================================================
+# TASK 1: Verify Loki Configuration (0.5 days)
+# Critical Path: P0
+# ============================================================================
+
+task_1_verify_loki_config:
+  id: T1
+  title: "Verify Loki Configuration"
+  priority: P0
+  status: pending
+  estimated_hours: 4
+  dependencies: []
+  category: "Infrastructure Verification"
+
+  subtasks:
+    - id: T1.1
+      title: "Document Loki endpoint configuration"
+      status: pending
+      acceptance_criteria:
+        - "Loki endpoint URL documented"
+        - "Authentication method documented (if any)"
+        - "Network accessibility verified from tool-orchestrator"
+
+    - id: T1.2
+      title: "Verify Promtail log scraping"
+      status: pending
+      acceptance_criteria:
+        - "Confirm Promtail is actively scraping JSON logs"
+        - "Verify all Bits are sending logs to Promtail"
+        - "Check Promtail scrape config for tool-orchestrator"
+
+    - id: T1.3
+      title: "Validate log ingestion"
+      status: pending
+      acceptance_criteria:
+        - "Query Loki and confirm recent logs exist"
+        - "Verify logs from tool-orchestrator are being ingested"
+        - "Check ingestion lag (should be < 5 seconds)"
+
+    - id: T1.4
+      title: "Document retention policy"
+      status: pending
+      acceptance_criteria:
+        - "Local retention: 7 days (verified)"
+        - "Production retention: 30 days (verified)"
+        - "Retention policy documented in loki-configuration.md"
+
+    - id: T1.5
+      title: "Confirm existing label configuration"
+      status: pending
+      acceptance_criteria:
+        - "Current labels documented: service, level, etc."
+        - "Cardinality per label documented"
+        - "No conflicts with proposed labels (toolId, modelId, status)"
+
+  deliverables:
+    - file: "documentation/reference/loki-configuration.md"
+      status: pending
+      description: "Complete Loki infrastructure documentation"
+
+  acceptance_criteria:
+    - "Loki endpoint accessible from tool-orchestrator"
+    - "Promtail actively shipping logs"
+    - "Current label schema documented"
+    - "Retention policy verified and documented"
+
+# ============================================================================
+# TASK 2: Implement ToolObserver Module (4 days)
+# Critical Path: P0
+# ============================================================================
+
+task_2_tool_observer_module:
+  id: T2
+  title: "Implement ToolObserver Module"
+  priority: P0
+  status: pending
+  estimated_hours: 32
+  dependencies: ["T1"]
+  category: "Core Implementation"
+
+  subtasks:
+    - id: T2.1
+      title: "Create ToolObserver interface"
+      status: pending
+      acceptance_criteria:
+        - "IToolObserver interface defined"
+        - "Interface includes: queryToolMetrics, queryModelMetrics, traceToolInvocation, getToolHealth, detectAnomalies"
+        - "TypeScript types for ToolMetrics, ModelMetrics, InvocationEvent, ToolHealthStatus defined"
+      files:
+        - "src/apps/tool-orchestrator-service/modules/observer/tool-observer.interface.ts"
+
+    - id: T2.2
+      title: "Implement Loki client wrapper"
+      status: pending
+      acceptance_criteria:
+        - "Loki client initialized with endpoint from config"
+        - "LogQL query execution implemented"
+        - "Error handling for Loki unavailability (fail-open)"
+        - "Connection pooling configured"
+      files:
+        - "src/apps/tool-orchestrator-service/modules/observer/loki-client.ts"
+
+    - id: T2.3
+      title: "Implement queryToolMetrics()"
+      status: pending
+      acceptance_criteria:
+        - "Queries Loki for tool invocations by toolId"
+        - "Calculates: total invocations, error count, error rate"
+        - "Calculates P50, P95, P99 latencies"
+        - "Returns ToolMetrics object"
+
+    - id: T2.4
+      title: "Implement queryModelMetrics()"
+      status: pending
+      acceptance_criteria:
+        - "Queries Loki for invocations by modelId"
+        - "Aggregates across all tools used by model"
+        - "Calculates total cost estimate (from event data)"
+        - "Returns ModelMetrics object"
+
+    - id: T2.5
+      title: "Implement traceToolInvocation()"
+      status: pending
+      acceptance_criteria:
+        - "Queries Loki by correlationId"
+        - "Returns chronological list of InvocationEvents"
+        - "Includes all events in request lifecycle"
+        - "Supports multi-tool compositions"
+
+    - id: T2.6
+      title: "Implement getToolHealth()"
+      status: pending
+      acceptance_criteria:
+        - "Queries recent invocations (last 1 hour)"
+        - "Derives health status: healthy, degraded, unhealthy"
+        - "Logic: healthy (error rate < 5%), degraded (5-20%), unhealthy (>20% or no invocations)"
+        - "Returns ToolHealthStatus with timestamps"
+
+    - id: T2.7
+      title: "Implement detectAnomalies()"
+      status: pending
+      acceptance_criteria:
+        - "Detects error rate spikes (>3x baseline)"
+        - "Detects latency spikes (>2x P95)"
+        - "Detects RBAC denial spikes"
+        - "Returns Anomaly[] with severity and description"
+
+    - id: T2.8
+      title: "Write unit tests for ToolObserver"
+      status: pending
+      acceptance_criteria:
+        - "Test coverage ≥ 70%"
+        - "Mock Loki client for isolated testing"
+        - "Test all public methods"
+        - "Test error handling (Loki unavailable)"
+      files:
+        - "src/apps/tool-orchestrator-service/modules/observer/__tests__/tool-observer.test.ts"
+
+  deliverables:
+    - file: "src/apps/tool-orchestrator-service/modules/observer/tool-observer.ts"
+      status: pending
+      description: "ToolObserver module implementation"
+    - file: "src/apps/tool-orchestrator-service/modules/observer/tool-observer.interface.ts"
+      status: pending
+      description: "IToolObserver interface"
+    - file: "src/apps/tool-orchestrator-service/types/tool-metrics.ts"
+      status: pending
+      description: "Metrics type definitions"
+
+  acceptance_criteria:
+    - "ToolObserver module created at correct path"
+    - "Implements IToolObserver interface"
+    - "Successfully queries Loki via LogQL"
+    - "Aggregates metrics: invocations, error rate, P95 latency"
+    - "Derives health status correctly"
+    - "Unit tests passing (≥70% coverage)"
+
+# ============================================================================
+# TASK 3: Add Event Logging to ToolGateway (3 days)
+# Critical Path: P0
+# ============================================================================
+
+task_3_event_logging:
+  id: T3
+  title: "Add Event Logging to ToolGateway"
+  priority: P0
+  status: pending
+  estimated_hours: 24
+  dependencies: ["T1"]
+  category: "Core Implementation"
+
+  subtasks:
+    - id: T3.1
+      title: "Define tool invocation event schema"
+      status: pending
+      acceptance_criteria:
+        - "ToolInvocationEvent interface matches spec (Section 3A)"
+        - "Includes Loki labels: service, level, eventType, toolId, modelId, status, correlationId"
+        - "Includes log fields: timestamp, message, durationMs, rbacDecision, etc."
+        - "TypeScript types for all fields"
+      files:
+        - "src/apps/tool-orchestrator-service/types/tool-invocation-event.ts"
+
+    - id: T3.2
+      title: "Add event logging to ToolGateway.execute()"
+      status: pending
+      acceptance_criteria:
+        - "Log event AFTER tool execution completes"
+        - "Log includes execution duration (durationMs)"
+        - "Log includes status: success | error | denied"
+        - "Logging is asynchronous (fire-and-forget, non-blocking)"
+      files:
+        - "src/apps/tool-orchestrator-service/modules/gateway/tool-gateway.ts"
+
+    - id: T3.3
+      title: "Add RBAC denial logging"
+      status: pending
+      acceptance_criteria:
+        - "Log denial events with status='denied'"
+        - "Include rbacDecision with full context (reason, userRoles, modelTier, etc.)"
+        - "Log level: 'info' (not error, as denials are expected behavior)"
+
+    - id: T3.4
+      title: "Implement input/output preview truncation"
+      status: pending
+      acceptance_criteria:
+        - "inputPreview max 500 chars"
+        - "outputPreview max 500 chars"
+        - "Truncation indicator: '...' appended"
+        - "Handles JSON serialization errors gracefully"
+
+    - id: T3.5
+      title: "Add cost estimation logging (optional)"
+      status: pending
+      acceptance_criteria:
+        - "Estimate tokens from input/output length (if LLM model)"
+        - "Calculate costUsd from ModelRegistry cost data"
+        - "Include in estimatedCost field"
+        - "Gracefully skip if model lacks cost data"
+
+    - id: T3.6
+      title: "Verify Promtail picks up events"
+      status: pending
+      acceptance_criteria:
+        - "Deploy to agent-dev"
+        - "Send test tool invocation"
+        - "Query Loki, verify event appears within 5 seconds"
+        - "Verify all labels are indexed correctly"
+
+    - id: T3.7
+      title: "Test cardinality impact"
+      status: pending
+      acceptance_criteria:
+        - "Simulate 100 tool invocations with 10 unique toolIds and 5 unique modelIds"
+        - "Verify Loki cardinality metrics (should be ~500 label combinations max)"
+        - "Ensure no performance degradation"
+
+  deliverables:
+    - file: "src/apps/tool-orchestrator-service/types/tool-invocation-event.ts"
+      status: pending
+      description: "Tool invocation event schema"
+    - file: "src/apps/tool-orchestrator-service/modules/gateway/tool-gateway.ts"
+      status: pending
+      description: "Updated ToolGateway with event logging"
+
+  acceptance_criteria:
+    - "ToolGateway logs all tool invocations to stdout (structured JSON)"
+    - "Promtail picks up new event types"
+    - "Event schema matches specification"
+    - "Logging is asynchronous (does not block tool execution)"
+    - "RBAC denials logged with full context"
+    - "Cardinality impact verified (< 1000 label combinations)"
+
+# ============================================================================
+# TASK 4: Implement Tool Metrics MCP Tools (2 days)
+# Priority: P1
+# ============================================================================
+
+task_4_mcp_tools:
+  id: T4
+  title: "Implement Tool Metrics MCP Tools"
+  priority: P1
+  status: pending
+  estimated_hours: 16
+  dependencies: ["T2", "T3"]
+  category: "MCP Integration"
+
+  subtasks:
+    - id: T4.1
+      title: "Implement tool.get_metrics MCP tool"
+      status: pending
+      acceptance_criteria:
+        - "MCP tool registered in tool-orchestrator"
+        - "Input schema: { toolId: string, timeRange: { start: string, end: string } }"
+        - "Delegates to ToolObserver.queryToolMetrics() (in-process)"
+        - "Returns JSON with metrics: invocations, errorRate, latency (P50, P95, P99)"
+        - "Error handling: returns graceful error if Loki unavailable"
+
+    - id: T4.2
+      title: "Implement model.get_metrics MCP tool"
+      status: pending
+      acceptance_criteria:
+        - "Input schema: { modelId: string, timeRange: { start: string, end: string } }"
+        - "Delegates to ToolObserver.queryModelMetrics()"
+        - "Returns JSON with metrics: total invocations, tools used, estimated cost"
+
+    - id: T4.3
+      title: "Implement tool.trace_request MCP tool"
+      status: pending
+      acceptance_criteria:
+        - "Input schema: { correlationId: string }"
+        - "Delegates to ToolObserver.traceToolInvocation()"
+        - "Returns chronological event timeline"
+        - "Supports multi-tool compositions"
+
+    - id: T4.4
+      title: "Implement tool.get_health MCP tool"
+      status: pending
+      acceptance_criteria:
+        - "Input schema: { toolId: string }"
+        - "Delegates to ToolObserver.getToolHealth()"
+        - "Returns health status: healthy | degraded | unhealthy"
+        - "Includes timestamps: lastInvocationAt, lastSuccessAt, lastErrorAt"
+
+    - id: T4.5
+      title: "Test MCP tools in agent-dev"
+      status: pending
+      acceptance_criteria:
+        - "Deploy tool-orchestrator to agent-dev"
+        - "Call each MCP tool via bitbrat-dev MCP client"
+        - "Verify accurate results"
+        - "Test error handling (Loki unavailable)"
+
+  deliverables:
+    - file: "src/apps/tool-orchestrator-service/index.ts"
+      status: pending
+      description: "Updated tool-orchestrator with 4 new MCP tools"
+
+  acceptance_criteria:
+    - "tool.get_metrics returns accurate metrics"
+    - "model.get_metrics returns accurate metrics"
+    - "tool.trace_request returns full event timeline"
+    - "tool.get_health returns correct health status"
+    - "All tools registered in tool-orchestrator MCP server"
+    - "Graceful degradation if Loki unavailable"
+
+# ============================================================================
+# TASK 5: Create Grafana Dashboards (3 days)
+# Priority: P1
+# ============================================================================
+
+task_5_grafana_dashboards:
+  id: T5
+  title: "Create Grafana Dashboards"
+  priority: P1
+  status: pending
+  estimated_hours: 24
+  dependencies: ["T3"]
+  category: "Visualization"
+
+  subtasks:
+    - id: T5.1
+      title: "Create Dashboard 1: Tool Invocation Rate"
+      status: pending
+      acceptance_criteria:
+        - "Line graph showing invocations/min by toolId"
+        - "Filterable by modelId"
+        - "Time range selector (1h, 6h, 24h, 7d)"
+        - "LogQL query: sum by (toolId) (rate({service='tool-orchestrator', eventType='tool.invocation'}[5m]))"
+      files:
+        - "infrastructure/grafana/dashboards/tool-invocation-rate.json"
+
+    - id: T5.2
+      title: "Create Dashboard 2: Error Rate & P95 Latency"
+      status: pending
+      acceptance_criteria:
+        - "Dual-axis graph: error percentage (left) + P95 latency (right)"
+        - "Error rate by toolId"
+        - "P95 latency by toolId"
+        - "LogQL queries: error rate + quantile_over_time(0.95, ...durationMs)"
+      files:
+        - "infrastructure/grafana/dashboards/error-rate-latency.json"
+
+    - id: T5.3
+      title: "Create Dashboard 3: RBAC Denials"
+      status: pending
+      acceptance_criteria:
+        - "Bar chart showing denial counts by reason"
+        - "Table showing denied modelIds and userRoles"
+        - "Filter by time range"
+        - "LogQL query: {status='denied'} | json | reason"
+      files:
+        - "infrastructure/grafana/dashboards/rbac-denials.json"
+
+    - id: T5.4
+      title: "Create Dashboard 4: Cost Tracking"
+      status: pending
+      acceptance_criteria:
+        - "Stacked area chart showing estimated costs by modelId"
+        - "Total cost in header (last 24h, 7d, 30d)"
+        - "Breakdown: token count, estimated USD"
+        - "LogQL query: sum by (modelId) ({...} | json | unwrap estimatedCost.costUsd)"
+      files:
+        - "infrastructure/grafana/dashboards/cost-tracking.json"
+
+    - id: T5.5
+      title: "Import dashboards to Grafana"
+      status: pending
+      acceptance_criteria:
+        - "All 4 dashboards imported to existing Grafana instance"
+        - "Dashboards use existing Loki data source"
+        - "All panels rendering correctly"
+        - "Variables configured (modelId, toolId filters)"
+
+    - id: T5.6
+      title: "Document dashboard usage"
+      status: pending
+      acceptance_criteria:
+        - "User guide for each dashboard"
+        - "Common queries documented"
+        - "Troubleshooting tips"
+      files:
+        - "documentation/guides/tool-observability.md"
+
+  deliverables:
+    - file: "infrastructure/grafana/dashboards/tool-invocation-rate.json"
+      status: pending
+    - file: "infrastructure/grafana/dashboards/error-rate-latency.json"
+      status: pending
+    - file: "infrastructure/grafana/dashboards/rbac-denials.json"
+      status: pending
+    - file: "infrastructure/grafana/dashboards/cost-tracking.json"
+      status: pending
+    - file: "documentation/guides/tool-observability.md"
+      status: pending
+
+  acceptance_criteria:
+    - "Dashboard 1: Tool Invocation Rate created and rendering"
+    - "Dashboard 2: Error Rate & P95 Latency created and rendering"
+    - "Dashboard 3: RBAC Denials created and rendering"
+    - "Dashboard 4: Cost Tracking created and rendering"
+    - "All dashboards use existing Loki data source"
+    - "Documentation complete"
+
+# ============================================================================
+# TASK 6: Update Health Tracking (2 days)
+# Priority: P2
+# ============================================================================
+
+task_6_health_tracking:
+  id: T6
+  title: "Update Health Tracking"
+  priority: P2
+  status: pending
+  estimated_hours: 16
+  dependencies: ["T2", "T3"]
+  category: "Integration"
+
+  subtasks:
+    - id: T6.1
+      title: "Update ToolRegistry.health schema"
+      status: pending
+      acceptance_criteria:
+        - "ToolRegistryDocument.health includes: lastInvocationAt, lastSuccessAt, lastErrorAt, status"
+        - "Status enum: healthy | degraded | unhealthy"
+        - "Schema updated in PostgreSQL DocumentStore"
+      files:
+        - "src/apps/tool-orchestrator-service/types/tool-registry-document.ts"
+
+    - id: T6.2
+      title: "Implement health updater background job"
+      status: pending
+      acceptance_criteria:
+        - "Background job runs every 5 minutes"
+        - "Queries ToolObserver.getToolHealth() for all active tools"
+        - "Updates ToolRegistry.health for each tool"
+        - "Non-blocking (async, no await on registry updates)"
+      files:
+        - "src/apps/tool-orchestrator-service/modules/observer/health-updater.ts"
+
+    - id: T6.3
+      title: "Register health updater in tool-orchestrator"
+      status: pending
+      acceptance_criteria:
+        - "Health updater starts on tool-orchestrator setup()"
+        - "Interval: 5 minutes (configurable via env var)"
+        - "Graceful shutdown on SIGTERM"
+      files:
+        - "src/apps/tool-orchestrator-service/index.ts"
+
+    - id: T6.4
+      title: "Test health tracking in agent-dev"
+      status: pending
+      acceptance_criteria:
+        - "Deploy to agent-dev"
+        - "Send tool invocations (mix of success/error)"
+        - "Wait 5 minutes"
+        - "Query ToolRegistry, verify health status updated"
+        - "Verify timestamps are recent"
+
+  deliverables:
+    - file: "src/apps/tool-orchestrator-service/modules/observer/health-updater.ts"
+      status: pending
+      description: "Health updater background job"
+    - file: "src/apps/tool-orchestrator-service/modules/registry/tool-registry.ts"
+      status: pending
+      description: "Updated ToolRegistry with health tracking"
+
+  acceptance_criteria:
+    - "ToolRegistry.health field populated from ToolObserver"
+    - "Background job runs every 5 minutes"
+    - "Health status: healthy, degraded, unhealthy"
+    - "Timestamps updated correctly"
+    - "Health updates are non-blocking"
+
+# ============================================================================
+# INTEGRATION TESTING & VALIDATION
+# ============================================================================
+
+integration_testing:
+  id: T7
+  title: "Integration Testing & Validation"
+  priority: P0
+  status: pending
+  estimated_hours: 8
+  dependencies: ["T2", "T3", "T4", "T5", "T6"]
+  category: "Validation"
+
+  subtasks:
+    - id: T7.1
+      title: "Deploy to agent-dev"
+      status: pending
+      acceptance_criteria:
+        - "tool-orchestrator deployed to agent-dev"
+        - "All dependencies running (PostgreSQL, Loki, Promtail)"
+        - "Service starts without errors"
+
+    - id: T7.2
+      title: "Send 100 test messages"
+      status: pending
+      acceptance_criteria:
+        - "Use bitbrat-dev MCP client to send 100 messages"
+        - "Mix of different tools (10+ unique toolIds)"
+        - "Mix of different models (5+ unique modelIds)"
+        - "Include intentional RBAC denials (5-10 denials)"
+
+    - id: T7.3
+      title: "Verify events in Loki"
+      status: pending
+      acceptance_criteria:
+        - "Query Loki: {service='tool-orchestrator', eventType='tool.invocation'}"
+        - "Verify ≥100 events exist"
+        - "Verify all labels present: toolId, modelId, status, correlationId"
+        - "Verify event schema matches specification"
+
+    - id: T7.4
+      title: "Query metrics via MCP tools"
+      status: pending
+      acceptance_criteria:
+        - "Call tool.get_metrics for each toolId, verify counts match"
+        - "Call model.get_metrics for each modelId, verify counts match"
+        - "Call tool.trace_request with correlationId, verify full timeline"
+        - "Call tool.get_health for each toolId, verify correct status"
+
+    - id: T7.5
+      title: "Validate Grafana dashboards"
+      status: pending
+      acceptance_criteria:
+        - "Open each dashboard in Grafana"
+        - "Verify all panels render data"
+        - "Verify data matches expected counts"
+        - "Verify time range filters work"
+
+    - id: T7.6
+      title: "Verify no disruption to existing infrastructure"
+      status: pending
+      acceptance_criteria:
+        - "Check Loki cardinality metrics (no spike)"
+        - "Check Loki query performance (no degradation)"
+        - "Check Promtail logs (no errors)"
+        - "Verify existing Loki queries still work"
+
+  acceptance_criteria:
+    - "100+ events in Loki verified"
+    - "Metrics queries return accurate counts"
+    - "Correlation tracing works"
+    - "Grafana dashboards render correctly"
+    - "No disruption to existing Loki infrastructure"
+
+# ============================================================================
+# DOCUMENTATION
+# ============================================================================
+
+documentation:
+  id: T8
+  title: "Documentation"
+  priority: P2
+  status: pending
+  estimated_hours: 4
+  dependencies: ["T7"]
+  category: "Documentation"
+
+  deliverables:
+    - file: "documentation/reference/loki-configuration.md"
+      status: pending
+      description: "Complete Loki infrastructure documentation"
+
+    - file: "documentation/guides/tool-observability.md"
+      status: pending
+      description: "Guide to using tool metrics and dashboards"
+
+    - file: "documentation/reference/tool-invocation-event-schema.md"
+      status: pending
+      description: "Event schema reference documentation"
+
+    - file: "planning/sprint-59-ig0sr1/verification-report.md"
+      status: pending
+      description: "Sprint verification report with test results"
+
+# ============================================================================
+# SPRINT SUMMARY
+# ============================================================================
+
+summary:
+  total_tasks: 8
+  total_subtasks: 43
+  estimated_hours: 128
+  estimated_duration: "1.5-2 weeks"
+  critical_path: ["T1", "T2", "T4", "T7"]
+
+  completion_criteria:
+    code:
+      - "ToolObserver module implemented and tested"
+      - "Event logging in ToolGateway functional"
+      - "4 MCP tools implemented and tested"
+      - "4 Grafana dashboards created and imported"
+      - "Health tracking background job running"
+
+    testing:
+      - "Unit tests passing (≥70% coverage for ToolObserver)"
+      - "Integration tests passing (100 messages → 100+ events)"
+      - "Agent-dev deployment successful"
+      - "Metrics queries accurate"
+      - "Dashboards rendering correctly"
+
+    documentation:
+      - "Loki configuration documented"
+      - "Tool observability guide complete"
+      - "Event schema reference complete"
+      - "Verification report written"
+
+    quality:
+      - "No TypeScript errors"
+      - "No ESLint warnings"
+      - "No disruption to existing Loki infrastructure"
+      - "Performance validated (cardinality < 1000)"
+
+  risks:
+    - risk: "Loki cardinality explosion"
+      mitigation: "Limit labels to 6, monitor cardinality metrics"
+      status: "mitigated"
+
+    - risk: "Promtail incompatibility"
+      mitigation: "Verify Promtail picks up events in Task 3.6"
+      status: "pending"
+
+    - risk: "Performance degradation"
+      mitigation: "Test in agent-dev first, monitor Loki metrics"
+      status: "pending"
