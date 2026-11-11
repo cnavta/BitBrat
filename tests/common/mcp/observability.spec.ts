@@ -23,7 +23,7 @@ describe('McpObservability', () => {
     const context = {
       userRoles: ['admin'],
       userId: 'user-123',
-      agentName: 'test-agent',
+      modelId: 'test-model',
       correlationId: 'corr-456',
     };
 
@@ -44,7 +44,7 @@ describe('McpObservability', () => {
       durationMs: 150,
       status: 'OK',
       userId: 'user-123',
-      agent: 'test-agent',
+      model: 'test-model',
       correlationId: 'corr-456',
       errorCode: null,
     } as Partial<ToolUsageRecord>));

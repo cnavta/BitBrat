@@ -36,6 +36,13 @@ export interface ToolRBAC {
     allowed: string[];
     denied: string[];
   };
+  minTrustThresholds?: {
+    scope?: string; // Default: 'tool-use'
+    reliability?: number; // 0-100
+    fidelity?: number; // 0-100
+    integrity?: number; // 0-100
+    calibration?: number; // 0-100
+  };
 }
 
 export interface ToolRetryPolicy {

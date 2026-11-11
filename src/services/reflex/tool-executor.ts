@@ -53,8 +53,8 @@ export interface ToolExecutionConfig {
   /** Correlation ID for request tracing */
   correlationId?: string;
 
-  /** Service name / role to use for RBAC (defaults to SERVICE_NAME env var) */
-  serviceName?: string;
+  /** Model ID for model-based RBAC (defaults to 'reflex') - Sprint 58 */
+  modelId?: string;
 
   /** User roles for RBAC (defaults to USER_ROLES env var or empty array) */
   userRoles?: string[];
@@ -94,7 +94,7 @@ export async function executeTool(
     authToken = process.env.MCP_AUTH_TOKEN,
     timeout = 5000,
     correlationId,
-    serviceName = process.env.SERVICE_NAME || 'reflex',
+    modelId = 'reflex', // Sprint 58: Use 'reflex' as model ID for deterministic agent
     userRoles = process.env.USER_ROLES?.split(',').map(r => r.trim()).filter(Boolean) || [],
   } = config;
 
@@ -138,7 +138,7 @@ export async function executeTool(
           'Content-Type': 'application/json',
           Authorization: `Bearer ${authToken}`,
           'X-Roles': userRoles.join(','), // Send user roles for RBAC
-          'X-Agent-Name': serviceName, // Send service name for agent identification
+          'X-Model-ID': modelId, // Sprint 58: Send model ID for model-based RBAC
           ...(correlationId && { 'X-Correlation-ID': correlationId }),
         },
         body: JSON.stringify(body),

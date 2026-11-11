@@ -46,9 +46,10 @@ describe.skip('ProxyInvoker Timeout Coordination', () => {
       setTimeout(() => resolve({ content: [], isError: false } as any), 1000)
     ));
 
-    const invokePromise = invoker.invoke('test-server', 'test-tool', {}, mockClient, { 
-      userRoles: [], 
-      signal: controller.signal 
+    const invokePromise = invoker.invoke('test-server', 'test-tool', {}, mockClient, {
+      userRoles: [],
+      modelId: 'test-model',
+      signal: controller.signal
     });
 
     // Abort from caller side after 50ms
@@ -68,9 +69,10 @@ describe.skip('ProxyInvoker Timeout Coordination', () => {
     // Tool would take time
     mockClient.callTool.mockImplementation(() => new Promise(() => {}));
 
-    await expect(invoker.invoke('test-server', 'test-tool', {}, mockClient, { 
-      userRoles: [], 
-      signal: controller.signal 
+    await expect(invoker.invoke('test-server', 'test-tool', {}, mockClient, {
+      userRoles: [],
+      modelId: 'test-model',
+      signal: controller.signal
     })).rejects.toThrow(/was already aborted/);
   });
 });

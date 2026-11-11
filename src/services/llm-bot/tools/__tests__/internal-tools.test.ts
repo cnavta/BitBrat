@@ -29,7 +29,7 @@ describe('Internal Tools', () => {
       } as unknown as McpClientManager;
 
       const tool = createGetBotStatusTool(mockMcpManager);
-      const result = await tool.execute!({}, { userRoles: ['admin'] });
+      const result = await tool.execute!({}, { userRoles: ['admin'], modelId: 'test-model' });
 
       expect(result).toBeDefined();
       expect(result.servers).toHaveLength(1);
@@ -81,7 +81,7 @@ describe('Internal Tools', () => {
 
     it('should list all tools for an admin', async () => {
       const tool = createListAvailableToolsTool(mockRegistry);
-      const result = await tool.execute!({}, { userRoles: ['admin'] });
+      const result = await tool.execute!({}, { userRoles: ['admin'], modelId: 'test-model' });
 
       expect(result.availableTools).toHaveLength(2); // public + admin
       expect(result.availableTools.find((t: any) => t.name === 'admin-tool')).toBeDefined();
@@ -90,7 +90,7 @@ describe('Internal Tools', () => {
 
     it('should only list public tools for a user with no roles', async () => {
       const tool = createListAvailableToolsTool(mockRegistry);
-      const result = await tool.execute!({}, { userRoles: [] });
+      const result = await tool.execute!({}, { userRoles: [], modelId: 'test-model' });
 
       expect(result.availableTools).toHaveLength(1);
       expect(result.availableTools[0].name).toBe('public-tool');
@@ -98,7 +98,7 @@ describe('Internal Tools', () => {
 
     it('should list moderator tools for a moderator', async () => {
       const tool = createListAvailableToolsTool(mockRegistry);
-      const result = await tool.execute!({}, { userRoles: ['moderator'] });
+      const result = await tool.execute!({}, { userRoles: ['moderator'], modelId: 'test-model' });
 
       expect(result.availableTools).toHaveLength(2); // public + mod
       expect(result.availableTools.find((t: any) => t.name === 'mod-tool')).toBeDefined();

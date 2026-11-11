@@ -5,14 +5,18 @@ export type ToolSource = 'internal' | 'mcp' | 'firestore' | 'composition';
 
 /**
  * Context provided during tool execution
+ *
+ * Sprint 58: Updated to use modelId instead of agentName for model-based RBAC.
+ * The LLM model (e.g., 'gpt-4', 'claude-opus-3.5', 'reflex') is the security
+ * principal, not the orchestrating agent.
  */
 export interface ToolExecutionContext {
   /** Roles associated with the requesting user */
   userRoles: string[];
   /** Optional user ID of the requesting user */
   userId?: string;
-  /** Optional name of the requesting agent */
-  agentName?: string;
+  /** Model ID executing the tool (e.g., 'gpt-4', 'claude-opus-3.5', 'reflex') - Sprint 58 */
+  modelId: string;
   /** Optional correlation ID for the request */
   correlationId?: string;
   /** Optional abort signal to cancel execution */
