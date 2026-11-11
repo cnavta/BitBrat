@@ -9,7 +9,7 @@ describe('Basic Tools', () => {
       const mockDate = new Date('2026-04-15T08:20:00Z');
       const spy = jest.spyOn(global, 'Date').mockImplementation(() => mockDate as any);
       
-      const result = await tool.execute!({}, { userRoles: [] });
+      const result = await tool.execute!({}, { userRoles: [], modelId: 'test-model' });
       
       expect(result).toBeDefined();
       expect(result.iso).toBe('2026-04-15T08:20:00.000Z');
@@ -22,7 +22,7 @@ describe('Basic Tools', () => {
 
     it('should return a valid ISO string when not mocked', async () => {
         const tool = createGetCurrentTimeTool();
-        const result = await tool.execute!({}, { userRoles: [] });
+        const result = await tool.execute!({}, { userRoles: [], modelId: 'test-model' });
         
         expect(result.iso).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/);
     });

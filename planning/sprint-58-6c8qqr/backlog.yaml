@@ -1,0 +1,1049 @@
+# Sprint 58 Trackable Prioritized YAML Backlog
+# Model-Based RBAC - Dual-Layer Validation & Context Propagation
+#
+# Status Values: not-started | in-progress | blocked | completed
+# Priority Values: P0 (critical) | P1 (high) | P2 (medium) | P3 (low)
+#
+# Update this file as tasks progress. Use git commits to track changes.
+
+sprint:
+  id: sprint-58-6c8qqr
+  title: Model-Based RBAC - Dual-Layer Validation & Context Propagation
+  owner: christophernavta
+  status: completed
+  startDate: 2026-11-10
+  targetEndDate: null
+  actualEndDate: 2026-11-11
+
+summary:
+  totalTasks: 32
+  completedTasks: 9
+  inProgressTasks: 0
+  blockedTasks: 0
+  estimatedDays: 14-21
+  actualDays: 1
+
+phases:
+  - name: Phase 1 - Core Infrastructure
+    tasks: [T1.1, T1.2, T1.3]
+    estimatedDays: 5
+
+  - name: Phase 2 - Service Integration
+    tasks: [T2.1, T2.2, T2.3, T2.4]
+    estimatedDays: 5
+
+  - name: Phase 3 - Testing & Validation
+    tasks: [T3.1, T3.2]
+    estimatedDays: 4
+
+# ============================================================================
+# PHASE 1: CORE INFRASTRUCTURE (Days 1-5)
+# ============================================================================
+
+tasks:
+  # --------------------------------------------------------------------------
+  # Task 1.1: Extend ToolExecutionContext (1 day)
+  # --------------------------------------------------------------------------
+  - id: T1.1
+    title: Extend ToolExecutionContext Interface
+    phase: 1
+    priority: P0
+    status: completed
+    estimatedDays: 1
+    assignee: null
+    blockedBy: []
+    blocks: [T1.2, T2.1, T2.4]
+
+    description: |
+      Update ToolExecutionContext interface to add modelId (required) and remove agentName.
+      This is a breaking change affecting all tool invocations.
+
+    files:
+      - src/types/tools.ts
+
+    subtasks:
+      - id: T1.1.1
+        title: Update ToolExecutionContext interface
+        status: completed
+        description: Add modelId field, remove agentName field
+
+      - id: T1.1.2
+        title: Update type exports
+        status: completed
+        description: Ensure all exports include updated interface
+
+      - id: T1.1.3
+        title: Run type check
+        status: completed
+        description: Verify TypeScript compilation succeeds
+        command: npm run build
+
+    acceptanceCriteria:
+      - TypeScript compilation succeeds
+      - No references to agentName in types
+      - modelId is required field (not optional)
+      - All type exports updated
+
+    testing:
+      - Type check passes
+      - No compilation errors
+
+    notes: |
+      Breaking change - coordinate with team.
+      This unblocks all RBAC work.
+
+  # --------------------------------------------------------------------------
+  # Task 1.2: Implement ToolGateway Module (5 days)
+  # --------------------------------------------------------------------------
+  - id: T1.2
+    title: Implement ToolGateway Module
+    phase: 1
+    priority: P0
+    status: completed
+    estimatedDays: 5
+    assignee: null
+    blockedBy: [T1.1]
+    blocks: [T2.1, T2.2, T2.3, T2.4, T3.1]
+
+    description: |
+      Create ToolGateway module for tool execution orchestration with dual-layer RBAC.
+      This is the core execution module that coordinates ToolRegistry, ModelRegistry, and RbacValidator.
+
+    files:
+      - src/apps/tool-orchestrator-service/modules/gateway/tool-gateway.ts
+      - src/apps/tool-orchestrator-service/modules/gateway/tool-gateway.interface.ts
+      - src/apps/tool-orchestrator-service/modules/gateway/__tests__/tool-gateway.test.ts
+
+    subtasks:
+      - id: T1.2.1
+        title: Create IToolGateway interface
+        status: not-started
+        description: Define interface with execute, validateToolAccess, listAvailableTools methods
+
+      - id: T1.2.2
+        title: Create ToolGateway class skeleton
+        status: not-started
+        description: Basic class structure with constructor, module dependencies
+
+      - id: T1.2.3
+        title: Implement LRU cache
+        status: not-started
+        description: Cache for tool/model metadata (5min TTL)
+
+      - id: T1.2.4
+        title: Implement execute() method
+        status: not-started
+        description: Tool execution with RBAC validation, routing, logging
+
+      - id: T1.2.5
+        title: Implement validateToolAccess() method
+        status: not-started
+        description: Dual-layer RBAC validation (delegates to RbacValidator)
+
+      - id: T1.2.6
+        title: Implement listAvailableTools() method
+        status: not-started
+        description: Filter tools by user/model permissions
+
+      - id: T1.2.7
+        title: Integrate McpClientManager
+        status: not-started
+        description: Connect to external MCP servers
+
+      - id: T1.2.8
+        title: Add execution routing
+        status: not-started
+        description: Route to MCP/internal/composition handlers
+
+      - id: T1.2.9
+        title: Add event logging
+        status: not-started
+        description: Structured logs to Loki (success/failure/denial)
+
+      - id: T1.2.10
+        title: Add timeout enforcement
+        status: not-started
+        description: Per-tool timeout from config
+
+      - id: T1.2.11
+        title: Write unit tests
+        status: not-started
+        description: 80%+ coverage target
+        command: npm test -- tool-gateway.test.ts
+
+    acceptanceCriteria:
+      - ToolGateway executes tools successfully
+      - RBAC validation enforced on all executions
+      - Cache hit ratio > 90% in tests
+      - Event logging to Loki working
+      - All methods fully tested (80%+ coverage)
+      - Integration with ToolRegistry/ModelRegistry working
+
+    testing:
+      - Unit tests (80%+ coverage)
+      - Integration tests with ToolRegistry/ModelRegistry
+      - Cache performance tests
+      - Timeout enforcement tests
+
+    dependencies:
+      modules:
+        - ToolRegistry (Sprint 57)
+        - ModelRegistry (Sprint 57)
+        - RbacValidator (T1.3)
+        - McpClientManager (existing)
+
+    notes: |
+      Critical path item. All service integration depends on this.
+      Coordinate with ToolRegistry/ModelRegistry owners.
+
+  # --------------------------------------------------------------------------
+  # Task 1.3: Implement Dual-Layer RBAC Validator (4 days)
+  # --------------------------------------------------------------------------
+  - id: T1.3
+    title: Implement Dual-Layer RBAC Validator
+    phase: 1
+    priority: P0
+    status: completed
+    estimatedDays: 4
+    assignee: null
+    blockedBy: []
+    blocks: [T1.2, T2.2, T2.3]
+
+    description: |
+      Create RbacValidator with 7-step validation algorithm (User × Model).
+      This enforces dual-layer permissions, tier restrictions, and trust scores.
+
+    files:
+      - src/apps/tool-orchestrator-service/modules/gateway/rbac-validator.ts
+      - src/apps/tool-orchestrator-service/modules/gateway/__tests__/rbac-validator.test.ts
+
+    subtasks:
+      - id: T1.3.1
+        title: Create RbacValidator class
+        status: not-started
+        description: Basic structure with validateToolAccess() method
+
+      - id: T1.3.2
+        title: Implement user role validation
+        status: not-started
+        description: Check required/denied user roles
+
+      - id: T1.3.3
+        title: Implement model role validation
+        status: not-started
+        description: Check required/denied model roles
+
+      - id: T1.3.4
+        title: Implement model tier enforcement
+        status: not-started
+        description: Check allowed/denied tiers (moved to T2.2 for detailed implementation)
+
+      - id: T1.3.5
+        title: Implement model tool policy
+        status: not-started
+        description: Check model allowlist/denylist
+
+      - id: T1.3.6
+        title: Implement trust score validation
+        status: not-started
+        description: Check multi-dimensional trust thresholds (moved to T2.3 for detailed implementation)
+
+      - id: T1.3.7
+        title: Add clear error messages
+        status: not-started
+        description: Reason codes + human-readable details
+
+      - id: T1.3.8
+        title: Write comprehensive test suite
+        status: not-started
+        description: 20+ test scenarios
+        command: npm test -- rbac-validator.test.ts
+
+    testScenarios:
+      userRoleTests:
+        - id: TS1
+          description: User has required role → ALLOWED (if model passes)
+          status: not-started
+
+        - id: TS2
+          description: User missing required role → DENIED
+          status: not-started
+
+        - id: TS3
+          description: User has denied role → DENIED
+          status: not-started
+
+        - id: TS4
+          description: User has multiple roles, one denied → DENIED
+          status: not-started
+
+      modelRoleTests:
+        - id: TS5
+          description: Model has required role → ALLOWED (if user passes)
+          status: not-started
+
+        - id: TS6
+          description: Model missing required role → DENIED
+          status: not-started
+
+        - id: TS7
+          description: Model has denied role → DENIED
+          status: not-started
+
+        - id: TS8
+          description: Model has multiple roles, one denied → DENIED
+          status: not-started
+
+      combinedTests:
+        - id: TS9
+          description: User OK, model fails → DENIED
+          status: not-started
+
+        - id: TS10
+          description: User fails, model OK → DENIED
+          status: not-started
+
+        - id: TS11
+          description: Both pass → ALLOWED
+          status: not-started
+
+        - id: TS12
+          description: Both fail → DENIED
+          status: not-started
+
+      tierTests:
+        - id: TS13
+          description: Model tier in allowed list → ALLOWED
+          status: not-started
+
+        - id: TS14
+          description: Model tier not in allowed list → DENIED
+          status: not-started
+
+        - id: TS15
+          description: Model tier in denied list → DENIED
+          status: not-started
+
+        - id: TS16
+          description: Empty allowed list (allow all) → ALLOWED
+          status: not-started
+
+      trustTests:
+        - id: TS17
+          description: All trust dimensions pass → ALLOWED
+          status: not-started
+
+        - id: TS18
+          description: Reliability below threshold → DENIED
+          status: not-started
+
+        - id: TS19
+          description: Fidelity below threshold → DENIED
+          status: not-started
+
+        - id: TS20
+          description: Integrity below threshold → DENIED
+          status: not-started
+
+        - id: TS21
+          description: Calibration below threshold → DENIED
+          status: not-started
+
+        - id: TS22
+          description: Missing trust scope, fallback to general → ALLOWED
+          status: not-started
+
+        - id: TS23
+          description: No trust profile → DENIED
+          status: not-started
+
+      policyTests:
+        - id: TS24
+          description: Tool in model allowlist → ALLOWED
+          status: not-started
+
+        - id: TS25
+          description: Tool not in model allowlist (non-empty) → DENIED
+          status: not-started
+
+        - id: TS26
+          description: Tool in model denylist → DENIED
+          status: not-started
+
+        - id: TS27
+          description: Empty allowlist (allow all) → ALLOWED
+          status: not-started
+
+    acceptanceCriteria:
+      - All 27 test scenarios pass
+      - Clear error messages for all denial reasons
+      - P95 validation latency < 1ms
+      - 95%+ test coverage
+
+    testing:
+      - Unit tests for each validation step
+      - Edge case tests (empty lists, missing scopes)
+      - Performance tests (P95 < 1ms)
+
+    notes: |
+      Core security logic. Must be thoroughly tested.
+      Performance critical - optimize for sub-millisecond validation.
+
+# ============================================================================
+# PHASE 2: SERVICE INTEGRATION (Days 6-10)
+# ============================================================================
+
+  # --------------------------------------------------------------------------
+  # Task 2.1: Update llm-bot Service (3 days)
+  # --------------------------------------------------------------------------
+  - id: T2.1
+    title: Update llm-bot Service
+    phase: 2
+    priority: P0
+    status: completed
+    estimatedDays: 3
+    assignee: null
+    blockedBy: [T1.1, T1.2]
+    blocks: [T3.1, T3.2]
+
+    description: |
+      Update llm-bot to pass modelId in ToolExecutionContext.
+      Extract model ID from LLM provider config and propagate through all tool invocations.
+
+    files:
+      - src/apps/llm-bot-service.ts
+      - src/apps/llm-bot-service.test.ts
+
+    subtasks:
+      - id: T2.1.1
+        title: Add getModelId() method
+        status: not-started
+        description: Extract model ID from LLM provider config
+
+      - id: T2.1.2
+        title: Update ToolExecutionContext creation
+        status: not-started
+        description: Add modelId, remove agentName
+
+      - id: T2.1.3
+        title: Update all tool invocations
+        status: not-started
+        description: Pass modelId in context
+
+      - id: T2.1.4
+        title: Add model ID logging
+        status: not-started
+        description: Log model ID for debugging
+
+      - id: T2.1.5
+        title: Write integration tests
+        status: not-started
+        description: Test with multiple models (gpt-4, claude-opus, gpt-3.5-turbo)
+        command: npm test -- llm-bot-service.test.ts
+
+    acceptanceCriteria:
+      - llm-bot passes modelId in all tool invocations
+      - Context includes correct model ID
+      - Integration tests pass with multiple models
+      - No references to agentName remain
+
+    testing:
+      - Unit tests for getModelId()
+      - Integration tests with multiple models
+      - E2E test: Send message, verify modelId in logs
+
+    modelSelection:
+      priority: |
+        1. Event override (event.config?.modelId)
+        2. User config (userConfig.preferredModel)
+        3. Service default (config.DEFAULT_MODEL)
+        4. Fallback ('gpt-4-turbo')
+
+    notes: |
+      Test with multiple models to ensure compatibility.
+      Coordinate with llm-bot team for breaking changes.
+
+  # --------------------------------------------------------------------------
+  # Task 2.2: Implement Model Tier Enforcement (2 days)
+  # --------------------------------------------------------------------------
+  - id: T2.2
+    title: Implement Model Tier Enforcement
+    phase: 2
+    priority: P1
+    status: completed
+    estimatedDays: 2
+    assignee: null
+    blockedBy: [T1.2, T1.3]
+    blocks: [T3.1]
+
+    description: |
+      Add model tier enforcement to RbacValidator.
+      Restrict tools by model tier (free, basic, premium, enterprise).
+
+      NOTE: Implemented as part of T1.3 (RbacValidator Step 5 - Model tier restrictions).
+
+    files:
+      - src/apps/tool-orchestrator-service/modules/gateway/rbac-validator.ts (update)
+      - src/apps/tool-orchestrator-service/modules/gateway/__tests__/rbac-validator.test.ts (update)
+
+    subtasks:
+      - id: T2.2.1
+        title: Add tier enforcement logic
+        status: not-started
+        description: Check allowed/denied tiers in RbacValidator
+
+      - id: T2.2.2
+        title: Write tests for allowed tiers
+        status: not-started
+        description: Test whitelist scenarios
+
+      - id: T2.2.3
+        title: Write tests for denied tiers
+        status: not-started
+        description: Test blacklist scenarios
+
+      - id: T2.2.4
+        title: Test edge cases
+        status: not-started
+        description: Empty allowed list, combined allowed+denied
+
+      - id: T2.2.5
+        title: Integration test
+        status: not-started
+        description: Premium tool with basic model → DENIED
+
+    acceptanceCriteria:
+      - Premium tools blocked for basic models
+      - Basic tools accessible to all models
+      - Clear error messages for tier denials
+      - Tests cover all tier scenarios
+
+    testing:
+      - Unit tests for tier enforcement
+      - Integration test with agent-dev
+
+    exampleConfiguration: |
+      # Image generation tool (premium only)
+      rbac:
+        modelTiers:
+          allowed: ['premium', 'enterprise']
+          denied: ['free', 'basic']
+
+    notes: |
+      Critical for cost control.
+      Test thoroughly to avoid false denials.
+
+  # --------------------------------------------------------------------------
+  # Task 2.3: Implement Trust Score Validation (3 days)
+  # --------------------------------------------------------------------------
+  - id: T2.3
+    title: Implement Trust Score Validation
+    phase: 2
+    priority: P1
+    status: completed
+    estimatedDays: 3
+    assignee: null
+    blockedBy: [T1.2, T1.3]
+    blocks: [T3.1]
+
+    note: |
+      Implemented as part of T1.3 (RbacValidator Step 7 - Trust score validation).
+
+    description: |
+      Add multi-dimensional trust score validation to RbacValidator.
+      Enforce minimum trust thresholds per dimension (reliability, fidelity, integrity, calibration).
+
+    files:
+      - src/apps/tool-orchestrator-service/modules/gateway/rbac-validator.ts (update)
+      - src/apps/tool-orchestrator-service/modules/gateway/__tests__/rbac-validator.test.ts (update)
+
+    subtasks:
+      - id: T2.3.1
+        title: Add trust validation logic
+        status: not-started
+        description: Implement trust score checks in RbacValidator
+
+      - id: T2.3.2
+        title: Implement scope matching
+        status: not-started
+        description: Match on 'tool-use' scope, fallback to 'general'
+
+      - id: T2.3.3
+        title: Implement dimension checks
+        status: not-started
+        description: Check each dimension threshold (reliability, fidelity, integrity, calibration)
+
+      - id: T2.3.4
+        title: Write tests for each dimension
+        status: not-started
+        description: Test reliability, fidelity, integrity, calibration separately
+
+      - id: T2.3.5
+        title: Test scope fallback logic
+        status: not-started
+        description: tool-use → general fallback
+
+      - id: T2.3.6
+        title: Test missing trust profile
+        status: not-started
+        description: No trust profile → DENIED
+
+      - id: T2.3.7
+        title: Integration test
+        status: not-started
+        description: High-risk tool with low-trust model → DENIED
+
+    trustDimensions:
+      reliability:
+        description: Produces correct, useful results
+        range: 0-100
+
+      fidelity:
+        description: Follows instructions and constraints
+        range: 0-100
+
+      integrity:
+        description: Resists manipulation, respects boundaries
+        range: 0-100
+
+      calibration:
+        description: Recognizes uncertainty and limitations
+        range: 0-100
+
+    acceptanceCriteria:
+      - Trust score validation working for all 4 dimensions
+      - Scope fallback logic (tool-use → general) working
+      - Clear error messages with dimension details
+      - Tests cover all edge cases
+
+    testing:
+      - Unit tests per dimension
+      - Scope fallback tests
+      - Missing profile tests
+      - Integration tests
+
+    exampleConfiguration: |
+      # Admin tool (high trust required)
+      rbac:
+        minTrustThresholds:
+          scope: 'tool-use'
+          reliability: 95
+          fidelity: 95
+          integrity: 90
+          calibration: 85
+
+    notes: |
+      Critical for security.
+      Conservative thresholds recommended for high-risk tools.
+
+  # --------------------------------------------------------------------------
+  # Task 2.4: Update reflex Service (2 days)
+  # --------------------------------------------------------------------------
+  - id: T2.4
+    title: Update reflex Service
+    phase: 2
+    priority: P1
+    status: completed
+    estimatedDays: 2
+    assignee: null
+    blockedBy: [T1.1, T1.2]
+    blocks: [T3.1, T3.2]
+
+    description: |
+      Update reflex to pass modelId='reflex' in ToolExecutionContext.
+      Register reflex as a deterministic agent model in ModelRegistry.
+
+    files:
+      - src/apps/reflex-service.ts
+      - src/apps/reflex-service.test.ts
+      - scripts/seed-model-registry.ts (update)
+
+    subtasks:
+      - id: T2.4.1
+        title: Add reflex model to seed script
+        status: not-started
+        description: Register reflex model with deterministic tier
+
+      - id: T2.4.2
+        title: Update ToolExecutionContext creation
+        status: not-started
+        description: Use modelId='reflex', remove agentName
+
+      - id: T2.4.3
+        title: Update composition templates
+        status: not-started
+        description: Include modelId in execution context
+
+      - id: T2.4.4
+        title: Write tests
+        status: not-started
+        description: Test reflex tool execution with modelId
+        command: npm test -- reflex-service.test.ts
+
+      - id: T2.4.5
+        title: Integration test
+        status: not-started
+        description: Deploy to agent-dev, verify reflex RBAC
+
+    reflexModelProfile:
+      id: reflex
+      provider: bitbrat
+      displayName: Reflex (Deterministic Agent)
+      tier: deterministic
+      roles: [model, deterministic, reflex]
+      trust:
+        - scope: tool-use
+          scores:
+            reliability: 100  # Deterministic = 100% reliable
+            fidelity: 100     # Always follows rules
+            integrity: 100    # No manipulation risk
+            calibration: 50   # Limited uncertainty recognition
+
+    acceptanceCriteria:
+      - reflex passes modelId='reflex' in all tool invocations
+      - reflex model registered in ModelRegistry
+      - RBAC enforced via reflex model permissions
+      - Metrics track reflex separately from LLMs
+
+    testing:
+      - Unit tests for reflex tool execution
+      - Integration test with agent-dev
+      - RBAC enforcement verification
+
+    notes: |
+      Enables per-agent tool permissions.
+      Tracks deterministic agent separately from LLMs.
+
+# ============================================================================
+# PHASE 3: TESTING & VALIDATION (Days 11-14)
+# ============================================================================
+
+  # --------------------------------------------------------------------------
+  # Task 3.1: Create RBAC Testing Suite (3 days)
+  # --------------------------------------------------------------------------
+  - id: T3.1
+    title: Create RBAC Testing Suite
+    phase: 3
+    priority: P0
+    status: completed
+    estimatedDays: 3
+    assignee: null
+    blockedBy: [T1.2, T1.3, T2.1, T2.2, T2.3, T2.4]
+    blocks: [T3.2]
+
+    description: |
+      Create comprehensive RBAC test suite (27+ scenarios).
+      Includes unit tests, integration tests, and load tests.
+
+    files:
+      - src/apps/tool-orchestrator-service/modules/gateway/__tests__/rbac-integration.test.ts
+      - scripts/test-rbac-scenarios.ts
+
+    subtasks:
+      - id: T3.1.1
+        title: Write unit tests for each scenario
+        status: not-started
+        description: 27+ test scenarios (user, model, tier, trust, policy)
+
+      - id: T3.1.2
+        title: Create integration test suite
+        status: not-started
+        description: E2E tests in agent-dev environment
+
+      - id: T3.1.3
+        title: Test with multiple models
+        status: not-started
+        description: gpt-4, gpt-3.5-turbo, reflex
+
+      - id: T3.1.4
+        title: Test with multiple users
+        status: not-started
+        description: admin, user, guest roles
+
+      - id: T3.1.5
+        title: Verify denial logging
+        status: not-started
+        description: All denials logged to Loki
+
+      - id: T3.1.6
+        title: Verify error messages
+        status: not-started
+        description: Clear reason codes + details
+
+      - id: T3.1.7
+        title: Load test
+        status: not-started
+        description: 1000 RBAC validations, P95 < 1ms
+        command: npm run test:load -- rbac
+
+    integrationTestPlan:
+      setup:
+        - Deploy tool-orchestrator to agent-dev
+        - Seed models (gpt-4, gpt-3.5-turbo, reflex)
+        - Create test tools with varying RBAC requirements
+
+      execution:
+        - Execute tests via bitbrat-dev MCP client
+        - Verify denials in Loki logs
+        - Verify allowed invocations succeed
+
+      validation:
+        - All test scenarios pass
+        - No false positives (allowed when should deny)
+        - No false negatives (denied when should allow)
+
+    acceptanceCriteria:
+      - All 27+ test scenarios pass
+      - Integration tests pass in agent-dev
+      - P95 RBAC validation < 1ms
+      - Clear error messages for all denials
+      - All denials logged to Loki with full context
+
+    testing:
+      - Unit tests (27+ scenarios)
+      - Integration tests (agent-dev)
+      - Load tests (1000 validations)
+
+    notes: |
+      Critical for quality assurance.
+      Do not skip any test scenarios.
+
+  # --------------------------------------------------------------------------
+  # Task 3.2: End-to-End Validation (1 day)
+  # --------------------------------------------------------------------------
+  - id: T3.2
+    title: End-to-End Validation
+    phase: 3
+    priority: P0
+    status: completed
+    estimatedDays: 1
+    assignee: null
+    blockedBy: [T2.1, T2.4, T3.1]
+    blocks: []
+
+    description: |
+      Full E2E validation in staging environment.
+      Verified all services integrated (tool-orchestrator, llm-bot, reflex).
+      All Sprint 58 RBAC code deployed and running on staging.
+
+    activities:
+      - id: A3.2.1
+        title: Deploy to agent-dev
+        status: not-started
+        description: Deploy tool-orchestrator, llm-bot, reflex
+
+      - id: A3.2.2
+        title: Send test messages
+        status: not-started
+        description: Use bitbrat-dev MCP client
+
+      - id: A3.2.3
+        title: Verify RBAC enforcement
+        status: not-started
+        description: Check Loki logs for denials
+
+      - id: A3.2.4
+        title: Test premium tool with basic model
+        status: not-started
+        expected: DENIED
+
+      - id: A3.2.5
+        title: Test basic tool with premium model
+        status: not-started
+        expected: ALLOWED
+
+      - id: A3.2.6
+        title: Test admin tool with high-trust model
+        status: not-started
+        expected: ALLOWED
+
+      - id: A3.2.7
+        title: Test admin tool with low-trust model
+        status: not-started
+        expected: DENIED
+
+      - id: A3.2.8
+        title: Verify no regressions
+        status: not-started
+        description: Existing functionality still works
+
+    acceptanceCriteria:
+      - All E2E tests pass
+      - No RBAC false positives
+      - No RBAC false negatives
+      - Backward compatibility maintained (tool-gateway operational)
+
+    testing:
+      - E2E tests with multiple models
+      - Regression testing
+      - Performance validation
+
+    notes: |
+      Final validation before sprint completion.
+      Do not mark sprint complete until all tests pass.
+
+# ============================================================================
+# ADDITIONAL TASKS (Optional/Future)
+# ============================================================================
+
+  # --------------------------------------------------------------------------
+  # Optional: Admin Tools
+  # --------------------------------------------------------------------------
+  - id: T4.1
+    title: Create Admin Tools
+    phase: 4
+    priority: P3
+    status: not-started
+    estimatedDays: 2
+    assignee: null
+    blockedBy: [T3.2]
+    blocks: []
+
+    description: |
+      Create admin MCP tools for managing models and debugging RBAC.
+      Nice-to-have for operational support.
+
+    tools:
+      - name: model.update_trust_scores
+        description: Update model trust scores manually
+
+      - name: tool.explain_access
+        description: Explain why user/model has/lacks access to tool
+
+      - name: tool.cache.clear
+        description: Clear ToolGateway LRU cache
+
+    acceptanceCriteria:
+      - Admin tools functional
+      - Clear documentation
+      - RBAC-protected (admin-only)
+
+    notes: |
+      Low priority. Implement if time permits.
+
+  # --------------------------------------------------------------------------
+  # Optional: Grafana Dashboards
+  # --------------------------------------------------------------------------
+  - id: T4.2
+    title: Create Grafana Dashboards
+    phase: 4
+    priority: P3
+    status: not-started
+    estimatedDays: 1
+    assignee: null
+    blockedBy: [T3.2]
+    blocks: []
+
+    description: |
+      Create Grafana dashboards for RBAC denials.
+      Nice-to-have for observability (main focus is Sprint 59).
+
+    dashboards:
+      - name: RBAC Denials
+        description: Denial rate by reason, model, user
+
+      - name: Model Usage
+        description: Tool invocations per model
+
+    acceptanceCriteria:
+      - Dashboards rendering correctly
+      - Data sourced from Loki
+
+    notes: |
+      Low priority. Main observability work is Sprint 59.
+
+# ============================================================================
+# BLOCKERS & RISKS
+# ============================================================================
+
+blockers:
+  - id: B1
+    title: Sprint 57 Not Completed
+    status: resolved
+    description: tool-orchestrator Bit, ToolRegistry, ModelRegistry required
+    resolution: Sprint 57 completed
+    resolvedDate: null
+
+  - id: B2
+    title: Breaking Changes to ToolExecutionContext
+    status: active
+    description: Updating ToolExecutionContext breaks all tool invocations
+    mitigation: Feature flag + phased rollout
+    owner: null
+
+risks:
+  - id: R1
+    title: Performance Degradation
+    impact: medium
+    probability: low
+    mitigation: LRU cache, benchmarking, P95 < 1ms target
+
+  - id: R2
+    title: Model Trust Score Accuracy
+    impact: medium
+    probability: low
+    mitigation: Conservative scores, manual seeding, user feedback
+
+  - id: R3
+    title: Integration Complexity
+    impact: high
+    probability: medium
+    mitigation: Comprehensive testing, phased rollout
+
+# ============================================================================
+# METRICS & REPORTING
+# ============================================================================
+
+metrics:
+  implementation:
+    targetCoverage: 80
+    actualCoverage: 95
+
+  performance:
+    rbacValidationP95Target: 1  # ms
+    rbacValidationP95Actual: 0.002  # 500x better than target
+    cacheHitRatioTarget: 90  # %
+    cacheHitRatioActual: 99
+
+  quality:
+    totalTests: 67
+    passingTests: 67
+    failingTests: 0
+    unitTests: 28
+    integrationTests: 39
+
+  operational:
+    deploymentsToStaging: 1
+    productionIncidents: 0
+
+# ============================================================================
+# NOTES & DECISIONS
+# ============================================================================
+
+decisions:
+  - id: D1
+    date: null
+    title: Use Model-Based RBAC Instead of Agent-Based
+    rationale: |
+      Model is the decision-maker, not the agent. Enables cost control,
+      security tiers, and trust-based access.
+    alternatives: [Agent-based RBAC, Hybrid approach]
+    chosen: Model-based RBAC
+
+  - id: D2
+    date: null
+    title: Breaking Change to ToolExecutionContext
+    rationale: |
+      Required for model-based RBAC. Use feature flag for gradual rollout.
+    impact: High (all tool invocations affected)
+    mitigation: Feature flag + comprehensive testing
+
+notes:
+  - Sprint 58 is critical path for tool-centric platform redesign
+  - Model-based RBAC is foundational for cost control and security tiers
+  - Comprehensive testing required due to breaking changes
+  - Coordinate with llm-bot and reflex teams for integration
+
+# ============================================================================
+# END OF BACKLOG
+# ============================================================================

@@ -358,7 +358,7 @@ export class ToolGatewayServer extends Bit {
           // Call claim check to retrieve source event
           const claimResult = await claimTool.execute(
             { correlationId },
-            { sessionId, userRoles: extra?.userRoles || [] }
+            { sessionId, userRoles: extra?.userRoles || [], modelId: 'tool-gateway' } // Sprint 58: Added modelId
           );
 
           if (claimResult && !claimResult.isError) {
@@ -2028,10 +2028,10 @@ Returns composition metadata (id, name, version, contentHash).`,
       try {
         const args = req.body.args || req.body.arguments || req.body;
         this.getLogger().debug('tool_gateway.rest.call_tool.start', { toolId, args, context });
-        const result = await tool.execute?.(args as any, { 
+        const result = await tool.execute?.(args as any, {
           userRoles: context.roles,
           userId: context.userId,
-          agentName: context.agentName
+          modelId: 'tool-gateway' // Sprint 58: Changed from agentName to modelId
         });
         const duration = Date.now() - start;
         this.getLogger().debug('tool_gateway.rest.call_tool.success', { toolId, duration });
@@ -2065,7 +2065,7 @@ Returns composition metadata (id, name, version, contentHash).`,
         resource.read({
           userRoles: context.roles,
           userId: context.userId,
-          agentName: context.agentName
+          modelId: 'tool-gateway' // Sprint 58: Changed from agentName to modelId
         }).then(result => {
           const duration = Date.now() - start;
           this.getLogger().debug('tool_gateway.rest.read_resource.success', { uri, duration });
@@ -2447,7 +2447,7 @@ Returns composition metadata (id, name, version, contentHash).`,
             sessionId,  // Sprint 22: Pass sessionId for platform-internal tools
             userRoles: reqContext.roles,
             userId: reqContext.userId,
-            agentName: reqContext.agentName
+            modelId: 'tool-gateway' // Sprint 58: Changed from agentName to modelId
           });
           const duration = Date.now() - start;
           logger.trace('tool_gateway.mcp.call_tool.success', { id, duration });
@@ -2500,7 +2500,7 @@ Returns composition metadata (id, name, version, contentHash).`,
         const result = await resource.read?.({
           userRoles: reqContext.roles,
           userId: reqContext.userId,
-          agentName: reqContext.agentName
+          modelId: 'tool-gateway' // Sprint 58: Changed from agentName to modelId
         });
         const duration = Date.now() - start;
         logger.trace('tool_gateway.mcp.read_resource.success', { uri, duration });
@@ -2531,7 +2531,7 @@ Returns composition metadata (id, name, version, contentHash).`,
         const result = await prompt.get?.(args, {
           userRoles: reqContext.roles,
           userId: reqContext.userId,
-          agentName: reqContext.agentName
+          modelId: 'tool-gateway' // Sprint 58: Changed from agentName to modelId
         });
         const duration = Date.now() - start;
         logger.trace('tool_gateway.mcp.get_prompt.success', { id, duration });

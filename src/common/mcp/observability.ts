@@ -26,7 +26,7 @@ export interface IToolUsageStore {
 export interface ToolUsageRecord {
   ts: string;
   userId: string | null;
-  agent: string;
+  model: string; // Sprint 58: Changed from 'agent' to 'model'
   tool: string;
   server: string;
   durationMs: number;
@@ -157,7 +157,7 @@ export class McpObservability {
       server: serverName,
       tool: toolName,
       status: error ? 'error' : 'success',
-      agent: context?.agentName || 'unknown',
+      model: context?.modelId || 'unknown', // Sprint 58: Changed from agentName to modelId
     };
 
     // OTel Metrics
@@ -184,7 +184,7 @@ export class McpObservability {
         const record: ToolUsageRecord = {
           ts: new Date().toISOString(),
           userId: context?.userId || null,
-          agent: context?.agentName || 'unknown',
+          model: context?.modelId || 'unknown', // Sprint 58: Changed from agentName to modelId
           tool: toolName,
           server: serverName,
           durationMs,

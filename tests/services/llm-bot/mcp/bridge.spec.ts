@@ -47,7 +47,7 @@ describe('McpBridge', () => {
       content: [{ type: 'text', text: 'hello' }],
     });
 
-    const result = await tool.execute!({ message: 'hello' }, { userRoles: [] });
+    const result = await tool.execute!({ message: 'hello' }, { userRoles: [], modelId: 'test-model' });
 
     // Sprint 28: MCP SDK 2.0 - callTool now takes only params (no schema argument)
     expect(mockClient.callTool).toHaveBeenCalledWith({
@@ -76,7 +76,7 @@ describe('McpBridge', () => {
       content: [{ type: 'text', text: 'error message' }],
     });
 
-    await expect(tool.execute!({}, { userRoles: [] })).rejects.toThrow('MCP Tool Error');
+    await expect(tool.execute!({}, { userRoles: [], modelId: 'test-model' })).rejects.toThrow('MCP Tool Error');
 
     const sStats = stats.getServerStats('test-server');
     expect(sStats?.totalErrors).toBe(1);

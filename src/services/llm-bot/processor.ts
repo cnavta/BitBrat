@@ -749,6 +749,7 @@ export async function processEvent(
       const toolContext = {
         userRoles,
         userId,
+        modelId: modelName, // Sprint 58: Use actual LLM model name (e.g., 'gpt-4o', 'claude-opus-3.5')
         correlationId: evt.correlationId,
         signal
       };
@@ -793,6 +794,7 @@ export async function processEvent(
                   tool: tool.id,
                   correlationId: toolContext.correlationId,
                   userId: toolContext.userId,
+                  modelId: toolContext.modelId, // Sprint 58: Log model ID for RBAC tracing
                 });
                 const resp = await tool.execute!(args, toolContext);
                 const duration = Date.now() - startTime;
@@ -800,6 +802,7 @@ export async function processEvent(
                   tool: tool.id,
                   correlationId: toolContext.correlationId,
                   userId: toolContext.userId,
+                  modelId: toolContext.modelId, // Sprint 58: Log model ID for RBAC tracing
                   duration,
                 });
                 return resp;
@@ -809,6 +812,7 @@ export async function processEvent(
                   tool: tool.id,
                   correlationId: toolContext.correlationId,
                   userId: toolContext.userId,
+                  modelId: toolContext.modelId, // Sprint 58: Log model ID for RBAC tracing
                   duration,
                   error: e.message,
                   stack: e.stack,

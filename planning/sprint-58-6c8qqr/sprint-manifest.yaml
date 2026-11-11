@@ -1,0 +1,11 @@
+id: sprint-58-6c8qqr
+title: Model-Based RBAC - Dual-Layer Validation & Context Propagation
+goal: Implement dual-layer RBAC (User × Model) and propagate modelId through
+  tool execution requests, replacing agent-based permissions with model-based
+  permissions for granular security control
+owner: christophernavta
+createdAt: 2026-11-10T02:53:26.729Z
+status: planning
+links:
+  branch: feature/sprint-58-6c8qqr-model-based-rbac-dual-layer-va
+notes: Sprint initialized via MCP start-sprint tool
