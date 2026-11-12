@@ -1,0 +1,11 @@
+id: sprint-61-s03uws
+title: Composition RBAC + Validation
+goal: Complete composition RBAC integration and comprehensive validation -
+  validate model permissions at registration time, implement RBAC inheritance
+  logic, end-to-end validation, load testing, and migration script
+owner: christophernavta
+createdAt: 2026-11-12T18:56:26.271Z
+status: planning
+links:
+  branch: feature/sprint-61-s03uws-composition-rbac-validation
+notes: Sprint initialized via MCP start-sprint tool
