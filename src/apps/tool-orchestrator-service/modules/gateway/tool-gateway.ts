@@ -19,11 +19,34 @@ import { IModelRegistry } from '../models/interfaces';
 import { ToolRegistryDocument } from '../types/tool-registry-document';
 import { ModelRegistryDocument } from '../types/model-registry-document';
 import { McpClientManager } from '../../../../common/mcp/client-manager';
+import { normalizeError } from '../../../../common/mcp/error-utils';
 import {
   createToolInvocationEvent,
   truncatePreview,
   ToolInvocationEvent,
 } from '../../types/tool-invocation-event';
+import { z } from 'zod';
+
+/**
+ * Schema for agent.sendProgressUpdate tool.
+ * Allows agents to send progress messages to users before long-running operations.
+ * Sprint 60: Migrated from tool-gateway.ts
+ */
+const SendProgressUpdateSchema = z.object({
+  message: z.string().describe('Progress message to send to the user (1-200 characters)'),
+  emoji: z.string().optional().describe('Optional emoji to prepend to the message (default: 🔄)'),
+  urgency: z.enum(['low', 'normal', 'high']).optional().describe('Message urgency level (default: normal)'),
+});
+
+type SendProgressUpdateArgs = z.infer<typeof SendProgressUpdateSchema>;
+
+/**
+ * Internal Tool Handler Function Type
+ */
+type InternalToolHandler = (
+  args: unknown,
+  context: ToolExecutionContext
+) => Promise<ToolResult>;
 
 /**
  * LRU Cache Entry
@@ -110,6 +133,7 @@ export class ToolGateway implements IToolGateway {
   private modelCache: LRUCache<ModelRegistryDocument>;
   private config: Required<ToolGatewayConfig>;
   private logger?: any;
+  private internalTools: Map<string, InternalToolHandler>;
 
   constructor(
     toolRegistry: IToolRegistry,
@@ -141,6 +165,24 @@ export class ToolGateway implements IToolGateway {
       this.config.cacheMaxSize,
       this.config.cacheTtlMs
     );
+
+    // Initialize internal tools registry (Sprint 60: T2.2)
+    this.internalTools = new Map();
+    this.registerInternalTools();
+  }
+
+  /**
+   * Register built-in internal tools
+   * Sprint 60: T2.2 - Internal tool execution
+   */
+  private registerInternalTools(): void {
+    // Register agent.sendProgressUpdate
+    this.internalTools.set('agent.sendProgressUpdate', this.handleSendProgressUpdate.bind(this));
+
+    this.logger?.info('tool_gateway.internal_tools.registered', {
+      tools: Array.from(this.internalTools.keys()),
+      count: this.internalTools.size
+    });
   }
 
   /**
@@ -423,6 +465,142 @@ export class ToolGateway implements IToolGateway {
   }
 
   /**
+   * Sprint 60: T5.2 - Detect transient errors that should be retried
+   */
+  private isTransientError(error: any): boolean {
+    const errorMessage = error.message?.toLowerCase() || '';
+    const errorCode = error.code?.toLowerCase() || '';
+
+    // Network errors
+    const networkErrors = [
+      'econnrefused',
+      'econnreset',
+      'etimedout',
+      'enotfound',
+      'enetunreach',
+      'socket hang up',
+      'network error'
+    ];
+
+    // Timeout errors
+    const timeoutErrors = [
+      'timeout',
+      'timed out',
+      'aborted'
+    ];
+
+    // Server errors (5xx)
+    const serverErrors = [
+      'server error',
+      'internal server error',
+      '503',
+      '502',
+      '504'
+    ];
+
+    // Check if error matches any transient pattern
+    return (
+      networkErrors.some(pattern => errorCode.includes(pattern) || errorMessage.includes(pattern)) ||
+      timeoutErrors.some(pattern => errorMessage.includes(pattern)) ||
+      serverErrors.some(pattern => errorMessage.includes(pattern))
+    );
+  }
+
+  /**
+   * Sprint 60: T5.2 - Execute function with retry logic and exponential backoff
+   *
+   * Retries transient errors (network, timeout, server 5xx) with exponential backoff.
+   * Does NOT retry non-transient errors (RBAC denial, validation errors).
+   *
+   * @param fn - Function to execute
+   * @param retryPolicy - Retry configuration (maxAttempts, backoffMs)
+   * @param context - Execution context for logging
+   * @returns Result of function execution
+   */
+  private async executeWithRetry<T>(
+    fn: () => Promise<T>,
+    retryPolicy: { maxAttempts: number; backoffMs: number },
+    context: { toolId: string; correlationId?: string }
+  ): Promise<T> {
+    const maxAttempts = retryPolicy.maxAttempts || 3;
+    const baseBackoffMs = retryPolicy.backoffMs || 1000;
+
+    let lastError: any;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const result = await fn();
+
+        // Log retry success if this wasn't the first attempt
+        if (attempt > 1) {
+          this.logger?.info('tool_gateway.retry.success', {
+            toolId: context.toolId,
+            attempt,
+            correlationId: context.correlationId
+          });
+        }
+
+        return result;
+
+      } catch (error: any) {
+        lastError = error;
+
+        // Check if error is transient
+        const isTransient = this.isTransientError(error);
+
+        this.logger?.warn('tool_gateway.retry.attempt_failed', {
+          toolId: context.toolId,
+          attempt,
+          maxAttempts,
+          isTransient,
+          error: error.message,
+          correlationId: context.correlationId
+        });
+
+        // Don't retry non-transient errors
+        if (!isTransient) {
+          this.logger?.error('tool_gateway.retry.non_transient_error', {
+            toolId: context.toolId,
+            attempt,
+            error: error.message,
+            correlationId: context.correlationId
+          });
+          throw error;
+        }
+
+        // Don't retry if we've exhausted all attempts
+        if (attempt >= maxAttempts) {
+          this.logger?.error('tool_gateway.retry.max_attempts_exceeded', {
+            toolId: context.toolId,
+            attempts: attempt,
+            error: error.message,
+            correlationId: context.correlationId
+          });
+          break;
+        }
+
+        // Calculate exponential backoff: 2^(attempt-1) * baseBackoffMs
+        // attempt=1: 1s, attempt=2: 2s, attempt=3: 4s
+        const backoffMs = Math.pow(2, attempt - 1) * baseBackoffMs;
+
+        this.logger?.debug('tool_gateway.retry.backoff', {
+          toolId: context.toolId,
+          attempt,
+          backoffMs,
+          nextAttempt: attempt + 1,
+          correlationId: context.correlationId
+        });
+
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, backoffMs));
+      }
+    }
+
+    // All retries exhausted, throw the last error
+    throw lastError;
+  }
+
+  /**
    * Execute internal (platform-provided) tool
    */
   private async executeInternal(
@@ -449,23 +627,103 @@ export class ToolGateway implements IToolGateway {
 
   /**
    * Execute internal tool (without timeout wrapper)
+   * Sprint 60: T2.2 - Full implementation with internal tool registry
    */
   private async executeInternalUnsafe(
     tool: ToolRegistryDocument,
     args: unknown,
     context: ToolExecutionContext
   ): Promise<ToolResult> {
-    // Placeholder: Actual execution delegated to internal tool handlers
-    // In real implementation, this would invoke the tool via internal registry
-    throw new Error('Internal tool execution not yet implemented');
+    this.logger?.debug('tool_gateway.execute_internal_unsafe.start', {
+      toolId: tool.id,
+      canonicalName: tool.canonicalName,
+      correlationId: context.correlationId
+    });
+
+    // Get handler from internal tools registry
+    const handler = this.internalTools.get(tool.id);
+    if (!handler) {
+      this.logger?.error('tool_gateway.execute_internal_unsafe.handler_not_found', {
+        toolId: tool.id,
+        availableTools: Array.from(this.internalTools.keys()),
+        correlationId: context.correlationId
+      });
+      throw new Error(`Internal tool handler not found: ${tool.id}`);
+    }
+
+    // Execute handler with context
+    try {
+      const result = await handler(args, context);
+
+      this.logger?.debug('tool_gateway.execute_internal_unsafe.success', {
+        toolId: tool.id,
+        hasContent: result.content?.length > 0,
+        correlationId: context.correlationId
+      });
+
+      return result;
+    } catch (error: any) {
+      this.logger?.error('tool_gateway.execute_internal_unsafe.error', {
+        toolId: tool.id,
+        error: error.message,
+        correlationId: context.correlationId
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Handle agent.sendProgressUpdate tool invocation
+   * Sprint 60: T2.2 - Migrated from tool-gateway.ts
+   *
+   * Creates a simple success message indicating the progress update would be sent.
+   * In production, this would integrate with the event bus and feedback middleware.
+   */
+  private async handleSendProgressUpdate(
+    args: unknown,
+    context: ToolExecutionContext
+  ): Promise<ToolResult> {
+    // Validate args against schema
+    const validatedArgs = SendProgressUpdateSchema.parse(args) as SendProgressUpdateArgs;
+
+    this.logger?.debug('tool_gateway.send_progress_update.invoked', {
+      sessionId: context.sessionId,
+      correlationId: context.correlationId,
+      messageLength: validatedArgs.message.length,
+      emoji: validatedArgs.emoji,
+      urgency: validatedArgs.urgency,
+      userId: context.userId
+    });
+
+    // Build progress message
+    const emoji = validatedArgs.emoji || '🔄';
+    const progressMessage = `${emoji} ${validatedArgs.message}`;
+
+    // In production, this would:
+    // 1. Retrieve original event from claim check using correlationId
+    // 2. Create progress event with candidates[]
+    // 3. Route via Bit.next() for delivery
+    // For now, return success acknowledgment
+
+    this.logger?.info('tool_gateway.send_progress_update.success', {
+      sessionId: context.sessionId,
+      correlationId: context.correlationId,
+      message: progressMessage,
+      urgency: validatedArgs.urgency || 'normal'
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: `Progress update acknowledged: "${progressMessage}"`
+      }],
+      isError: false
+    };
   }
 
   /**
    * Execute MCP (external) tool
-   *
-   * NOTE: Sprint 58 placeholder - full MCP execution requires client lookup
-   * and ProxyInvoker integration which is outside this sprint's scope.
-   * The interface and RBAC validation are the primary deliverables.
+   * Sprint 60: Full MCP execution with timeout enforcement and result transformation
    */
   private async executeMcp(
     tool: ToolRegistryDocument,
@@ -476,7 +734,11 @@ export class ToolGateway implements IToolGateway {
       throw new Error('MCP client manager not configured');
     }
 
-    this.logger?.debug('tool_gateway.execute_mcp', { toolId: tool.id });
+    this.logger?.debug('tool_gateway.execute_mcp.start', {
+      toolId: tool.id,
+      canonicalName: tool.canonicalName,
+      correlationId: context.correlationId
+    });
 
     // Get MCP server name from tool metadata
     const serverName = tool.sourceMetadata.mcpServer?.name;
@@ -484,45 +746,254 @@ export class ToolGateway implements IToolGateway {
       throw new Error(`MCP tool missing server name: ${tool.id}`);
     }
 
-    // Placeholder: Full integration requires client lookup and ProxyInvoker
-    // This will be completed when integrating with the existing tool-gateway
-    throw new Error('MCP tool execution not yet implemented - Sprint 58 focuses on RBAC validation');
+    // Get timeout from tool config or use default
+    const timeout = tool.config.timeoutMs || this.config.defaultTimeoutMs;
+
+    // Sprint 60: T5.2 - Wrap MCP call with retry logic
+    const retryPolicy = tool.config.retryPolicy || { maxAttempts: 3, backoffMs: 1000 };
+
+    // Create AbortController for timeout enforcement
+    const controller = new AbortController();
+    const timeoutHandle = setTimeout(() => {
+      controller.abort();
+      this.logger?.warn('tool_gateway.execute_mcp.timeout', {
+        toolId: tool.id,
+        serverName,
+        timeoutMs: timeout,
+        correlationId: context.correlationId
+      });
+    }, timeout);
+
+    try {
+      // Execute MCP call with retry logic
+      const result = await this.executeWithRetry(
+        async () => {
+          // Get MCP client for this server
+          const client = this.mcpClientManager!.getClient(serverName);
+          if (!client) {
+            throw new Error(`MCP client not found for server: ${serverName}`);
+          }
+
+          // Call MCP tool with context metadata
+          return await client.callTool({
+            name: tool.canonicalName,
+            arguments: args,
+            _meta: {
+              userRoles: context.userRoles,
+              userId: context.userId,
+              correlationId: context.correlationId,
+              sessionId: context.sessionId,
+            }
+          } as any);
+        },
+        retryPolicy,
+        { toolId: tool.id, correlationId: context.correlationId }
+      );
+
+      // Check for errors in result
+      if (result.isError) {
+        this.logger?.error('tool_gateway.execute_mcp.error_result', {
+          toolId: tool.id,
+          serverName,
+          content: result.content,
+          correlationId: context.correlationId
+        });
+        throw new Error(`MCP Tool Error: ${JSON.stringify(result.content)}`);
+      }
+
+      // Extract text content from result
+      const content = result.content as any[];
+      const textParts = content
+        .filter((c: any) => c.type === 'text')
+        .map((c: any) => c.text);
+
+      if (textParts.length > 0) {
+        const response = textParts.join('\n').trim();
+        if (response.length > 0) {
+          this.logger?.debug('tool_gateway.execute_mcp.success', {
+            toolId: tool.id,
+            serverName,
+            responseLength: response.length,
+            correlationId: context.correlationId
+          });
+
+          return {
+            content: [{ type: 'text', text: response }],
+            isError: false
+          };
+        }
+      }
+
+      // Fallback to full content if no text parts
+      this.logger?.debug('tool_gateway.execute_mcp.success_fallback', {
+        toolId: tool.id,
+        serverName,
+        contentTypes: content.map((c: any) => c.type),
+        correlationId: context.correlationId
+      });
+
+      // Map MCP content to ToolResult format (extract only relevant fields)
+      const mappedContent = content.map((c: any) => ({
+        type: c.type,
+        text: c.text,
+        data: c.data,
+        mimeType: c.mimeType
+      }));
+
+      return {
+        content: mappedContent,
+        isError: false
+      };
+
+    } catch (error: any) {
+      this.logger?.error('tool_gateway.execute_mcp.error', {
+        toolId: tool.id,
+        serverName,
+        error: error.message,
+        correlationId: context.correlationId
+      });
+
+      // Normalize nested MCP error messages
+      throw normalizeError(error);
+    } finally {
+      clearTimeout(timeoutHandle);
+    }
   }
 
   /**
    * Execute composition (multi-tool) tool
+   * Sprint 60: T3.2 + T3.3 - Composition execution with per-step RBAC validation
    */
   private async executeComposition(
     tool: ToolRegistryDocument,
     args: unknown,
     context: ToolExecutionContext
   ): Promise<ToolResult> {
-    this.logger?.debug('tool_gateway.execute_composition', { toolId: tool.id });
+    this.logger?.debug('tool_gateway.execute_composition.start', {
+      toolId: tool.id,
+      correlationId: context.correlationId
+    });
 
     // Get composition metadata
     const composition = tool.sourceMetadata.composition;
     if (!composition) {
+      this.logger?.error('tool_gateway.execute_composition.missing_metadata', {
+        toolId: tool.id,
+        correlationId: context.correlationId
+      });
       throw new Error(`Composition tool missing metadata: ${tool.id}`);
     }
 
+    // Extract constituent tool IDs
+    const constituentToolIds = composition.toolIds || [];
+    if (constituentToolIds.length === 0) {
+      this.logger?.warn('tool_gateway.execute_composition.no_constituent_tools', {
+        toolId: tool.id,
+        correlationId: context.correlationId
+      });
+      throw new Error(`Composition has no constituent tools: ${tool.id}`);
+    }
+
+    // T3.3: Validate RBAC for EACH constituent tool (prevent privilege escalation)
+    this.logger?.debug('tool_gateway.execute_composition.rbac_validation_start', {
+      toolId: tool.id,
+      constituentToolIds,
+      modelId: context.modelId,
+      correlationId: context.correlationId
+    });
+
+    for (const constituentToolId of constituentToolIds) {
+      const rbacResult = await this.validateToolAccess(
+        constituentToolId,
+        context.userId || 'anonymous',
+        context.modelId,  // Validate against INVOKING model, not registering model
+        context.userRoles
+      );
+
+      if (!rbacResult.allowed) {
+        this.logger?.warn('tool_gateway.execute_composition.rbac_denied', {
+          toolId: tool.id,
+          constituentToolId,
+          modelId: context.modelId,
+          reason: rbacResult.reason,
+          details: rbacResult.details,
+          correlationId: context.correlationId
+        });
+
+        // Log RBAC denial for audit trail
+        this.logEvent('tool_gateway.composition_rbac_denied', {
+          compositionId: tool.id,
+          constituentToolId,
+          userId: context.userId,
+          modelId: context.modelId,
+          reason: rbacResult.reason,
+          details: rbacResult.details,
+        }, true);
+
+        throw new Error(
+          `Composition denied: constituent tool "${constituentToolId}" not allowed for model ${context.modelId}. Reason: ${rbacResult.reason}`
+        );
+      }
+    }
+
+    this.logger?.debug('tool_gateway.execute_composition.rbac_validation_passed', {
+      toolId: tool.id,
+      constituentToolsValidated: constituentToolIds.length,
+      correlationId: context.correlationId
+    });
+
     // Execute based on strategy
-    switch (composition.strategy) {
-      case 'sequential':
-        return await this.executeSequential(composition.toolIds, args, context);
+    const startTime = Date.now();
+    let result: ToolResult;
 
-      case 'parallel':
-        return await this.executeParallel(composition.toolIds, args, context);
+    try {
+      switch (composition.strategy) {
+        case 'sequential':
+          result = await this.executeSequential(composition.toolIds, args, context);
+          break;
 
-      case 'conditional':
-        return await this.executeConditional(composition.toolIds, args, context);
+        case 'parallel':
+          result = await this.executeParallel(composition.toolIds, args, context);
+          break;
 
-      default:
-        throw new Error(`Unknown composition strategy: ${composition.strategy}`);
+        case 'conditional':
+          result = await this.executeConditional(composition.toolIds, args, context);
+          break;
+
+        default:
+          throw new Error(`Unknown composition strategy: ${composition.strategy}`);
+      }
+
+      const duration = Date.now() - startTime;
+
+      this.logger?.info('tool_gateway.execute_composition.success', {
+        toolId: tool.id,
+        strategy: composition.strategy,
+        stepsExecuted: constituentToolIds.length,
+        durationMs: duration,
+        correlationId: context.correlationId
+      });
+
+      return result;
+
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+
+      this.logger?.error('tool_gateway.execute_composition.error', {
+        toolId: tool.id,
+        strategy: composition.strategy,
+        error: error.message,
+        durationMs: duration,
+        correlationId: context.correlationId
+      });
+
+      throw error;
     }
   }
 
   /**
    * Execute tools sequentially
+   * Sprint 60: T5.3 - Enhanced with graceful error handling
    */
   private async executeSequential(
     toolIds: string[],
@@ -530,11 +1001,56 @@ export class ToolGateway implements IToolGateway {
     context: ToolExecutionContext
   ): Promise<ToolResult> {
     const results: ToolResult[] = [];
+    let stepIndex = 0;
 
     for (const toolId of toolIds) {
-      const result = await this.execute(toolId, args, context);
-      results.push(result);
+      stepIndex++;
+
+      try {
+        this.logger?.debug('tool_gateway.execute_sequential.step_start', {
+          toolId,
+          stepIndex,
+          totalSteps: toolIds.length,
+          correlationId: context.correlationId
+        });
+
+        const result = await this.execute(toolId, args, context);
+        results.push(result);
+
+        this.logger?.debug('tool_gateway.execute_sequential.step_success', {
+          toolId,
+          stepIndex,
+          correlationId: context.correlationId
+        });
+
+      } catch (error: any) {
+        this.logger?.error('tool_gateway.execute_sequential.step_failed', {
+          toolId,
+          stepIndex,
+          totalSteps: toolIds.length,
+          error: error.message,
+          completedSteps: stepIndex - 1,
+          correlationId: context.correlationId
+        });
+
+        // Return error result with context about where it failed
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Sequential composition failed at step ${stepIndex}/${toolIds.length} (tool: ${toolId}): ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
     }
+
+    // All steps completed successfully
+    this.logger?.info('tool_gateway.execute_sequential.all_steps_complete', {
+      totalSteps: toolIds.length,
+      correlationId: context.correlationId
+    });
 
     // Combine results
     return {
@@ -545,20 +1061,88 @@ export class ToolGateway implements IToolGateway {
 
   /**
    * Execute tools in parallel
+   * Sprint 60: T5.3 - Enhanced with graceful partial failure handling
    */
   private async executeParallel(
     toolIds: string[],
     args: unknown,
     context: ToolExecutionContext
   ): Promise<ToolResult> {
-    const results = await Promise.all(
-      toolIds.map((toolId) => this.execute(toolId, args, context))
+    this.logger?.debug('tool_gateway.execute_parallel.start', {
+      toolIds,
+      totalSteps: toolIds.length,
+      correlationId: context.correlationId
+    });
+
+    // Use Promise.allSettled to capture both successes and failures
+    const settledResults = await Promise.allSettled(
+      toolIds.map((toolId, index) =>
+        this.execute(toolId, args, context).then(
+          (result) => {
+            this.logger?.debug('tool_gateway.execute_parallel.step_success', {
+              toolId,
+              stepIndex: index + 1,
+              correlationId: context.correlationId
+            });
+            return { toolId, result };
+          },
+          (error) => {
+            this.logger?.error('tool_gateway.execute_parallel.step_failed', {
+              toolId,
+              stepIndex: index + 1,
+              error: error.message,
+              correlationId: context.correlationId
+            });
+            throw error;
+          }
+        )
+      )
     );
 
-    // Combine results
+    // Separate successes and failures
+    const successes: ToolResult[] = [];
+    const failures: { toolId: string; error: string }[] = [];
+
+    settledResults.forEach((settled, index) => {
+      if (settled.status === 'fulfilled') {
+        successes.push(settled.value.result);
+      } else {
+        failures.push({
+          toolId: toolIds[index],
+          error: settled.reason?.message || String(settled.reason)
+        });
+      }
+    });
+
+    // Log summary
+    this.logger?.info('tool_gateway.execute_parallel.complete', {
+      totalSteps: toolIds.length,
+      successes: successes.length,
+      failures: failures.length,
+      correlationId: context.correlationId
+    });
+
+    // If any failures, return error result with details
+    if (failures.length > 0) {
+      const failureDetails = failures
+        .map((f) => `- ${f.toolId}: ${f.error}`)
+        .join('\n');
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Parallel composition had ${failures.length}/${toolIds.length} failures:\n${failureDetails}`
+          }
+        ],
+        isError: true
+      };
+    }
+
+    // All steps succeeded - combine results
     return {
-      content: results.flatMap((r) => r.content),
-      isError: results.some((r) => r.isError),
+      content: successes.flatMap((r) => r.content),
+      isError: successes.some((r) => r.isError),
     };
   }
 

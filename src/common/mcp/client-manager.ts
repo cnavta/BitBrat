@@ -95,6 +95,15 @@ export class McpClientManager {
   }
 
   /**
+   * Get MCP client for a specific server
+   * @param serverName Server name/identifier
+   * @returns MCP client instance or undefined if not connected
+   */
+  getClient(serverName: string): Client | undefined {
+    return this.clients.get(serverName);
+  }
+
+  /**
    * Build a stable signature from the connection-relevant fields of a config.
    * Volatile registry metadata (e.g. updatedAt, correlationId, discoverySource)
    * is intentionally excluded so that benign Firestore document rewrites do not

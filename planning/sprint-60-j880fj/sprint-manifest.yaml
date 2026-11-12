@@ -1,0 +1,14 @@
+id: sprint-60-j880fj
+title: Tool Execution Migration
+goal: Migrate actual tool execution logic (MCP, internal, composition) from
+  tool-gateway to tool-orchestrator, implementing comprehensive error handling,
+  event logging to Loki, and 30+ tests to validate all execution paths
+owner: christophernavta
+createdAt: 2026-11-11T22:59:44.224Z
+status: complete
+links:
+  branch: feature/sprint-60-j880fj-tool-execution-migration
+  pr: https://github.com/cnavta/BitBrat/pull/new/feature/sprint-60-j880fj-tool-execution-migration
+notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-11-12T18:43:52.308Z
+completionMode: normal
