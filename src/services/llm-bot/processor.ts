@@ -429,6 +429,15 @@ export async function processEvent(
   const logger = (server as any).getLogger?.();
   const corr = evt.correlationId;
   const store = getInstanceMemoryStore(server);
+
+  // Sprint 61 T7.1: Feature flag for tool-orchestrator service
+  const useToolOrchestrator = parseBooleanFlag(process.env.ENABLE_TOOL_ORCHESTRATOR);
+  const toolProvider = useToolOrchestrator ? 'tool-orchestrator' : 'tool-gateway';
+  logger?.debug('llm_bot.tool_provider_selected', {
+    provider: toolProvider,
+    enabled: useToolOrchestrator,
+    correlationId: corr,
+  });
   
   function memoryKeyFor(e: InternalEventV2): string {
     const channel = e.ingress?.channel || 'default';

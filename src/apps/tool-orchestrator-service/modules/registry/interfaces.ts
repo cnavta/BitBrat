@@ -65,4 +65,11 @@ export interface IToolRegistry {
   // Import pipeline
   importFromMcp(serverName: string, tools: McpToolDefinition[]): Promise<string[]>;
   importFromBit(bitName: string, tools: BitBratTool[]): Promise<string[]>;
+
+  // Composition RBAC (Sprint 61)
+  registerComposition?(
+    definition: any,
+    registeringModelId: string,
+    userRoles: string[]
+  ): Promise<void>;
 }

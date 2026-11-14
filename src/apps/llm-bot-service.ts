@@ -134,6 +134,15 @@ class LlmBotServer extends Bit {
   }
 
   async start(port: number) {
+    // Sprint 61 T7.1: Log tool provider selection
+    const useToolOrchestrator = process.env.ENABLE_TOOL_ORCHESTRATOR === 'true';
+    const toolProvider = useToolOrchestrator ? 'tool-orchestrator' : 'tool-gateway';
+    this.getLogger().info('llm_bot.tool_provider_configured', {
+      provider: toolProvider,
+      enabled: useToolOrchestrator,
+      message: `Tool execution will use ${toolProvider}`,
+    });
+
     // Sprint 344: Initialize PersonalityStore from documentStore or firestore resource
     try {
       const documentStore = this.getResource<any>('documentStore');

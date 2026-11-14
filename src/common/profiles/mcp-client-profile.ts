@@ -55,11 +55,26 @@ export function McpClientProfile(opts: McpClientProfileOptions): BitProfile {
       let watcher: RegistryWatcher | undefined;
 
       const connect = async (): Promise<void> => {
-        const gatewayUrl = bit.getConfig<string>(gatewayUrlEnv, { required: false });
+        // Sprint 61: Check ENABLE_TOOL_ORCHESTRATOR to determine which service to connect to
+        const useToolOrchestrator = process.env.ENABLE_TOOL_ORCHESTRATOR === 'true';
+        const toolProvider = useToolOrchestrator ? 'tool-orchestrator' : 'tool-gateway';
+
+        // Use the configured gateway URL, or construct based on tool provider selection
+        let gatewayUrl = bit.getConfig<string>(gatewayUrlEnv, { required: false });
+
+        // If no URL configured and using tool-orchestrator, derive from TOOL_ORCHESTRATOR_URL
+        if (!gatewayUrl && useToolOrchestrator) {
+          gatewayUrl = process.env.TOOL_ORCHESTRATOR_URL || 'http://tool-orchestrator:3000/mcp';
+        }
+
         if (gatewayUrl) {
-          bit.getLogger().info('bit.mcp_client.connecting_gateway', { url: gatewayUrl });
+          bit.getLogger().info('bit.mcp_client.connecting_gateway', {
+            url: gatewayUrl,
+            provider: toolProvider,
+            featureFlagEnabled: useToolOrchestrator
+          });
           const cfg: McpServerConfig = {
-            name: 'tool-gateway',
+            name: toolProvider, // Sprint 61: Use dynamic name based on provider
             transport: 'sse',
             url: gatewayUrl,
             env: {
@@ -74,7 +89,7 @@ export function McpClientProfile(opts: McpClientProfileOptions): BitProfile {
           let backoff = isFinite(initialBackoffMs) ? Math.max(100, initialBackoffMs) : 1000;
           for (let attempt = 1; attempt <= Math.max(1, maxAttempts); attempt++) {
             await manager.connectServer(cfg);
-            const status = manager.getStats().getServerStats('tool-gateway')?.status;
+            const status = manager.getStats().getServerStats(toolProvider)?.status;
             if (status === 'connected') {
               bit.getLogger().info('bit.mcp_client.gateway_connected', { attempt });
               break;

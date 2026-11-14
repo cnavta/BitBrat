@@ -89,14 +89,29 @@ export async function executeTool(
   parameters: Record<string, any>,
   config: ToolExecutionConfig = {}
 ): Promise<any> {
+  // Sprint 61 T7.2: Feature flag for tool-orchestrator service
+  const useToolOrchestrator = process.env.ENABLE_TOOL_ORCHESTRATOR === 'true';
+  const defaultGatewayUrl = useToolOrchestrator
+    ? (process.env.TOOL_ORCHESTRATOR_URL || 'http://tool-orchestrator:3000')
+    : (process.env.MCP_GATEWAY_URL || 'http://tool-gateway:3000');
+
   const {
-    gatewayUrl = process.env.MCP_GATEWAY_URL || 'http://tool-gateway:3000',
+    gatewayUrl = defaultGatewayUrl,
     authToken = process.env.MCP_AUTH_TOKEN,
     timeout = 5000,
     correlationId,
     modelId = 'reflex', // Sprint 58: Use 'reflex' as model ID for deterministic agent
     userRoles = process.env.USER_ROLES?.split(',').map(r => r.trim()).filter(Boolean) || [],
   } = config;
+
+  // Sprint 61 T7.2: Log tool provider selection
+  const toolProvider = useToolOrchestrator ? 'tool-orchestrator' : 'tool-gateway';
+  logger.debug('[tool-executor] Tool provider selected:', {
+    provider: toolProvider,
+    gatewayUrl,
+    enabled: useToolOrchestrator,
+    tool,
+  });
 
   if (!authToken) {
     throw new ToolExecutionError(

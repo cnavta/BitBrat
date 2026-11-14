@@ -81,6 +81,15 @@ export class ReflexServer extends Bit {
     const logger = this.getLogger();
     logger.info('reflex.initialize.start');
 
+    // Sprint 61 T7.2: Log tool provider selection
+    const useToolOrchestrator = process.env.ENABLE_TOOL_ORCHESTRATOR === 'true';
+    const toolProvider = useToolOrchestrator ? 'tool-orchestrator' : 'tool-gateway';
+    logger.info('reflex.tool_provider_configured', {
+      provider: toolProvider,
+      enabled: useToolOrchestrator,
+      message: `Tool execution will use ${toolProvider}`,
+    });
+
     try {
       // Step 1: Initialize Firestore repository
       logger.info('reflex.initialize.repository');

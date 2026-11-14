@@ -409,6 +409,39 @@ export class ToolOrchestratorServer extends Bit {
     this.getLogger().info('tool_orchestrator.mcp_tools_registration_complete', { toolsRegistered: 9 });
   }
 
+  /**
+   * Override base class getMcpServer() to serve aggregated tools from PostgreSQL registry.
+   *
+   * Problem: Base class only serves tools from this.registeredTools (tool-orchestrator's admin tools).
+   * Solution: Query PostgreSQL ToolRegistry for all active tools and serve them via MCP.
+   *
+   * Context: Sprint 61 - Same issue as tool-gateway. Tool-orchestrator stores aggregated tools in
+   * PostgreSQL but wasn't exposing them via MCP, only exposing admin tools (tool.list, model.list, etc.).
+   *
+   * NOTE: This is a placeholder implementation that delegates to base class for now.
+   * Full implementation requires async initialization to load tools from PostgreSQL.
+   * Planned for Sprint 61+.
+   */
+  protected getMcpServer(): any {
+    const logger = this.getLogger();
+
+    logger.debug('mcp_server.initializing_tool_orchestrator', {
+      service: 'tool-orchestrator',
+      note: 'Currently serving admin tools only. Tool aggregation from PostgreSQL registry planned for Sprint 61+'
+    });
+
+    // Delegate to base class (serves admin tools from this.registeredTools)
+    // TODO Sprint 61+: Load aggregated tools from this.toolRegistry.queryTools({})
+    // and register them on the MCP server (requires async initialization)
+    const server = super.getMcpServer();
+
+    logger.info('mcp_server.initialized_tool_orchestrator', {
+      note: 'Tool aggregation from PostgreSQL registry requires async initialization - planned for Sprint 61+'
+    });
+
+    return server;
+  }
+
   // Getter methods for modules (used externally if needed)
   public getToolRegistry(): ToolRegistry | undefined {
     return this.toolRegistry;

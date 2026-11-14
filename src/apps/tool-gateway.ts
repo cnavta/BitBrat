@@ -9,7 +9,8 @@ import {
   type ContextPackDocument
 } from './context-pack-service';
 import { Express, Request, Response } from 'express';
-import { Server } from "@modelcontextprotocol/server";
+import { Server, McpServer, ServerContext, createMcpHandler } from "@modelcontextprotocol/server";
+import { toNodeHandler } from "@modelcontextprotocol/node";
 import { ToolRegistry } from '../services/llm-bot/tools/registry';
 import { McpClientManager } from '../common/mcp/client-manager';
 import { RegistryWatcher } from '../common/mcp/registry-watcher';
@@ -264,6 +265,27 @@ export class ToolGatewayServer extends Bit {
     // CRITICAL: Always register tools even when disabled, so LLMs get clear error messages
     // instead of empty responses (fixes empty string bug discovered in Sprint 41 verification)
     this.registerCompositionAdminTools();
+  }
+
+  /**
+   * Override base class MCP initialization to use session-based server instead of stateless factory.
+   *
+   * Sprint 61: Tool-gateway needs session-based MCP servers to properly aggregate tools from
+   * this.registry (which includes upstream MCP server tools), not just this.registeredTools
+   * (which only has tool-gateway's own direct tools).
+   */
+  protected initializeMcp(opts: any): void {
+    // Store exposure setting (same as base class)
+    const anyThis = this as any;
+    anyThis.mcpExposure = anyThis.resolveMcpExposure(opts);
+
+    if (anyThis.isMcpEnabled()) {
+      // Register platform tools (bit.*) - same as base class
+      anyThis.registerPlatformTools();
+
+      // Setup session-based MCP endpoint instead of base class's stateless one
+      this.setupSessionBasedMcpEndpoint();
+    }
   }
 
   /**
@@ -1787,6 +1809,73 @@ Returns composition metadata (id, name, version, contentHash).`,
     return JSON.stringify(stable(meaningful));
   }
 
+  /**
+   * Setup session-based MCP endpoint that serves aggregated tools.
+   *
+   * Sprint 61: Tool-gateway overrides base class's stateless MCP endpoint to serve ALL
+   * aggregated tools from this.registry.getTools() via custom tools/list and tools/call
+   * handlers, not just its own direct tools from this.registeredTools.
+   *
+   * Called from initializeMcp() override instead of base class's setupMcpRoutes().
+   */
+  private setupSessionBasedMcpEndpoint(): void {
+    const logger = this.getLogger();
+    const app = (this as any).app; // Access private app from base class
+
+    // Auth middleware - same as base class
+    const authMiddleware = (req: Request, res: Response, next: any) => {
+      const authToken = process.env.MCP_AUTH_TOKEN;
+      if (authToken) {
+        let providedToken = req.headers["x-mcp-token"] || req.query.token;
+
+        // Also support Authorization: Bearer <token>
+        const authHeader = req.headers["authorization"];
+        if (!providedToken && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+          providedToken = authHeader.substring(7);
+        }
+
+        if (providedToken !== authToken) {
+          logger.warn("mcp_server.auth_failed", {
+            path: req.path,
+            ip: req.ip,
+          });
+          res.status(401).json({ error: "Unauthorized" });
+          return;
+        }
+      }
+      next();
+    };
+
+    // Use session-based MCP server with aggregation support
+    // getMcpServerForConnection() creates a Server instance with custom handlers
+    // that serve aggregated tools from this.registry.getTools()
+    app.all("/mcp", authMiddleware, async (req: Request, res: Response) => {
+      try {
+        // Create session-based server with full tool aggregation
+        const sessionServer = await this.getMcpServerForConnection(req);
+
+        // Create handler for this session's server instance
+        const handler = toNodeHandler(createMcpHandler(() => sessionServer));
+
+        // Handle the request
+        handler(req, res, req.body);
+      } catch (error: any) {
+        logger.error('tool_gateway.mcp_endpoint.error', {
+          error: error.message,
+          stack: error.stack,
+          path: req.path
+        });
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    logger.info("mcp_endpoint.session_based_registered", {
+      endpoint: "/mcp",
+      exposure: this.mcpExposure,
+      mode: "session-based-aggregation"
+    });
+  }
+
   async close(reason?: string) {
     if (this.registryWatcher) this.registryWatcher.stop();
     if (this.compositionWatcher) this.compositionWatcher.stop();
@@ -1985,7 +2074,7 @@ Returns composition metadata (id, name, version, contentHash).`,
         .map((t) => ({
           id: t.id,
           name: t.displayName || t.id,
-          description: t.description,
+          ...(t.description && { description: t.description }),
           inputSchema: (t as any).inputSchema?.jsonSchema || {},
         }));
       res.json({ tools });
@@ -2272,7 +2361,7 @@ Returns composition metadata (id, name, version, contentHash).`,
       }
     });
 
-    // MCP SSE endpoints are registered by McpServer constructor (/sse and /message)
+    // MCP endpoint is registered by Bit base class at /mcp (Sprint 324: Streamable HTTP transport)
   }
 
   protected async getMcpServerForConnection(req: Request): Promise<Server> {
@@ -2353,14 +2442,47 @@ Returns composition metadata (id, name, version, contentHash).`,
               inputSchema = { type: 'object' };
             }
           }
+
+          // Sprint 61: Ensure inputSchema conforms to MCP protocol requirements
+          // MCP requires: { type: "object", properties?: {...}, required?: [...] }
+          // Remove fields like $schema, definitions, $defs that violate the protocol
+          const cleanInputSchema: any = { type: 'object' };
+          if (inputSchema && typeof inputSchema === 'object') {
+            // Only copy allowed fields
+            if (inputSchema.type === 'object') {
+              cleanInputSchema.type = 'object';
+            }
+            if (inputSchema.properties) {
+              cleanInputSchema.properties = inputSchema.properties;
+            }
+            if (inputSchema.required) {
+              cleanInputSchema.required = inputSchema.required;
+            }
+            // Preserve additionalProperties if present (MCP allows catchall)
+            if ('additionalProperties' in inputSchema) {
+              cleanInputSchema.additionalProperties = inputSchema.additionalProperties;
+            }
+          }
+
           return ({
             name: t.id,
-            description: t.description,
-            inputSchema,
-            scopes: t.scopes,
+            ...(t.description && { description: t.description }),
+            inputSchema: cleanInputSchema,
+            // Note: scopes are NOT part of MCP protocol Tool schema
+            // RBAC filtering happens server-side before returning this list
           });
         });
       logger.trace(`Returning ${tools.length} tools (trustedDiscovery=${trustedDiscovery})`);
+
+      // Sprint 61: Debug logging to identify INVALID_RESULT cause
+      if (tools.length > 0) {
+        logger.info('mcp.tools_list.sample', {
+          sampleTool: JSON.stringify(tools[0], null, 2),
+          totalTools: tools.length,
+          agentName: context.agentName
+        });
+      }
+
       return { tools } as any;
     });
 
@@ -2588,6 +2710,16 @@ Returns composition metadata (id, name, version, contentHash).`,
 
     return context;
   }
+
+  /**
+   * DEPRECATED (Sprint 61): This override is no longer used.
+   *
+   * Tool-gateway now uses setupMcpRoutes() to wire /mcp endpoint to getMcpServerForConnection(),
+   * which properly serves aggregated tools via custom handlers without schema incompatibility issues.
+   *
+   * This method remains for reference but is not called in the current architecture.
+   * It can be safely removed in future cleanup.
+   */
 
   private extractSessionContext(req: Request): SessionContext {
     const auth = (req.headers['authorization'] || '').toString();
