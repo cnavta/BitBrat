@@ -7,7 +7,7 @@ DOMAIN_SUFFIX: "localhost:3001"
 PROJECT_ID: "bitbrat-local"
 # Customize your bot's display name
 BOT_NAME: "YourBot"
-MCP_GATEWAY_URL: "http://tool-gateway.bitbrat.local:3000/sse"
+MCP_GATEWAY_URL: "http://tool-gateway.bitbrat.local:3000/mcp"
 
 # Docker Compose project name (Sprint 349: prevents stack conflicts)
 COMPOSE_PROJECT_NAME: "bitbrat-local"

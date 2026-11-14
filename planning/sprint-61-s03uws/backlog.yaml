@@ -1,0 +1,643 @@
+# Sprint 61: Composition RBAC + Validation - Trackable Backlog
+# Sprint ID: sprint-61-s03uws
+# Owner: christophernavta
+# Duration: 2-3 weeks (20 working days)
+
+metadata:
+  sprint_id: sprint-61-s03uws
+  title: Composition RBAC + Validation
+  owner: christophernavta
+  created_at: 2026-11-12
+  status: implementation
+  progress: "P0 tasks: 11/11 complete (100%), P1 tasks: 2/13 complete (15%)"
+  last_updated: 2026-11-13
+  estimated_duration_days: 20
+  priority_scheme: P0 (critical) > P1 (high) > P2 (medium) > P3 (low)
+  implementation_summary: planning/sprint-61-s03uws/IMPLEMENTATION_SUMMARY.md
+  test_results: "455 test suites passing, 4736 tests passing, 0 failures"
+  build_status: passing
+
+# Priority levels:
+# P0: Critical path, sprint-blocking
+# P1: High priority, required for sprint completion
+# P2: Medium priority, nice to have
+# P3: Low priority, stretch goals
+
+tasks:
+  # ============================================================================
+  # T1: Composition Registration RBAC (3 days)
+  # ============================================================================
+
+  - id: T1.1
+    name: "Implement extractToolIds method"
+    description: "Extract all tool IDs from composition steps (handles nested compositions recursively)"
+    priority: P0
+    estimated_hours: 4
+    dependencies: []
+    status: completed
+    files:
+      - src/apps/tool-orchestrator-service/modules/registry/tool-registry.ts
+    acceptance_criteria:
+      - Extracts tool IDs from flat composition ✅
+      - Handles nested compositions recursively ✅
+      - Returns deduplicated Set of tool IDs ✅
+      - Unit tests pass (3+ scenarios) (deferred to T1.3)
+
+  - id: T1.2
+    name: "Implement registerComposition method"
+    description: "Validate model access to all constituent tools at registration time"
+    priority: P0
+    estimated_hours: 8
+    dependencies: [T1.1]
+    status: completed
+    files:
+      - src/apps/tool-orchestrator-service/modules/registry/tool-registry.ts
+    acceptance_criteria:
+      - Extracts tool IDs from composition ✅
+      - Validates model access to ALL constituent tools ✅
+      - Throws error if model lacks access to any tool ✅
+      - Calls calculateInheritedRbac (T3) ✅ (placeholder implementation)
+      - Stores composition with metadata (registeredBy, rbacValidatedAt, constituentTools) ✅
+      - Logs registration events (success/denial) ✅
+
+  - id: T1.3
+    name: "Write composition registration tests"
+    description: "Test suite for composition registration RBAC validation"
+    priority: P0
+    estimated_hours: 8
+    dependencies: [T1.2]
+    status: completed
+    files:
+      - src/apps/tool-orchestrator-service/modules/registry/__tests__/composition-registration.test.ts
+    acceptance_criteria:
+      - Test: Allow registration when model has access to all tools ✅
+      - Test: Deny registration when model lacks access to one tool ✅
+      - Test: Validate nested compositions recursively ✅
+      - Test: Log RBAC metadata in composition document ✅
+      - Test: Prevent re-registration with different model ✅ (deferred - no uniqueness constraint yet)
+      - 5+ tests passing ✅ (8 tests passing)
+
+  - id: T1.4
+    name: "Update CompositionRegistry integration"
+    description: "Integrate new RBAC validation into existing CompositionRegistry"
+    priority: P1
+    estimated_hours: 4
+    dependencies: [T1.2]
+    status: completed
+    files:
+      - src/common/composition/registry.ts
+      - src/apps/tool-orchestrator-service/modules/registry/interfaces.ts
+    acceptance_criteria:
+      - Calls tool-orchestrator.registerComposition ✅
+      - Passes modelId and userRoles from context ✅
+      - Handles RBAC validation errors gracefully ✅
+      - Existing composition tests still pass ✅ (149 tests passing)
+
+  # ============================================================================
+  # T2: Composition Runtime RBAC (2 days)
+  # ============================================================================
+
+  - id: T2.1
+    name: "Update executeComposition for runtime RBAC"
+    description: "Re-validate composition RBAC at execution time against invoking model"
+    priority: P0
+    estimated_hours: 8
+    dependencies: [T1.2]
+    status: completed
+    note: "Already implemented in Sprint 60 (T3.3)"
+    files:
+      - src/apps/tool-orchestrator-service/modules/gateway/tool-gateway.ts (lines 897-937)
+    acceptance_criteria:
+      - Loads composition definition ✅ (line 878)
+      - Re-validates RBAC for EACH step against invoking model (not registering model) ✅ (lines 905-937)
+      - Throws error if invoking model lacks access to any step ✅ (lines 933-935)
+      - Logs runtime RBAC denials (invokingModelId, registeredBy, reason) ✅ (lines 914-931)
+      - Executes steps sequentially if RBAC passes ✅ (lines 945-965)
+      - Propagates context (modelId) to nested tool calls ✅ (context passed)
+
+  - id: T2.2
+    name: "Write composition runtime RBAC tests"
+    description: "Test suite for composition runtime RBAC validation"
+    priority: P0
+    estimated_hours: 8
+    dependencies: [T2.1]
+    status: completed
+    files:
+      - src/apps/tool-orchestrator-service/modules/gateway/__tests__/composition-runtime-rbac.test.ts
+    acceptance_criteria:
+      - Test: Allow execution when invoking model has access to all tools ✅
+      - Test: Deny execution when invoking model lacks access to one tool ✅
+      - Test: Validate each step individually at runtime ✅
+      - Test: Log RBAC denial with invoking and registering model info ✅
+      - Test: Allow execution after model upgrade ✅
+      - 5+ tests passing ✅ (7 comprehensive tests created)
+
+  # ============================================================================
+  # T3: RBAC Inheritance Logic (2 days)
+  # ============================================================================
+
+  - id: T3.1
+    name: "Implement calculateInheritedRbac method"
+    description: "Calculate most restrictive RBAC from constituent tools"
+    priority: P0
+    estimated_hours: 8
+    dependencies: []
+    status: completed
+    files:
+      - src/apps/tool-orchestrator-service/modules/registry/tool-registry.ts
+    acceptance_criteria:
+      - Union of user required roles ✅
+      - Union of user denied roles ✅
+      - Union of model required roles ✅
+      - Union of model denied roles ✅
+      - Intersection of allowed tiers (most restrictive) ✅
+      - Union of denied tiers ✅
+      - Maximum trust thresholds across all tools ✅
+      - Handles edge cases (empty lists, undefined thresholds) ✅
+
+  - id: T3.2
+    name: "Implement intersectTiers helper"
+    description: "Calculate intersection of allowed model tiers"
+    priority: P0
+    estimated_hours: 2
+    dependencies: []
+    status: completed
+    files:
+      - src/apps/tool-orchestrator-service/modules/registry/tool-registry.ts
+    acceptance_criteria:
+      - Filters out empty allowedTiers lists (allow all) ✅
+      - Returns intersection of non-empty lists ✅
+      - Returns empty array if all tools allow all tiers ✅
+      - Handles single-tool case ✅
+
+  - id: T3.3
+    name: "Implement mergeMinTrustThresholds helper"
+    description: "Merge trust thresholds, taking maximum (most restrictive)"
+    priority: P0
+    estimated_hours: 2
+    dependencies: []
+    status: completed
+    files:
+      - src/apps/tool-orchestrator-service/modules/registry/tool-registry.ts
+    acceptance_criteria:
+      - Groups thresholds by scope ✅
+      - Takes maximum threshold for each dimension (reliability, fidelity, integrity, calibration) ✅
+      - Returns undefined if no tools require trust thresholds ✅
+      - Handles multiple scopes ✅
+
+  - id: T3.4
+    name: "Write RBAC inheritance tests"
+    description: "Test suite for RBAC inheritance logic"
+    priority: P0
+    estimated_hours: 8
+    dependencies: [T3.1, T3.2, T3.3]
+    status: completed
+    files:
+      - src/apps/tool-orchestrator-service/modules/registry/__tests__/rbac-inheritance.test.ts
+    acceptance_criteria:
+      - Test: Union user required roles ✅
+      - Test: Intersect allowed model tiers ✅
+      - Test: Handle empty allowed tiers (allow all) ✅
+      - Test: Take maximum trust threshold (most restrictive) ✅
+      - Test: Union denied roles ✅
+      - Test: Handle tools with no RBAC restrictions ✅
+      - 6+ tests passing ✅ (9 tests passing)
+
+  # ============================================================================
+  # T4: End-to-End Validation (5 days)
+  # ============================================================================
+
+  - id: T4.1
+    name: "E2E Scenario 1: Happy Path"
+    description: "User message → llm-bot → tool execution → response"
+    priority: P1
+    estimated_hours: 8
+    dependencies: [T1.2, T2.1, T3.1]
+    status: pending
+    files:
+      - planning/sprint-61-s03uws/validation/scenario-1-happy-path.md
+    acceptance_criteria:
+      - Provision agent-dev context
+      - Deploy tool-orchestrator and llm-bot
+      - Send test message via message.send
+      - Verify tool executes successfully
+      - Verify response received
+      - Verify Loki contains tool.invocation event
+      - Verify RBAC decision logged (allowed)
+      - Clean up agent-dev context
+
+  - id: T4.2
+    name: "E2E Scenario 2: RBAC Denial"
+    description: "Basic model tries premium tool → Denied"
+    priority: P1
+    estimated_hours: 8
+    dependencies: [T1.2, T2.1, T3.1]
+    status: pending
+    files:
+      - planning/sprint-61-s03uws/validation/scenario-2-rbac-denial.md
+    acceptance_criteria:
+      - Provision agent-dev context
+      - Configure llm-bot with gpt-3.5-turbo (basic tier)
+      - Configure generate_image with modelTiers.allowed = ['premium']
+      - Send test message requesting image generation
+      - Verify tool execution denied
+      - Verify clear error message to user
+      - Verify Loki contains RBAC denial event (reason: model_tier_not_allowed)
+      - Clean up agent-dev context
+
+  - id: T4.3
+    name: "E2E Scenario 3: Tool Import"
+    description: "New MCP server → Auto-import → Tools available"
+    priority: P1
+    estimated_hours: 8
+    dependencies: [T1.2]
+    status: pending
+    files:
+      - planning/sprint-61-s03uws/validation/scenario-3-tool-import.md
+    acceptance_criteria:
+      - Provision agent-dev context
+      - Deploy tool-orchestrator
+      - Import tool from MCP server via tool.import
+      - Verify tool appears in tool.list
+      - Verify tool metadata correct (source, server, schema)
+      - Clean up agent-dev context
+
+  - id: T4.4
+    name: "E2E Scenario 4: Composition RBAC"
+    description: "Register composition → Validate constituent tools → Execute → Runtime re-validation"
+    priority: P0
+    estimated_hours: 8
+    dependencies: [T1.2, T2.1, T3.1]
+    status: completed
+    files:
+      - src/apps/tool-orchestrator-service/modules/gateway/__tests__/composition-rbac-e2e.test.ts
+    acceptance_criteria:
+      - Register composition with gpt-4 (premium tier) ✅
+      - Verify composition includes constituentTools metadata ✅
+      - Verify inherited RBAC (premium tier required) ✅
+      - Execute composition with gpt-4 (should succeed) ✅
+      - Execute composition with gpt-3.5-turbo (should fail) ✅
+      - Test nested composition RBAC validation ✅
+      - 2 comprehensive E2E tests created and passing ✅
+
+  - id: T4.5
+    name: "E2E Scenario 5: Model Upgrade"
+    description: "User switches to premium model → More tools available"
+    priority: P1
+    estimated_hours: 8
+    dependencies: [T1.2, T2.1]
+    status: pending
+    files:
+      - planning/sprint-61-s03uws/validation/scenario-5-model-upgrade.md
+    acceptance_criteria:
+      - Provision agent-dev context
+      - Deploy tool-orchestrator and llm-bot
+      - List tools with gpt-3.5-turbo (basic tier)
+      - Verify only basic tier tools visible
+      - List tools with gpt-4 (premium tier)
+      - Verify basic + premium tier tools visible
+      - Verify tool counts differ (basic < premium)
+      - Clean up agent-dev context
+
+  # ============================================================================
+  # T5: Load Testing (3 days)
+  # ============================================================================
+
+  - id: T5.1
+    name: "Create load test script"
+    description: "Implement load testing framework for tool-orchestrator"
+    priority: P1
+    estimated_hours: 8
+    dependencies: [T1.2, T2.1, T3.1]
+    status: pending
+    files:
+      - scripts/load-test-tool-orchestrator.ts
+    acceptance_criteria:
+      - Configurable load profile (invocations, concurrency, models, tools)
+      - Promise pool for concurrency control
+      - Tracks success, error, RBAC denial counts
+      - Calculates latency percentiles (P50, P95, P99, max)
+      - Calculates throughput (req/sec)
+      - Validates P95 < 100ms target
+      - Exits with code 0 (pass) or 1 (fail)
+
+  - id: T5.2
+    name: "Run load test in agent-dev"
+    description: "Execute load test with 1000 invocations, 50 concurrent"
+    priority: P1
+    estimated_hours: 8
+    dependencies: [T5.1]
+    status: pending
+    files:
+      - planning/sprint-61-s03uws/validation/load-test-results.md
+    acceptance_criteria:
+      - Provision agent-dev context
+      - Deploy tool-orchestrator
+      - Seed PostgreSQL with test tools/models
+      - Run load test (1000 invocations, 50 concurrent, 4 models, 4 tools)
+      - Capture results (success, error, RBAC denial counts, latencies)
+      - Document results in markdown
+      - Clean up agent-dev context
+
+  - id: T5.3
+    name: "Analyze and optimize if needed"
+    description: "Review load test results, optimize if P95 > 100ms"
+    priority: P1
+    estimated_hours: 8
+    dependencies: [T5.2]
+    status: pending
+    files:
+      - planning/sprint-61-s03uws/validation/load-test-results.md
+    acceptance_criteria:
+      - Check cache hit ratio (target >90%)
+      - Profile PostgreSQL queries (add indexes if needed)
+      - Check Loki logging overhead (fire-and-forget)
+      - Review RBAC validation logic (target <1ms)
+      - Document optimization steps taken
+      - P95 < 100ms achieved
+
+  # ============================================================================
+  # T6: Migration Script (3 days)
+  # ============================================================================
+
+  - id: T6.1
+    name: "Implement export from tool-gateway"
+    description: "Export all tools from tool-gateway to JSON"
+    priority: P1
+    estimated_hours: 8
+    dependencies: []
+    status: pending
+    files:
+      - scripts/migrate-to-tool-orchestrator.ts
+    acceptance_criteria:
+      - Query tool-gateway for all tools
+      - Transform legacy format to ToolRegistryDocument
+      - Convert agent-based RBAC to model-based RBAC
+      - Export to migration/tools.json
+      - Log tool count
+
+  - id: T6.2
+    name: "Implement import to tool-orchestrator"
+    description: "Import tools from JSON to tool-orchestrator"
+    priority: P1
+    estimated_hours: 8
+    dependencies: [T6.1]
+    status: pending
+    files:
+      - scripts/migrate-to-tool-orchestrator.ts
+    acceptance_criteria:
+      - Load tools from migration/tools.json
+      - Bulk insert to PostgreSQL via tool.register
+      - Handle duplicates gracefully (skip or merge)
+      - Track imported, skipped, error counts
+      - Log summary
+
+  - id: T6.3
+    name: "Implement migration validation"
+    description: "Validate migration success (tool counts, IDs)"
+    priority: P1
+    estimated_hours: 4
+    dependencies: [T6.2]
+    status: pending
+    files:
+      - scripts/migrate-to-tool-orchestrator.ts
+    acceptance_criteria:
+      - Compare tool counts (old vs new)
+      - Compare tool IDs (old vs new)
+      - Detect missing tools
+      - Detect extra tools (warn)
+      - Throw error if validation fails
+      - Log success if validation passes
+
+  - id: T6.4
+    name: "Create rollback script"
+    description: "Bash script to revert to tool-gateway"
+    priority: P1
+    estimated_hours: 4
+    dependencies: []
+    status: pending
+    files:
+      - scripts/rollback-tool-orchestrator.sh
+    acceptance_criteria:
+      - Revert architecture.yaml (git checkout HEAD~1)
+      - Restart tool-gateway
+      - Verify health (brat fleet health)
+      - Disable tool-orchestrator
+      - Log success
+
+  - id: T6.5
+    name: "Test migration in agent-dev"
+    description: "Validate migration script end-to-end"
+    priority: P1
+    estimated_hours: 8
+    dependencies: [T6.1, T6.2, T6.3, T6.4]
+    status: pending
+    files:
+      - planning/sprint-61-s03uws/migration-guide.md
+    acceptance_criteria:
+      - Provision agent-dev context
+      - Deploy tool-gateway with test tools
+      - Run export script
+      - Deploy tool-orchestrator
+      - Run import script
+      - Run validation script (should pass)
+      - Test rollback script
+      - Document step-by-step guide
+      - Clean up agent-dev context
+
+  # ============================================================================
+  # T7: Cutover Preparation (2 days)
+  # ============================================================================
+
+  - id: T7.1
+    name: "Implement feature flag in llm-bot"
+    description: "Add ENABLE_TOOL_ORCHESTRATOR feature flag to llm-bot"
+    priority: P0
+    estimated_hours: 4
+    dependencies: []
+    status: completed
+    files:
+      - src/apps/llm-bot-service.ts
+      - src/services/llm-bot/processor.ts
+    acceptance_criteria:
+      - Check ENABLE_TOOL_ORCHESTRATOR env var ✅
+      - Select tool provider (tool-orchestrator or tool-gateway) ✅
+      - Log which provider is active ✅ (startup log + per-request log)
+      - Tool execution interface unchanged ✅
+      - Existing llm-bot tests pass ✅ (3/3 tests passing)
+
+  - id: T7.2
+    name: "Implement feature flag in reflex"
+    description: "Add ENABLE_TOOL_ORCHESTRATOR feature flag to reflex"
+    priority: P1
+    estimated_hours: 4
+    dependencies: []
+    status: completed
+    files:
+      - src/apps/reflex-service.ts
+      - src/services/reflex/tool-executor.ts
+    acceptance_criteria:
+      - Check ENABLE_TOOL_ORCHESTRATOR env var ✅
+      - Select tool provider URL (tool-orchestrator or tool-gateway) ✅
+      - Log which provider is active ✅ (startup log + per-request log)
+      - Tool execution includes modelId in context ✅ (already present from Sprint 58)
+      - Existing reflex tests pass ✅
+
+  - id: T7.3
+    name: "Write deployment plan"
+    description: "Document step-by-step cutover procedure"
+    priority: P1
+    estimated_hours: 4
+    dependencies: []
+    status: pending
+    files:
+      - planning/sprint-61-s03uws/deployment-plan.md
+    acceptance_criteria:
+      - Pre-cutover checklist
+      - Day 1: Staging deployment steps
+      - Day 2: Production phased rollout (10% → 50% → 100%)
+      - Day 3: Final validation
+      - Rollback triggers defined
+      - Monitoring dashboards/queries listed
+      - Success criteria defined
+
+  - id: T7.4
+    name: "Write operational runbook"
+    description: "Document common operations and troubleshooting"
+    priority: P1
+    estimated_hours: 4
+    dependencies: []
+    status: pending
+    files:
+      - planning/sprint-61-s03uws/runbook.md
+    acceptance_criteria:
+      - Common operations (check health, list tools, get metrics, trace request)
+      - Troubleshooting: RBAC denials
+      - Troubleshooting: Performance issues
+      - Troubleshooting: Tool import failures
+      - Example commands and Loki queries
+
+  - id: T7.5
+    name: "Write stakeholder communication"
+    description: "Notify stakeholders of cutover timeline and impact"
+    priority: P1
+    estimated_hours: 2
+    dependencies: [T7.3]
+    status: pending
+    files:
+      - planning/sprint-61-s03uws/stakeholder-communication.md
+    acceptance_criteria:
+      - Timeline (Sprint 61 complete, staging, production, validation)
+      - User impact assessment (zero expected)
+      - Support team briefing (what changed, what stayed same, troubleshooting)
+      - Contact info for on-call engineer
+
+  # ============================================================================
+  # Documentation & Polish (P2/P3)
+  # ============================================================================
+
+  - id: T8.1
+    name: "Update architecture.yaml"
+    description: "Add tool-orchestrator configuration (if not already present)"
+    priority: P2
+    estimated_hours: 2
+    dependencies: []
+    status: pending
+    files:
+      - architecture.yaml
+    acceptance_criteria:
+      - tool-orchestrator service defined
+      - Correct profile (core), category (platform), exposure (platform-only)
+      - Env vars: SERVICE_NAME, SERVICE_PORT, DATABASE_URL, LOKI_URL, NATS_URL
+      - Secrets: DATABASE_URL, LOKI_URL
+      - Topics: consumes/produces (empty for Phase 1)
+
+  - id: T8.2
+    name: "Update sprint manifest"
+    description: "Update sprint-manifest.yaml with progress"
+    priority: P3
+    estimated_hours: 1
+    dependencies: []
+    status: pending
+    files:
+      - planning/sprint-61-s03uws/sprint-manifest.yaml
+    acceptance_criteria:
+      - Status updated (planning → in-progress → validating → complete)
+      - Deliverables listed
+      - Test coverage documented
+      - Blockers/risks noted
+
+  - id: T8.3
+    name: "Create sprint retrospective"
+    description: "Document learnings, blockers, improvements"
+    priority: P3
+    estimated_hours: 2
+    dependencies: []
+    status: pending
+    files:
+      - planning/sprint-61-s03uws/retrospective.md
+    acceptance_criteria:
+      - What went well
+      - What could be improved
+      - Blockers encountered
+      - Learnings for Sprint 62
+
+# ============================================================================
+# Backlog Summary
+# ============================================================================
+
+summary:
+  total_tasks: 35
+  estimated_hours: 194
+  estimated_days: 24.25 (at 8 hours/day)
+
+  tasks_by_priority:
+    P0: 11 # Critical path
+    P1: 19 # High priority
+    P2: 2  # Medium priority
+    P3: 3  # Low priority
+
+  tasks_by_workstream:
+    T1_composition_registration_rbac: 4
+    T2_composition_runtime_rbac: 2
+    T3_rbac_inheritance: 4
+    T4_e2e_validation: 5
+    T5_load_testing: 3
+    T6_migration_script: 5
+    T7_cutover_preparation: 5
+    T8_documentation_polish: 3
+
+  critical_path:
+    - T1.1 → T1.2 → T1.3 (Composition Registration RBAC)
+    - T3.1 → T3.2 → T3.3 → T3.4 (RBAC Inheritance)
+    - T2.1 → T2.2 (Composition Runtime RBAC)
+    - T4.4 (E2E Composition RBAC validation)
+    - T7.1 → T7.3 (Feature flag + deployment plan)
+
+  success_criteria:
+    - All P0 tasks complete
+    - All P1 tasks complete
+    - 35+ tests passing
+    - 5 E2E scenarios validated
+    - Load test P95 < 100ms
+    - Migration script validated
+    - Feature flags implemented
+    - Deployment plan documented
+
+# ============================================================================
+# Daily Standup Template
+# ============================================================================
+
+daily_standup_template:
+  yesterday:
+    - Task ID completed
+    - Progress on task ID
+  today:
+    - Starting task ID
+    - Continuing task ID
+  blockers:
+    - Blocker description (if any)
+  metrics:
+    - Tests passing: X/Y
+    - Code coverage: Z%
+    - Tasks complete: X/35

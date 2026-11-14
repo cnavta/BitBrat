@@ -876,6 +876,179 @@ fleet.logs({ bit: 'llm-bot', context: 'local', limit: 20 })
 
 ---
 
+### 11. Building MCP Aggregator Services (Tool-Gateway, Tool-Orchestrator)
+
+**Pattern for services that aggregate and proxy tools from upstream MCP servers.**
+
+Aggregator services (tool-gateway, tool-orchestrator) must override `getMcpServer()` to serve aggregated tools from their internal registries, not just their own direct tools.
+
+**Problem**: Base class `getMcpServer()` only serves tools from `this.registeredTools` (the service's own tools). Aggregators need to serve tools from their internal registries (ToolRegistry, PostgreSQL).
+
+```typescript
+// src/apps/tool-gateway.ts (Sprint 61)
+import { McpServer, ServerContext } from "@modelcontextprotocol/server";
+
+export class ToolGatewayServer extends Bit {
+  private registry = new ToolRegistry(); // Aggregated tools from upstream MCP services
+  private mcpManager = new McpClientManager(this as any, this.registry);
+
+  /**
+   * Override base class getMcpServer() to serve aggregated tools.
+   *
+   * Critical: Without this override, MCP clients only see tool-gateway's own tools
+   * (bit.*, composition.*, agent.sendProgressUpdate), not the aggregated tools from
+   * upstream services (image-gen-mcp, story-engine-mcp, etc.).
+   */
+  protected getMcpServer(): McpServer {
+    const logger = this.getLogger();
+    const baseThis = this as any; // Access private members from base class
+
+    // Get aggregated tools from ToolRegistry (includes all upstream service tools)
+    const allTools = Object.values(this.registry.getTools());
+
+    logger.debug('mcp_server.initializing', {
+      service: 'tool-gateway',
+      aggregatedTools: allTools.length,
+      ownTools: baseThis.registeredTools.size,
+    });
+
+    // Create MCP server
+    const server = new McpServer(
+      { name: 'tool-gateway', version: '1.0.0' },
+      { capabilities: { tools: allTools.length > 0 ? {} : undefined } }
+    );
+
+    // Register aggregated tools from this.registry (NOT this.registeredTools)
+    for (const tool of allTools) {
+      server.registerTool(tool.id, {
+        description: tool.description || 'No description provided',
+        inputSchema: tool.inputSchema,
+      }, async (args: any, ctx: ServerContext) => {
+        if (!tool.execute) {
+          throw new Error(`Tool ${tool.id} has no execute function`);
+        }
+
+        const combinedExtra = {
+          ...ctx,
+          userId: (args as any)._meta?.userId || (ctx as any)?.http?.req?.headers?.['x-user-id'],
+          userRoles: (args as any)._meta?.userRoles || (ctx as any)?.http?.req?.headers?.['x-roles'],
+          modelId: 'tool-gateway',
+        };
+
+        return await this.traceMcpOperation(
+          `tool:${tool.id}`,
+          () => tool.execute!(args, combinedExtra as any),
+          combinedExtra
+        );
+      });
+    }
+
+    // Register resources and prompts from base class (no change)
+    for (const [uri, resource] of baseThis.registeredResources.entries()) {
+      server.registerResource(resource.name, uri, {
+        description: resource.description,
+      }, async (uriParam: URL, ctx: ServerContext) => {
+        // ... resource handler
+      });
+    }
+
+    logger.info('mcp_server.initialized_with_aggregation', {
+      aggregatedTools: allTools.length,
+    });
+
+    return server;
+  }
+}
+```
+
+**Critical Rules:**
+- ALWAYS override `getMcpServer()` in aggregator services
+- ALWAYS serve tools from the aggregated registry, not `this.registeredTools`
+- ALWAYS test with integration test to verify MCP clients see aggregated tools
+- NEVER assume base class behavior works for aggregators
+
+**Tool-Orchestrator Pattern:**
+```typescript
+// src/apps/tool-orchestrator-service.ts (Sprint 61)
+export class ToolOrchestratorServer extends Bit {
+  private toolRegistry?: ToolRegistry; // PostgreSQL-backed registry
+
+  protected getMcpServer(): any {
+    // TODO Sprint 61+: Load aggregated tools from this.toolRegistry.queryTools({})
+    // Requires async initialization to load from PostgreSQL
+
+    // Current implementation: Delegate to base class (serves admin tools only)
+    return super.getMcpServer();
+  }
+}
+```
+
+**Feature Flag Integration:**
+```typescript
+// src/common/profiles/mcp-client-profile.ts (Sprint 61)
+const connect = async (): Promise<void> => {
+  // Check feature flag to determine which aggregator to connect to
+  const useToolOrchestrator = process.env.ENABLE_TOOL_ORCHESTRATOR === 'true';
+  const toolProvider = useToolOrchestrator ? 'tool-orchestrator' : 'tool-gateway';
+
+  let gatewayUrl = bit.getConfig<string>('MCP_GATEWAY_URL', { required: false });
+
+  // Derive URL from tool provider if not explicitly configured
+  if (!gatewayUrl && useToolOrchestrator) {
+    gatewayUrl = process.env.TOOL_ORCHESTRATOR_URL || 'http://tool-orchestrator:3000/mcp';
+  }
+
+  const cfg: McpServerConfig = {
+    name: toolProvider, // Dynamic name based on provider
+    transport: 'sse',
+    url: gatewayUrl,
+  };
+
+  await manager.connectServer(cfg);
+};
+```
+
+**Integration Testing:**
+```typescript
+// src/apps/__tests__/mcp-aggregation.integration.test.ts
+it('should expose aggregated tools via MCP endpoint', async () => {
+  const client = new Client({ name: 'test-client', version: '1.0.0' }, { capabilities: {} });
+  const transport = new StreamableHTTPClientTransport({ url: 'http://tool-gateway:3000/mcp' });
+
+  await client.connect(transport);
+  const result = await client.listTools();
+
+  // Verify we see MORE than just direct tools
+  expect(result.tools.length).toBeGreaterThan(18); // More than just bit.* + composition.*
+
+  // Verify we see domain tools (not just platform tools)
+  const hasDomainTools = result.tools.some(t =>
+    !t.name.startsWith('bit.') &&
+    !t.name.startsWith('composition.')
+  );
+  expect(hasDomainTools).toBe(true);
+});
+```
+
+**When to Use:**
+- ✅ Building tool-gateway or tool-orchestrator
+- ✅ Any service that aggregates tools from upstream MCP servers
+- ✅ Services that proxy tool execution to other services
+- ❌ Regular domain services (use base class behavior)
+- ❌ Services that only expose their own tools
+
+**Common Pitfalls:**
+1. **Forgetting to override getMcpServer()** - MCP clients only see direct tools
+2. **Not testing with real MCP client** - Bug not caught until deployment
+3. **Feature flag not actually changing connections** - Logs show flag but behavior unchanged
+4. **Async initialization not handled** - PostgreSQL-backed registries need async load
+
+**Examples**: tool-gateway (src/apps/tool-gateway.ts:2602), tool-orchestrator (src/apps/tool-orchestrator-service.ts:425)
+
+**Documentation**: [MCP Aggregation Integration Test](./src/apps/__tests__/mcp-aggregation.integration.test.ts)
+
+---
+
 ### Quick Reference Patterns
 
 **Adding MCP Tool:**

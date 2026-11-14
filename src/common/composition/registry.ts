@@ -21,6 +21,19 @@ import {
 import { CompositionCompiler, ToolRegistryInterface } from './compiler';
 
 /**
+ * Optional Tool Orchestrator Registry Interface
+ *
+ * Sprint 61: For RBAC validation during composition registration
+ */
+export interface IToolOrchestratorRegistry {
+  registerComposition(
+    definition: CompositionDefinition,
+    registeringModelId: string,
+    userRoles: string[]
+  ): Promise<void>;
+}
+
+/**
  * DocumentStore interface for composition persistence
  *
  * Vendor-neutral abstraction for PostgreSQL, Firestore, etc.
@@ -138,7 +151,8 @@ export class CompositionRegistry {
   constructor(
     private store: DocumentStore,
     private toolRegistry: ToolRegistryInterface,
-    private logger: Logger
+    private logger: Logger,
+    private orchestratorRegistry?: IToolOrchestratorRegistry
   ) {
     this.compiler = new CompositionCompiler(toolRegistry, logger);
   }
@@ -149,16 +163,63 @@ export class CompositionRegistry {
    * Compiles and stores the composition. If a composition with the same
    * content hash already exists, returns the existing composition.
    *
+   * Sprint 61: Optionally validates RBAC if model and user context provided.
+   *
    * @param definition - Composition definition to register
+   * @param options - Optional registration options
+   * @param options.modelId - ID of model registering the composition (for RBAC)
+   * @param options.userRoles - Roles of user registering the composition (for RBAC)
    * @returns Compiled composition with assigned ID
+   * @throws RegistryError if RBAC validation fails
    */
-  async register(definition: CompositionDefinition): Promise<CompiledComposition> {
+  async register(
+    definition: CompositionDefinition,
+    options?: {
+      modelId?: string;
+      userRoles?: string[];
+    }
+  ): Promise<CompiledComposition> {
     const compositionName = definition.metadata.name;
 
     this.logger.debug('registry_register_started', {
       composition: compositionName,
       stepCount: definition.spec.steps.length,
+      rbacEnabled: !!(options?.modelId && options?.userRoles),
     });
+
+    // Sprint 61: RBAC validation (if enabled)
+    if (options?.modelId && options?.userRoles && this.orchestratorRegistry) {
+      this.logger.debug('registry_rbac_validation_started', {
+        composition: compositionName,
+        modelId: options.modelId,
+        userRoles: options.userRoles,
+      });
+
+      try {
+        await this.orchestratorRegistry.registerComposition(
+          definition,
+          options.modelId,
+          options.userRoles
+        );
+
+        this.logger.info('registry_rbac_validation_passed', {
+          composition: compositionName,
+          modelId: options.modelId,
+        });
+      } catch (err) {
+        this.logger.warn('registry_rbac_validation_failed', {
+          composition: compositionName,
+          modelId: options.modelId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+
+        throw new RegistryError(
+          CompositionErrorCode.VALIDATION_ERROR,
+          `RBAC validation failed: ${err instanceof Error ? err.message : String(err)}`,
+          err instanceof Error ? err : undefined
+        );
+      }
+    }
 
     // Compile composition
     this.logger.trace('registry_compiling', {

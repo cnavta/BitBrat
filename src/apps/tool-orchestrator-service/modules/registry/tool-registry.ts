@@ -18,6 +18,9 @@ import {
   BitBratTool,
 } from './interfaces';
 import { randomUUID } from 'crypto';
+import { Step, CallStep, isCallStep, CompositionDefinition } from '../../../../common/composition/types';
+import { IModelRegistry } from '../models/interfaces';
+import { RbacValidator } from '../gateway/rbac-validator';
 
 const COLLECTION_NAME = 'platform_tool_registry';
 
@@ -27,7 +30,9 @@ const COLLECTION_NAME = 'platform_tool_registry';
 export class ToolRegistry implements IToolRegistry {
   constructor(
     private readonly store: IDocumentStore,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly modelRegistry?: IModelRegistry,
+    private readonly rbacValidator?: RbacValidator
   ) {}
 
   /**
@@ -415,6 +420,452 @@ export class ToolRegistry implements IToolRegistry {
     }, 'tool_registry.import_from_bit_complete');
 
     return importedIds;
+  }
+
+  /**
+   * Register a composition with RBAC validation
+   *
+   * Sprint 61: Composition RBAC + Validation (T1.2)
+   *
+   * Validates that the registering model has access to ALL constituent tools
+   * before storing the composition. This prevents users from creating compositions
+   * that escalate privileges or access tools they shouldn't.
+   *
+   * @param definition - Composition definition to register
+   * @param registeringModelId - ID of the model registering the composition
+   * @param userRoles - Roles of the user registering the composition
+   * @throws Error if model lacks access to any constituent tool
+   * @throws Error if modelRegistry or rbacValidator not available
+   *
+   * @example
+   * ```typescript
+   * await toolRegistry.registerComposition(
+   *   compositionDef,
+   *   'gpt-4',
+   *   ['user', 'admin']
+   * );
+   * ```
+   */
+  async registerComposition(
+    definition: CompositionDefinition,
+    registeringModelId: string,
+    userRoles: string[]
+  ): Promise<void> {
+    // Validate dependencies are available
+    if (!this.modelRegistry || !this.rbacValidator) {
+      throw new Error(
+        'ToolRegistry not configured for composition RBAC validation. ' +
+        'ModelRegistry and RbacValidator required.'
+      );
+    }
+
+    const compositionId = definition.metadata.name;
+
+    this.logger.info({
+      compositionId,
+      registeringModelId,
+      userRoles,
+      stepCount: definition.spec.steps.length,
+    }, 'tool_registry.register_composition_start');
+
+    // Step 1: Extract all tool IDs from composition steps (including nested compositions)
+    const toolIds = await this.extractToolIds(definition.spec.steps);
+
+    this.logger.debug({
+      compositionId,
+      toolCount: toolIds.length,
+      toolIds,
+    }, 'tool_registry.register_composition_extracted_tools');
+
+    // Step 2: Get the registering model
+    const registeringModel = await this.modelRegistry.getModel(registeringModelId);
+    if (!registeringModel) {
+      this.logger.warn({
+        compositionId,
+        registeringModelId,
+      }, 'tool_registry.register_composition_model_not_found');
+
+      throw new Error(
+        `Registering model not found: ${registeringModelId}. ` +
+        `Cannot validate composition RBAC.`
+      );
+    }
+
+    // Step 3: Validate model has access to ALL constituent tools
+    for (const toolId of toolIds) {
+      const tool = await this.getTool(toolId);
+
+      if (!tool) {
+        this.logger.warn({
+          compositionId,
+          toolId,
+          registeringModelId,
+        }, 'tool_registry.register_composition_tool_not_found');
+
+        throw new Error(
+          `Constituent tool not found: ${toolId}. ` +
+          `Cannot register composition ${compositionId}.`
+        );
+      }
+
+      // Validate RBAC
+      const rbacResult = this.rbacValidator.validateToolAccess(
+        tool,
+        userRoles,
+        registeringModel
+      );
+
+      if (!rbacResult.allowed) {
+        this.logger.warn({
+          compositionId,
+          toolId,
+          registeringModelId,
+          reason: rbacResult.reason,
+          details: rbacResult.details,
+        }, 'tool_registry.register_composition_rbac_denied');
+
+        throw new Error(
+          `Model ${registeringModelId} lacks access to tool ${toolId}: ${rbacResult.reason}. ` +
+          `Details: ${rbacResult.details}. ` +
+          `Composition registration denied.`
+        );
+      }
+
+      this.logger.debug({
+        compositionId,
+        toolId,
+        registeringModelId,
+      }, 'tool_registry.register_composition_tool_access_validated');
+    }
+
+    // Step 4: Calculate inherited RBAC from constituent tools
+    // NOTE: Implementation in T3.1 (calculateInheritedRbac)
+    const inheritedRbac = await this.calculateInheritedRbac(toolIds);
+
+    // Step 5: Create composition tool document
+    const compositionTool: ToolRegistryDocument = {
+      id: compositionId,
+      canonicalName: definition.metadata.name,
+      description: definition.metadata.description || '',
+      source: 'composition',
+      sourceMetadata: {
+        composition: {
+          toolIds, // Store flattened list of all constituent tools
+          strategy: 'sequential', // Default strategy
+        },
+      },
+      inputSchema: definition.spec.inputSchema,
+      outputSchema: definition.spec.outputSchema,
+      rbac: inheritedRbac, // Inherited from constituent tools
+      config: {
+        timeoutMs: 60000, // Default: 60 seconds
+        retryPolicy: { maxAttempts: 3, backoffMs: 1000 },
+      },
+      health: { status: 'healthy' },
+      status: 'active',
+      tags: ['composition', ...(Object.keys(definition.metadata.labels || {}))],
+      category: definition.metadata.labels?.category || 'composition',
+      relatedTools: toolIds, // For discoverability
+      importedAt: new Date(),
+      lastUpdatedAt: new Date(),
+    };
+
+    // Step 6: Store composition in registry
+    await this.store.set(COLLECTION_NAME, compositionId, compositionTool);
+
+    this.logger.info({
+      compositionId,
+      registeringModelId,
+      constituentToolCount: toolIds.length,
+      constituentTools: toolIds,
+      inheritedRbac,
+    }, 'tool_registry.register_composition_success');
+  }
+
+  /**
+   * Calculate inherited RBAC from constituent tools
+   *
+   * Sprint 61: Composition RBAC + Validation (T3.1)
+   *
+   * Returns most restrictive RBAC configuration by combining constituent tools' RBAC.
+   *
+   * Inheritance Rules:
+   * - RULE 1: Union of user required roles (composition needs ALL)
+   * - RULE 2: Union of user denied roles (if ANY tool denies, composition denies)
+   * - RULE 3: Union of model required roles
+   * - RULE 4: Union of model denied roles
+   * - RULE 5: Intersection of allowed tiers (most restrictive)
+   * - RULE 6: Union of denied tiers (if ANY tool denies, composition denies)
+   * - RULE 7: Highest trust threshold across all tools (most restrictive)
+   *
+   * @param toolIds - Array of constituent tool IDs
+   * @returns Inherited RBAC configuration
+   */
+  private async calculateInheritedRbac(toolIds: string[]): Promise<any> {
+    // Fetch all constituent tools
+    const tools = await Promise.all(
+      toolIds.map(id => this.getTool(id))
+    );
+
+    // Validate all tools found
+    const missing = tools
+      .map((t, i) => (t === null ? toolIds[i] : null))
+      .filter(t => t !== null);
+
+    if (missing.length > 0) {
+      throw new Error(`Constituent tools not found: ${missing.join(', ')}`);
+    }
+
+    // Filter out nulls (TypeScript type refinement)
+    const validTools = tools.filter(t => t !== null) as ToolRegistryDocument[];
+
+    this.logger.debug({
+      toolCount: validTools.length,
+      toolIds,
+    }, 'tool_registry.calculate_inherited_rbac_start');
+
+    // RULE 1: Union of user required roles (composition needs ALL)
+    const userRequiredRoles = [
+      ...new Set(validTools.flatMap(t => t.rbac.userRoles.required))
+    ];
+
+    // RULE 2: Union of user denied roles
+    const userDeniedRoles = [
+      ...new Set(validTools.flatMap(t => t.rbac.userRoles.denied))
+    ];
+
+    // RULE 3: Union of model required roles
+    const modelRequiredRoles = [
+      ...new Set(validTools.flatMap(t => t.rbac.modelRoles.required))
+    ];
+
+    // RULE 4: Union of model denied roles
+    const modelDeniedRoles = [
+      ...new Set(validTools.flatMap(t => t.rbac.modelRoles.denied))
+    ];
+
+    // RULE 5: Intersection of allowed tiers (most restrictive)
+    const allowedTiers = this.intersectTiers(
+      validTools.map(t => t.rbac.modelTiers.allowed)
+    );
+
+    // RULE 6: Union of denied tiers
+    const deniedTiers = [
+      ...new Set(validTools.flatMap(t => t.rbac.modelTiers.denied))
+    ];
+
+    // RULE 7: Highest trust threshold across all tools (most restrictive)
+    const minTrustThresholds = this.mergeMinTrustThresholds(validTools);
+
+    const inherited = {
+      userRoles: {
+        required: userRequiredRoles,
+        denied: userDeniedRoles,
+      },
+      modelRoles: {
+        required: modelRequiredRoles,
+        denied: modelDeniedRoles,
+      },
+      modelTiers: {
+        allowed: allowedTiers,
+        denied: deniedTiers,
+      },
+      minTrustThresholds,
+    };
+
+    this.logger.info({
+      toolCount: validTools.length,
+      inherited,
+    }, 'tool_registry.calculate_inherited_rbac_complete');
+
+    return inherited;
+  }
+
+  /**
+   * Calculate intersection of allowed model tiers
+   *
+   * Sprint 61: Composition RBAC + Validation (T3.2)
+   *
+   * Returns the most restrictive set of allowed tiers. If any tool allows all tiers
+   * (empty array), it's filtered out. The result is the intersection of all non-empty lists.
+   *
+   * @param tierLists - Array of allowed tier lists from constituent tools
+   * @returns Intersection of tier lists (most restrictive)
+   *
+   * @example
+   * ```typescript
+   * // tool1 allows [basic, premium], tool2 allows [premium, enterprise]
+   * intersectTiers([['basic', 'premium'], ['premium', 'enterprise']])
+   * // Returns: ['premium'] (intersection)
+   *
+   * // tool1 allows all (empty), tool2 allows [premium]
+   * intersectTiers([[], ['premium']])
+   * // Returns: ['premium'] (empty filtered out)
+   *
+   * // All tools allow all
+   * intersectTiers([[], []])
+   * // Returns: [] (allow all)
+   * ```
+   */
+  private intersectTiers(tierLists: string[][]): string[] {
+    // Filter out empty lists (tools that allow all tiers)
+    const nonEmptyLists = tierLists.filter(list => list.length > 0);
+
+    if (nonEmptyLists.length === 0) {
+      // All tools allow all tiers → composition allows all tiers
+      return [];
+    }
+
+    // Intersection: tier must be in ALL lists
+    const firstList = nonEmptyLists[0];
+    return firstList.filter(tier =>
+      nonEmptyLists.every(list => list.includes(tier))
+    );
+  }
+
+  /**
+   * Merge trust thresholds, taking maximum (most restrictive)
+   *
+   * Sprint 61: Composition RBAC + Validation (T3.3)
+   *
+   * For each trust dimension (reliability, fidelity, integrity, calibration),
+   * takes the MAXIMUM threshold across all tools. This ensures the composition
+   * requires the highest trust level needed by any constituent tool.
+   *
+   * @param tools - Array of constituent tool documents
+   * @returns Merged trust thresholds (undefined if no tools require trust)
+   *
+   * @example
+   * ```typescript
+   * // tool1: reliability=80, tool2: reliability=90
+   * // Result: reliability=90 (max, most restrictive)
+   * ```
+   */
+  private mergeMinTrustThresholds(
+    tools: ToolRegistryDocument[]
+  ): any | undefined {
+    // Collect all trust thresholds from tools
+    const allThresholds = tools
+      .map(t => t.rbac.minTrustThresholds)
+      .filter(th => th !== undefined);
+
+    if (allThresholds.length === 0) {
+      // No tools require trust thresholds → composition doesn't either
+      return undefined;
+    }
+
+    // Group by scope (use first scope encountered, or 'tool-use' default)
+    const scopes = allThresholds.map(th => th.scope || 'tool-use');
+    const primaryScope = scopes[0] || 'tool-use';
+
+    // For each dimension, take MAX threshold across all tools (most restrictive)
+    const dimensions = ['reliability', 'fidelity', 'integrity', 'calibration'] as const;
+    const merged: any = {
+      scope: primaryScope,
+    };
+
+    for (const dim of dimensions) {
+      const values = allThresholds
+        .map(th => th[dim])
+        .filter(v => v !== undefined) as number[];
+
+      if (values.length > 0) {
+        merged[dim] = Math.max(...values); // Highest threshold (most restrictive)
+      }
+    }
+
+    this.logger.debug({
+      toolCount: tools.length,
+      thresholdsCount: allThresholds.length,
+      merged,
+    }, 'tool_registry.merge_min_trust_thresholds');
+
+    return merged;
+  }
+
+  /**
+   * Extract all tool IDs from composition steps, including nested compositions
+   *
+   * Sprint 61: Composition RBAC + Validation (T1.1)
+   *
+   * Recursively extracts all tool IDs from composition steps. For steps that reference
+   * other compositions, this method recursively expands them to get the full set of
+   * primitive tools required.
+   *
+   * Handles both CallStep (which invoke tools) and IfValueStep (which do not).
+   *
+   * @param steps - Array of composition steps to extract from
+   * @returns Deduplicated array of all primitive tool IDs (compositions expanded)
+   *
+   * @example
+   * ```typescript
+   * const steps = [
+   *   { id: 'step1', call: 'tool.get_user' },           // primitive tool
+   *   { id: 'step2', call: 'composition.send_alert' },  // composition (will be expanded)
+   *   { id: 'step3', if: { condition: {...}, then: 'A', else: 'B' } }  // no tool call
+   * ];
+   * const toolIds = await extractToolIds(steps);
+   * // Returns: ['tool.get_user', 'tool.send_message', 'tool.log_event']
+   * //          (composition.send_alert expanded to its constituent tools)
+   * ```
+   */
+  private async extractToolIds(steps: Step[]): Promise<string[]> {
+    const toolIds: Set<string> = new Set();
+
+    for (const step of steps) {
+      // Only CallStep contains tool invocations
+      if (isCallStep(step)) {
+        const callStep = step as CallStep;
+        const toolId = callStep.call;
+
+        // Check if this tool is itself a composition (nested composition)
+        const referencedTool = await this.getTool(toolId);
+
+        if (referencedTool && referencedTool.source === 'composition') {
+          // Tool is a composition - recursively expand to get its constituent tools
+          // Constituent tool IDs are stored in sourceMetadata.composition.toolIds
+          const constituentToolIds = referencedTool.sourceMetadata?.composition?.toolIds;
+
+          if (constituentToolIds && constituentToolIds.length > 0) {
+            this.logger.debug({
+              compositionId: toolId,
+              constituentToolCount: constituentToolIds.length,
+              constituentToolIds,
+            }, 'tool_registry.extract_tool_ids_nested_composition');
+
+            // Recursively expand each constituent tool (in case any are also compositions)
+            for (const constituentToolId of constituentToolIds) {
+              const constituentTool = await this.getTool(constituentToolId);
+              if (constituentTool && constituentTool.source === 'composition') {
+                // Nested composition within a composition - recurse further
+                const nestedToolIds = constituentTool.sourceMetadata?.composition?.toolIds || [];
+                nestedToolIds.forEach(id => toolIds.add(id));
+              } else {
+                // Primitive tool - add directly
+                toolIds.add(constituentToolId);
+              }
+            }
+          } else {
+            // Composition has no constituent tools (malformed) - log warning but don't fail
+            this.logger.warn({
+              compositionId: toolId,
+            }, 'tool_registry.extract_tool_ids_empty_composition');
+          }
+        } else {
+          // Primitive tool - add directly
+          toolIds.add(toolId);
+        }
+      }
+      // IfValueStep does not invoke tools, so we skip it
+    }
+
+    this.logger.debug({
+      stepCount: steps.length,
+      uniqueToolCount: toolIds.size,
+      toolIds: Array.from(toolIds),
+    }, 'tool_registry.extract_tool_ids_result');
+
+    return Array.from(toolIds);
   }
 
   /**
