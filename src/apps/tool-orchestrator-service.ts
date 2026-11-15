@@ -433,29 +433,51 @@ export class ToolOrchestratorServer extends Bit {
         }
 
         try {
-          const model: any = {
-            id: args.id,
-            provider: args.provider,
-            displayName: args.displayName,
-            description: args.description,
-            modelType: args.modelType,
-            roles: args.roles || ['model'], // Sprint 63: Default to ['model'] if not provided
-            tier: args.tier,
-            capabilities: args.capabilities,
-            trust: args.trust || [],
-            cost: args.cost || { inputTokenCost: 0, outputTokenCost: 0 },
-            toolPolicy: { allowedTools: [], deniedTools: [] },
-            status: 'active' as const,
-            registeredAt: new Date(),
-            metrics: {
-              totalRequests: 0,
-              totalTokensUsed: 0,
-              totalCostUSD: 0,
-              avgResponseTimeMs: 0,
-            },
-          };
+          // Sprint 63: Implement idempotent upsert logic
+          // Check if model already exists
+          const existing = await this.modelRegistry.getModel(args.id);
 
-          await this.modelRegistry.registerModel(model);
+          if (existing) {
+            // Update existing model
+            const updates: any = {
+              provider: args.provider,
+              displayName: args.displayName,
+              description: args.description,
+              modelType: args.modelType,
+              roles: args.roles || ['model'],
+              tier: args.tier,
+              capabilities: args.capabilities,
+              trust: args.trust || [],
+              cost: args.cost || { inputTokenCost: 0, outputTokenCost: 0 },
+            };
+
+            await this.modelRegistry.updateModel(args.id, updates);
+          } else {
+            // Register new model
+            const model: any = {
+              id: args.id,
+              provider: args.provider,
+              displayName: args.displayName,
+              description: args.description,
+              modelType: args.modelType,
+              roles: args.roles || ['model'], // Sprint 63: Default to ['model'] if not provided
+              tier: args.tier,
+              capabilities: args.capabilities,
+              trust: args.trust || [],
+              cost: args.cost || { inputTokenCost: 0, outputTokenCost: 0 },
+              toolPolicy: { allowedTools: [], deniedTools: [] },
+              status: 'active' as const,
+              registeredAt: new Date(),
+              metrics: {
+                totalRequests: 0,
+                totalTokensUsed: 0,
+                totalCostUSD: 0,
+                avgResponseTimeMs: 0,
+              },
+            };
+
+            await this.modelRegistry.registerModel(model);
+          }
 
           return {
             content: [{
