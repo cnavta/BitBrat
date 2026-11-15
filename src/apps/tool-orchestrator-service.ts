@@ -404,7 +404,7 @@ export class ToolOrchestratorServer extends Bit {
         displayName: z.string().describe('Human-readable model name'),
         description: z.string().optional().describe('Model description'),
         modelType: z.enum(['llm', 'rule-based', 'hybrid']).default('llm').describe('Model type'),
-        roles: z.array(z.string()).describe('Model roles'),
+        roles: z.array(z.string()).optional().describe('Model roles'),
         tier: z.enum(['free', 'basic', 'premium', 'enterprise', 'deterministic', 'system']).describe('Model tier'),
         capabilities: z.object({
           toolCalling: z.boolean().describe('Supports tool/function calling'),
@@ -439,7 +439,7 @@ export class ToolOrchestratorServer extends Bit {
             displayName: args.displayName,
             description: args.description,
             modelType: args.modelType,
-            roles: args.roles,
+            roles: args.roles || ['model'], // Sprint 63: Default to ['model'] if not provided
             tier: args.tier,
             capabilities: args.capabilities,
             trust: args.trust || [],
