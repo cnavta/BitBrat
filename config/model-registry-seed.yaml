@@ -4,7 +4,7 @@
 # This file contains initial model definitions for LLM and agent models
 
 models:
-  # LLM Models (6)
+  # LLM Models (8)
 
   - id: gpt-4
     provider: openai
@@ -196,6 +196,68 @@ models:
     cost:
       inputTokenCost: 0.0
       outputTokenCost: 0.0
+    toolPolicy:
+      allowedTools: []
+      deniedTools: []
+    status: active
+
+  - id: gpt-4o-mini
+    provider: openai
+    displayName: GPT-4o Mini
+    description: Small, fast, and affordable model for lightweight tasks
+    modelType: llm
+    roles:
+      - model
+      - basic
+      - function-calling
+    tier: basic
+    trust:
+      - scope: tool-use
+        scores:
+          reliability: 87
+          fidelity: 85
+          integrity: 88
+          calibration: 84
+    capabilities:
+      toolCalling: true
+      vision: false
+      streaming: true
+      maxContextTokens: 128000
+      maxOutputTokens: 4096
+    cost:
+      inputTokenCost: 0.15
+      outputTokenCost: 0.60
+    toolPolicy:
+      allowedTools: []
+      deniedTools: []
+    status: active
+
+  - id: claude-haiku-3.5
+    provider: anthropic
+    displayName: Claude Haiku 3.5
+    description: Fastest and most compact Claude model
+    modelType: llm
+    roles:
+      - model
+      - basic
+      - function-calling
+    tier: basic
+    trust:
+      - scope: tool-use
+        scores:
+          reliability: 88
+          fidelity: 86
+          integrity: 89
+          calibration: 85
+    capabilities:
+      toolCalling: true
+      vision: false
+      streaming: true
+      maxContextTokens: 200000
+      maxOutputTokens: 4096
+    cost:
+      inputTokenCost: 0.25
+      outputTokenCost: 1.25
     toolPolicy:
       allowedTools: []
       deniedTools: []
