@@ -810,11 +810,24 @@ export class ToolOrchestratorServer extends Bit {
       // The PostgreSQL cache contains aggregated tools from OTHER services, but
       // tool-orchestrator also registers its own tools (model.register, tool.update_config, etc.)
       // We must serve BOTH sources to expose all tools.
+      //
+      // IMPORTANT: Skip tools that are already in PostgreSQL cache (e.g., bit.* tools)
+      // to avoid "already registered" errors. Only register NEW tools not in cache.
+      const aggregatedToolIds = new Set(allTools.map(t => t.id));
+      const ownToolNames = Array.from(baseThis.registeredTools.keys()) as string[];
+      const duplicateCount = ownToolNames.filter(name => aggregatedToolIds.has(name)).length;
+
       logger.debug('mcp_server.registering_own_tools', {
-        count: baseThis.registeredTools.size,
+        totalOwnTools: baseThis.registeredTools.size,
+        alreadyInCache: duplicateCount,
       });
 
       for (const [name, tool] of baseThis.registeredTools.entries()) {
+        // Skip if already registered from PostgreSQL cache
+        if (aggregatedToolIds.has(name)) {
+          logger.trace?.('mcp_server.skipping_duplicate_tool', { name });
+          continue;
+        }
         try {
           logger.trace?.('mcp_server.registering_tool', { name });
           server.registerTool(name, {
