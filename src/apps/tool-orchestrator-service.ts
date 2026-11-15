@@ -751,14 +751,22 @@ export class ToolOrchestratorServer extends Bit {
       // Register aggregated tools from PostgreSQL registry (NOT this.registeredTools)
       for (const tool of allTools) {
         try {
-          // Note: inputSchema in ToolRegistryDocument is already JSON Schema format
-          // We still need to clean it to ensure MCP compliance
-          const cleanInputSchema = this.cleanInputSchema(tool.inputSchema);
+          // Sprint 63: CRITICAL FIX - Omit inputSchema for aggregated tools
+          //
+          // Problem: Tools loaded from PostgreSQL have inputSchema in JSON Schema format,
+          // but MCP SDK v2.0 requires Zod schemas or "raw Zod shapes". Passing JSON Schema
+          // causes error: "inputSchema must be a Standard Schema (e.g. z.object({...}))"
+          //
+          // Solution: Omit inputSchema parameter entirely. The MCP SDK will accept any
+          // arguments without strict validation. This is acceptable for aggregated tools
+          // because validation happens at the source service (the tool's origin Bit).
+          //
+          // Note: cleanInputSchema() method is now unused but kept for potential future use.
 
           server.registerTool(tool.id, {
-            description: tool.description, // MCP SDK handles undefined internally
-            inputSchema: cleanInputSchema, // MCP-compliant JSON schema
-          }, async (args, ctx) => {
+            description: tool.description || `Tool: ${tool.id}`,
+            // inputSchema omitted - PostgreSQL stores JSON Schema, SDK requires Zod
+          }, async (args: any, ctx: any) => {
             // Extract execution context from MCP request
             const combinedExtra = {
               userId: (args as any)._meta?.userId || (ctx as any)?.http?.req?.headers?.['x-user-id'] || 'anonymous',

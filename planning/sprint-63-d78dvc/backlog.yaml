@@ -1,0 +1,1154 @@
+# Sprint 63 Backlog: Foundation (ToolRegistry + ModelRegistry Completion)
+# Sprint ID: sprint-63-d78dvc
+# Owner: christophernavta
+# Duration: 2-3 weeks (16 working days)
+# Status: Planning
+# Last Updated: 2026-11-15
+
+metadata:
+  sprint_id: sprint-63-d78dvc
+  sprint_title: "Foundation: ToolRegistry + ModelRegistry Completion"
+  sprint_goal: "Complete persistent tool/model registries with full CRUD operations, PostgreSQL migration for model_registry, model seeding with 10+ LLM models, and MCP tools for tool/model management"
+  owner: christophernavta
+  start_date: "2026-11-15"
+  target_end_date: "2026-12-06"
+  total_estimated_days: 16
+  total_tasks: 24
+
+# Task Status Values:
+# - pending: Not started
+# - in_progress: Currently working on
+# - blocked: Waiting for dependency
+# - completed: Finished and validated
+# - skipped: Not needed (with reason)
+
+# Priority Values:
+# - P0: Critical path, blocking
+# - P1: High priority
+# - P2: Medium priority
+# - P3: Nice to have
+
+tasks:
+  # ========================================
+  # T1: Complete ToolRegistry Module Enhancement (5 days)
+  # ========================================
+
+  - id: T1.1
+    title: "Implement tool registration (registerTool)"
+    description: |
+      Implement registerTool() method in ToolRegistry module:
+      - Validate schema using validateToolSchema()
+      - Check for duplicates via getTool()
+      - Set defaults (status: active, health: healthy, timestamps)
+      - Store in PostgreSQL via DocumentStore
+      - Add structured logging (tool_registered event)
+
+    priority: P0
+    status: pending
+    estimated_days: 1
+    assigned_to: christophernavta
+
+    dependencies: []
+
+    files_to_create:
+      - src/apps/tool-orchestrator-service/types/tool-registry-document.ts
+
+    files_to_modify:
+      - src/apps/tool-orchestrator-service/modules/registry/tool-registry.ts
+
+    acceptance_criteria:
+      - "registerTool() validates schema before registration"
+      - "Duplicate tools throw error with existing source info"
+      - "Defaults set correctly (status, health, timestamps)"
+      - "Tool persisted to PostgreSQL (platform_tool_registry collection)"
+      - "Logging includes toolId, source, canonicalName"
+
+    tests_required:
+      - "registerTool() success case"
+      - "registerTool() duplicate rejection"
+      - "registerTool() invalid schema rejection"
+
+    validation:
+      type: unit_test
+      command: "npm test -- tool-registry.test.ts -t 'registerTool'"
+
+    tags:
+      - tool-registry
+      - crud
+      - foundation
+
+  - id: T1.2
+    title: "Implement MCP import pipeline (importFromMcpServer)"
+    description: |
+      Implement MCP server import pipeline:
+      - Connect to MCP server via McpClientManager
+      - Call tools/list RPC to enumerate tools
+      - Transform MCP tool schema to ToolRegistryDocument
+      - Batch import with error handling (try/catch per tool)
+      - Log import results (imported count, skipped count)
+      - Handle network failures gracefully
+
+    priority: P0
+    status: pending
+    estimated_days: 2
+    assigned_to: christophernavta
+
+    dependencies:
+      - T1.1
+
+    files_to_modify:
+      - src/apps/tool-orchestrator-service/modules/registry/tool-registry.ts
+
+    acceptance_criteria:
+      - "Connects to MCP server successfully"
+      - "Parses MCP tool schemas correctly"
+      - "Transforms MCP schema to ToolRegistryDocument"
+      - "Batch import handles errors (continues on failure)"
+      - "Logs import summary (imported, skipped, total)"
+      - "Graceful failure on network errors"
+
+    tests_required:
+      - "importFromMcpServer() success case"
+      - "importFromMcpServer() handles tool import failure"
+      - "importFromMcpServer() handles network failure"
+      - "importFromMcpServer() logs import summary"
+
+    validation:
+      type: integration_test
+      command: "npm test -- tool-registry.integration.test.ts -t 'importFromMcpServer'"
+
+    tags:
+      - tool-registry
+      - mcp-integration
+      - import-pipeline
+
+  - id: T1.3
+    title: "Implement deduplication logic (deduplicateTool)"
+    description: |
+      Implement tool deduplication logic:
+      - Find all tools with matching canonical name
+      - Apply source priority (internal > composition > mcp)
+      - Select preferred tool by priority
+      - Deprecate non-preferred duplicates with reason
+      - Log deduplication decisions
+
+    priority: P1
+    status: pending
+    estimated_days: 1
+    assigned_to: christophernavta
+
+    dependencies:
+      - T1.1
+
+    files_to_modify:
+      - src/apps/tool-orchestrator-service/modules/registry/tool-registry.ts
+
+    acceptance_criteria:
+      - "Finds all duplicates by canonical name"
+      - "Applies source priority correctly (internal > composition > mcp)"
+      - "Deprecates non-preferred tools with descriptive reason"
+      - "Logs deduplication decisions"
+      - "Handles no duplicates gracefully (no-op)"
+
+    tests_required:
+      - "deduplicateTool() prefers internal over mcp"
+      - "deduplicateTool() prefers composition over mcp"
+      - "deduplicateTool() handles no duplicates"
+
+    validation:
+      type: unit_test
+      command: "npm test -- tool-registry.test.ts -t 'deduplicateTool'"
+
+    tags:
+      - tool-registry
+      - deduplication
+      - data-quality
+
+  - id: T1.4
+    title: "Implement config and lifecycle operations"
+    description: |
+      Implement tool configuration and lifecycle methods:
+      - updateToolConfig() - Update RBAC, timeout, costTier
+      - deprecateTool() - Mark as deprecated with reason
+      - disableTool() - Disable tool (prevent invocations)
+      - validateToolSchema() - Schema validation helper
+
+      All methods update lastUpdatedAt timestamp and log actions.
+
+    priority: P1
+    status: pending
+    estimated_days: 1
+    assigned_to: christophernavta
+
+    dependencies:
+      - T1.1
+
+    files_to_modify:
+      - src/apps/tool-orchestrator-service/modules/registry/tool-registry.ts
+
+    acceptance_criteria:
+      - "updateToolConfig() merges partial config updates"
+      - "deprecateTool() sets status and reason"
+      - "disableTool() sets status to disabled"
+      - "validateToolSchema() catches required fields"
+      - "All methods update lastUpdatedAt"
+      - "All methods log actions"
+
+    tests_required:
+      - "updateToolConfig() updates RBAC"
+      - "deprecateTool() marks tool as deprecated"
+      - "disableTool() disables tool"
+      - "validateToolSchema() validates required fields"
+
+    validation:
+      type: unit_test
+      command: "npm test -- tool-registry.test.ts -t 'updateToolConfig|deprecateTool|disableTool'"
+
+    tags:
+      - tool-registry
+      - crud
+      - lifecycle
+
+  - id: T1.5
+    title: "Write ToolRegistry unit tests"
+    description: |
+      Comprehensive unit test suite for ToolRegistry:
+      - Test all CRUD operations (create, read, update, delete)
+      - Test import pipeline (success, failure, network error)
+      - Test deduplication logic (3 scenarios)
+      - Test schema validation (required fields, invalid schemas)
+      - Test error handling and edge cases
+
+      Target: 15+ tests with >80% code coverage
+
+    priority: P1
+    status: pending
+    estimated_days: 0.5
+    assigned_to: christophernavta
+
+    dependencies:
+      - T1.1
+      - T1.2
+      - T1.3
+      - T1.4
+
+    files_to_create:
+      - src/apps/tool-orchestrator-service/__tests__/tool-registry.test.ts
+
+    acceptance_criteria:
+      - "15+ unit tests passing"
+      - "Code coverage >80% for ToolRegistry"
+      - "All public methods tested"
+      - "Edge cases covered"
+
+    validation:
+      type: unit_test
+      command: "npm test -- tool-registry.test.ts --coverage"
+
+    tags:
+      - tool-registry
+      - testing
+      - quality-assurance
+
+  # ========================================
+  # T2: Create ModelRegistry Module (5 days)
+  # ========================================
+
+  - id: T2.1
+    title: "Define ModelRegistry interfaces and types"
+    description: |
+      Create ModelRegistry type definitions:
+      - ModelRegistryDocument interface (~200 lines)
+      - ModelTrust type (multi-dimensional trust scores)
+      - IModelRegistry interface (~50 lines)
+      - Document trust score dimensions (reliability, fidelity, integrity, calibration)
+      - Add comprehensive JSDoc comments
+
+    priority: P0
+    status: pending
+    estimated_days: 1
+    assigned_to: christophernavta
+
+    dependencies:
+      - T3
+
+    files_to_create:
+      - src/apps/tool-orchestrator-service/types/model-registry-document.ts
+      - src/apps/tool-orchestrator-service/modules/models/model-registry.interface.ts
+
+    acceptance_criteria:
+      - "ModelRegistryDocument interface complete (14 fields)"
+      - "ModelTrust type defines 4 dimensions"
+      - "IModelRegistry interface defines 6 methods"
+      - "JSDoc comments explain trust dimensions"
+      - "TypeScript compiles without errors"
+
+    validation:
+      type: compile
+      command: "npm run build"
+
+    tags:
+      - model-registry
+      - types
+      - foundation
+
+  - id: T2.2
+    title: "Implement ModelRegistry core operations"
+    description: |
+      Implement ModelRegistry CRUD operations:
+      - registerModel() - Register new model with validation
+      - getModel() - Retrieve model by ID
+      - queryModels() - Query with filters (provider, tier, status)
+      - updateModel() - Update model configuration
+      - Storage via DocumentStore (PostgreSQL, model_registry collection)
+      - Logging for all operations
+
+    priority: P0
+    status: pending
+    estimated_days: 2
+    assigned_to: christophernavta
+
+    dependencies:
+      - T2.1
+      - T3
+
+    files_to_create:
+      - src/apps/tool-orchestrator-service/modules/models/model-registry.ts
+
+    acceptance_criteria:
+      - "registerModel() validates required fields (id, provider, tier)"
+      - "registerModel() rejects duplicates"
+      - "getModel() retrieves by ID"
+      - "queryModels() filters by provider, tier, status"
+      - "updateModel() merges partial updates"
+      - "All methods use DocumentStore for persistence"
+
+    tests_required:
+      - "registerModel() success case"
+      - "registerModel() rejects duplicate"
+      - "getModel() retrieves model"
+      - "queryModels() filters correctly"
+      - "updateModel() merges updates"
+
+    validation:
+      type: unit_test
+      command: "npm test -- model-registry.test.ts -t 'registerModel|getModel|queryModels|updateModel'"
+
+    tags:
+      - model-registry
+      - crud
+      - foundation
+
+  - id: T2.3
+    title: "Implement model permissions queries"
+    description: |
+      Implement model permission helper methods:
+      - getModelPermissions() - Extract roles, tier, tool policy
+      - validateModelToolAccess() - Check tool allowlist/denylist
+
+      Logic:
+      - If deniedTools includes toolId → false
+      - If allowedTools is non-empty AND doesn't include toolId → false
+      - Otherwise → true
+
+    priority: P1
+    status: pending
+    estimated_days: 1
+    assigned_to: christophernavta
+
+    dependencies:
+      - T2.2
+
+    files_to_modify:
+      - src/apps/tool-orchestrator-service/modules/models/model-registry.ts
+
+    acceptance_criteria:
+      - "getModelPermissions() extracts roles, tier, allowedTools, deniedTools"
+      - "validateModelToolAccess() respects deniedTools"
+      - "validateModelToolAccess() respects allowedTools (when non-empty)"
+      - "validateModelToolAccess() allows all tools when no restrictions"
+
+    tests_required:
+      - "getModelPermissions() extracts permissions"
+      - "validateModelToolAccess() denies denied tools"
+      - "validateModelToolAccess() allows only allowed tools (when allowlist set)"
+      - "validateModelToolAccess() allows all tools (when no restrictions)"
+
+    validation:
+      type: unit_test
+      command: "npm test -- model-registry.test.ts -t 'getModelPermissions|validateModelToolAccess'"
+
+    tags:
+      - model-registry
+      - rbac
+      - permissions
+
+  - id: T2.4
+    title: "Write ModelRegistry unit tests"
+    description: |
+      Comprehensive unit test suite for ModelRegistry:
+      - Test all CRUD operations
+      - Test permission queries
+      - Test tool access validation
+      - Test error handling and edge cases
+
+      Target: 10+ tests with >80% code coverage
+
+    priority: P1
+    status: pending
+    estimated_days: 1
+    assigned_to: christophernavta
+
+    dependencies:
+      - T2.1
+      - T2.2
+      - T2.3
+
+    files_to_create:
+      - src/apps/tool-orchestrator-service/__tests__/model-registry.test.ts
+
+    acceptance_criteria:
+      - "10+ unit tests passing"
+      - "Code coverage >80% for ModelRegistry"
+      - "All public methods tested"
+      - "Edge cases covered"
+
+    validation:
+      type: unit_test
+      command: "npm test -- model-registry.test.ts --coverage"
+
+    tags:
+      - model-registry
+      - testing
+      - quality-assurance
+
+  # ========================================
+  # T3: PostgreSQL Migration 025 (1 day)
+  # ========================================
+
+  - id: T3.1
+    title: "Create PostgreSQL migration 025"
+    description: |
+      Create migration script for model_registry table:
+      - Define table schema (14 columns)
+      - Create indexes (provider, tier, status, trust GIN)
+      - Add comments for documentation
+      - Use IF NOT EXISTS for idempotence
+
+      Columns: id, provider, display_name, description, roles, tier, trust,
+               capabilities, cost, tool_policy, status, registered_at,
+               last_used_at, created_at, updated_at
+
+    priority: P0
+    status: completed
+    estimated_days: 0.5
+    assigned_to: christophernavta
+
+    dependencies: []
+
+    files_to_create:
+      - migrations/025-create-model-registry.sql
+
+    acceptance_criteria:
+      - "Migration creates model_registry table"
+      - "All 14 columns defined with correct types"
+      - "4 indexes created (provider, tier, status, trust GIN)"
+      - "IF NOT EXISTS clauses for idempotence"
+      - "Comments on table and key columns"
+
+    validation:
+      type: manual
+      command: "psql -f migrations/025-create-model-registry.sql && psql -c '\\d model_registry'"
+
+    tags:
+      - database
+      - migration
+      - foundation
+
+  - id: T3.2
+    title: "Test migration locally"
+    description: |
+      Validate migration on local PostgreSQL:
+      - Run migration script
+      - Verify table created
+      - Verify indexes created
+      - Test idempotence (run migration twice)
+      - Query table to confirm structure
+
+    priority: P0
+    status: completed
+    estimated_days: 0.25
+    assigned_to: christophernavta
+
+    dependencies:
+      - T3.1
+
+    acceptance_criteria:
+      - "Migration runs without errors"
+      - "Table exists after migration"
+      - "All indexes exist"
+      - "Running migration twice succeeds (idempotent)"
+      - "Table structure matches design"
+
+    validation:
+      type: manual
+      command: |
+        psql -f migrations/025-create-model-registry.sql
+        psql -f migrations/025-create-model-registry.sql
+        psql -c "SELECT * FROM model_registry LIMIT 0"
+
+    tags:
+      - database
+      - migration
+      - testing
+
+  - id: T3.3
+    title: "Validate migration in agent-dev"
+    description: |
+      Deploy and validate migration in agent-dev context:
+      - Provision agent-dev context
+      - Deploy tool-orchestrator
+      - Run migration
+      - Verify table structure
+      - Query table to confirm
+
+    priority: P1
+    status: pending
+    estimated_days: 0.25
+    assigned_to: christophernavta
+
+    dependencies:
+      - T3.2
+
+    acceptance_criteria:
+      - "Migration runs successfully in agent-dev"
+      - "Table structure correct"
+      - "No errors in logs"
+
+    validation:
+      type: integration_test
+      command: |
+        agent_dev.provision({ name: "agent-dev-sprint63-migration" })
+        bit deploy tool-orchestrator --context agent-dev-sprint63-migration
+
+    tags:
+      - database
+      - migration
+      - integration-test
+
+  # ========================================
+  # T4: Model Seeding Script (2 days)
+  # ========================================
+
+  - id: T4.1
+    title: "Define model seed data"
+    description: |
+      Define seed data for 10+ models:
+      - Premium LLM: gpt-4, claude-opus-3.5
+      - Standard LLM: gpt-4-turbo, claude-sonnet-3.5
+      - Basic LLM: gpt-3.5-turbo
+      - Deterministic agent: reflex
+      - Additional: gpt-4.1-mini, ollama/llama, etc.
+
+      For each model:
+      - Configure trust scores (general + tool-use scopes)
+      - Set tier, roles, capabilities
+      - Set cost (input/output token pricing)
+      - Set tool policy (allowlist/denylist)
+
+    priority: P1
+    status: pending
+    estimated_days: 1
+    assigned_to: christophernavta
+
+    dependencies:
+      - T2.1
+
+    files_to_create:
+      - scripts/seed-model-registry.ts
+
+    acceptance_criteria:
+      - "10+ models defined with complete metadata"
+      - "Trust scores set for general + tool-use scopes"
+      - "Tier and roles configured correctly"
+      - "Token costs accurate (refer to provider docs)"
+      - "Tool policies appropriate per tier"
+
+    tags:
+      - model-registry
+      - seeding
+      - data
+
+  - id: T4.2
+    title: "Implement seed script"
+    description: |
+      Implement seed script logic:
+      - Load models from seed data
+      - Call modelRegistry.registerModel() for each
+      - Handle duplicates (skip with warning)
+      - Log results (registered count, skipped count)
+      - Make idempotent
+      - Add CLI execution wrapper
+
+    priority: P1
+    status: pending
+    estimated_days: 0.5
+    assigned_to: christophernavta
+
+    dependencies:
+      - T4.1
+      - T2.2
+
+    files_to_modify:
+      - scripts/seed-model-registry.ts
+
+    acceptance_criteria:
+      - "Script registers all models"
+      - "Duplicates skipped with warning (no error)"
+      - "Logs summary (registered, skipped)"
+      - "Idempotent (can run multiple times)"
+      - "Can be run via npm script"
+
+    validation:
+      type: manual
+      command: "npm run seed:models"
+
+    tags:
+      - model-registry
+      - seeding
+      - script
+
+  - id: T4.3
+    title: "Test seeding locally and in agent-dev"
+    description: |
+      Validate seed script:
+      - Run locally, verify 10+ models in database
+      - Run again, verify idempotence (no errors)
+      - Validate trust scores in database
+      - Deploy to agent-dev and run seed script
+      - Query models via model.get MCP tool
+
+    priority: P1
+    status: pending
+    estimated_days: 0.5
+    assigned_to: christophernavta
+
+    dependencies:
+      - T4.2
+      - T5.3
+
+    acceptance_criteria:
+      - "10+ models in database after seeding"
+      - "Idempotent (running twice doesn't error)"
+      - "Trust scores correct in database"
+      - "Validated in agent-dev context"
+
+    validation:
+      type: integration_test
+      command: |
+        npm run seed:models
+        npm run seed:models
+        psql -c "SELECT COUNT(*) FROM model_registry"
+
+    tags:
+      - model-registry
+      - seeding
+      - testing
+
+  # ========================================
+  # T5: MCP Tools for Tool/Model Management (3 days)
+  # ========================================
+
+  - id: T5.1
+    title: "Implement tool.import MCP tool"
+    description: |
+      Expose tool.import MCP tool:
+      - Define Zod schema (source, serverId, toolId)
+      - Delegate to toolRegistry.importFromMcpServer()
+      - Handle errors gracefully (return error in result)
+      - Return { success: true, toolId } on success
+      - Write integration test
+
+    priority: P1
+    status: pending
+    estimated_days: 1
+    assigned_to: christophernavta
+
+    dependencies:
+      - T1.2
+
+    files_to_modify:
+      - src/apps/tool-orchestrator-service.ts
+
+    acceptance_criteria:
+      - "tool.import registered in MCP server"
+      - "Zod schema validates inputs"
+      - "Delegates to toolRegistry.importFromMcpServer()"
+      - "Returns success/failure result"
+      - "Integration test passes"
+
+    tests_required:
+      - "tool.import success case"
+      - "tool.import handles import failure"
+
+    validation:
+      type: integration_test
+      command: "npm test -- tool-orchestrator.integration.test.ts -t 'tool.import'"
+
+    tags:
+      - mcp-tools
+      - tool-management
+      - integration
+
+  - id: T5.2
+    title: "Implement tool.update_config MCP tool"
+    description: |
+      Expose tool.update_config MCP tool:
+      - Define Zod schema (toolId, config: { timeoutMs?, maxRetryAttempts?, costTier? })
+      - Delegate to toolRegistry.updateToolConfig()
+      - Return { success: true }
+      - Write integration test
+
+    priority: P1
+    status: pending
+    estimated_days: 0.5
+    assigned_to: christophernavta
+
+    dependencies:
+      - T1.4
+
+    files_to_modify:
+      - src/apps/tool-orchestrator-service.ts
+
+    acceptance_criteria:
+      - "tool.update_config registered in MCP server"
+      - "Zod schema validates inputs"
+      - "Delegates to toolRegistry.updateToolConfig()"
+      - "Returns success result"
+      - "Integration test passes"
+
+    tests_required:
+      - "tool.update_config updates config"
+
+    validation:
+      type: integration_test
+      command: "npm test -- tool-orchestrator.integration.test.ts -t 'tool.update_config'"
+
+    tags:
+      - mcp-tools
+      - tool-management
+      - integration
+
+  - id: T5.3
+    title: "Implement model.register MCP tool"
+    description: |
+      Expose model.register MCP tool:
+      - Define Zod schema (id, provider, displayName, tier, roles, capabilities)
+      - Delegate to modelRegistry.registerModel()
+      - Return { success: true, modelId }
+      - Write integration test
+
+    priority: P1
+    status: pending
+    estimated_days: 1
+    assigned_to: christophernavta
+
+    dependencies:
+      - T2.2
+
+    files_to_modify:
+      - src/apps/tool-orchestrator-service.ts
+
+    acceptance_criteria:
+      - "model.register registered in MCP server"
+      - "Zod schema validates inputs"
+      - "Delegates to modelRegistry.registerModel()"
+      - "Returns success/modelId result"
+      - "Integration test passes"
+
+    tests_required:
+      - "model.register success case"
+      - "model.register rejects invalid model"
+
+    validation:
+      type: integration_test
+      command: "npm test -- tool-orchestrator.integration.test.ts -t 'model.register'"
+
+    tags:
+      - mcp-tools
+      - model-management
+      - integration
+
+  - id: T5.4
+    title: "Implement model.get MCP tool"
+    description: |
+      Expose model.get MCP tool:
+      - Define Zod schema (modelId)
+      - Delegate to modelRegistry.getModel()
+      - Return model details (or error if not found)
+      - Write integration test
+
+    priority: P1
+    status: pending
+    estimated_days: 0.5
+    assigned_to: christophernavta
+
+    dependencies:
+      - T2.2
+
+    files_to_modify:
+      - src/apps/tool-orchestrator-service.ts
+
+    acceptance_criteria:
+      - "model.get registered in MCP server"
+      - "Zod schema validates inputs"
+      - "Delegates to modelRegistry.getModel()"
+      - "Returns model details"
+      - "Integration test passes"
+
+    tests_required:
+      - "model.get retrieves model"
+      - "model.get handles not found"
+
+    validation:
+      type: integration_test
+      command: "npm test -- tool-orchestrator.integration.test.ts -t 'model.get'"
+
+    tags:
+      - mcp-tools
+      - model-management
+      - integration
+
+  # ========================================
+  # T6: Integration Testing and Validation (2 days)
+  # ========================================
+
+  - id: T6.1
+    title: "Deploy to agent-dev context"
+    description: |
+      Deploy tool-orchestrator to agent-dev:
+      - Provision agent-dev context (agent-dev-sprint63-validation)
+      - Deploy tool-orchestrator service
+      - Verify service starts without errors
+      - Check logs for initialization success
+      - Verify MCP server accessible
+
+    priority: P0
+    status: pending
+    estimated_days: 0.25
+    assigned_to: christophernavta
+
+    dependencies:
+      - T1.5
+      - T2.4
+      - T3.3
+      - T4.3
+      - T5.1
+      - T5.2
+      - T5.3
+      - T5.4
+
+    acceptance_criteria:
+      - "agent-dev context provisioned"
+      - "tool-orchestrator deployed successfully"
+      - "Service starts without errors"
+      - "Logs show successful initialization"
+      - "MCP server responds to ping"
+
+    validation:
+      type: manual
+      command: |
+        agent_dev.provision({ name: "agent-dev-sprint63-validation" })
+        bit deploy tool-orchestrator --context agent-dev-sprint63-validation
+        fleet.logs({ bit: "tool-orchestrator", context: "agent-dev-sprint63-validation" })
+
+    tags:
+      - integration-test
+      - deployment
+      - validation
+
+  - id: T6.2
+    title: "Test ToolRegistry CRUD in agent-dev"
+    description: |
+      End-to-end ToolRegistry validation:
+      - Import tools from MCP server (via tool.import)
+      - Update tool config (via tool.update_config)
+      - Query tools (verify persistence)
+      - Deprecate/disable tools
+      - Verify PostgreSQL persistence
+      - Check deduplication logic
+
+    priority: P0
+    status: pending
+    estimated_days: 0.5
+    assigned_to: christophernavta
+
+    dependencies:
+      - T6.1
+
+    acceptance_criteria:
+      - "Can import tools via tool.import"
+      - "Can update tool config"
+      - "Tools persisted in PostgreSQL"
+      - "Can query tools via toolRegistry.queryTools()"
+      - "Can deprecate/disable tools"
+
+    validation:
+      type: integration_test
+      command: "Manual MCP tool calls + database queries"
+
+    tags:
+      - integration-test
+      - tool-registry
+      - validation
+
+  - id: T6.3
+    title: "Test ModelRegistry CRUD in agent-dev"
+    description: |
+      End-to-end ModelRegistry validation:
+      - Register new model (via model.register)
+      - Query models (via modelRegistry.queryModels())
+      - Update model config
+      - Verify trust scores in database
+      - Verify PostgreSQL persistence
+      - Test model permissions queries
+
+    priority: P0
+    status: pending
+    estimated_days: 0.5
+    assigned_to: christophernavta
+
+    dependencies:
+      - T6.1
+
+    acceptance_criteria:
+      - "Can register models via model.register"
+      - "Models persisted in PostgreSQL"
+      - "Can query models via modelRegistry.queryModels()"
+      - "Can retrieve model via model.get"
+      - "Trust scores correct in database"
+
+    validation:
+      type: integration_test
+      command: "Manual MCP tool calls + database queries"
+
+    tags:
+      - integration-test
+      - model-registry
+      - validation
+
+  - id: T6.4
+    title: "Test MCP tools via MCP client"
+    description: |
+      Validate all 4 MCP tools via real MCP client:
+      - tool.import - Import tool from MCP server
+      - tool.update_config - Update tool configuration
+      - model.register - Register new model
+      - model.get - Retrieve model details
+
+      Verify responses and error handling
+
+    priority: P1
+    status: pending
+    estimated_days: 0.5
+    assigned_to: christophernavta
+
+    dependencies:
+      - T6.1
+
+    acceptance_criteria:
+      - "tool.import callable and functional"
+      - "tool.update_config callable and functional"
+      - "model.register callable and functional"
+      - "model.get callable and functional"
+      - "All tools return correct responses"
+
+    validation:
+      type: integration_test
+      command: "MCP client test script"
+
+    tags:
+      - integration-test
+      - mcp-tools
+      - validation
+
+  - id: T6.5
+    title: "Run full test suite and verify coverage"
+    description: |
+      Final validation:
+      - Run all unit tests (ToolRegistry + ModelRegistry)
+      - Run all integration tests
+      - Verify code coverage >80%
+      - Fix any test failures
+      - Verify no errors in logs
+      - Clean up agent-dev context
+
+    priority: P0
+    status: pending
+    estimated_days: 0.25
+    assigned_to: christophernavta
+
+    dependencies:
+      - T6.2
+      - T6.3
+      - T6.4
+
+    acceptance_criteria:
+      - "All 25+ unit tests passing"
+      - "All integration tests passing"
+      - "Code coverage >80%"
+      - "No errors in logs"
+      - "agent-dev context cleaned up"
+
+    validation:
+      type: unit_test
+      command: |
+        npm test -- --coverage
+        agent_dev.destroy({ name: "agent-dev-sprint63-validation", confirm: true })
+
+    tags:
+      - integration-test
+      - quality-assurance
+      - validation
+
+  # ========================================
+  # T7: Documentation and Sprint Completion (1 day)
+  # ========================================
+
+  - id: T7.1
+    title: "Update inline documentation"
+    description: |
+      Add/update JSDoc comments:
+      - All public methods in ToolRegistry
+      - All public methods in ModelRegistry
+      - Trust score dimension explanations
+      - Migration script comments
+      - MCP tool descriptions
+
+    priority: P2
+    status: pending
+    estimated_days: 0.5
+    assigned_to: christophernavta
+
+    dependencies:
+      - T6.5
+
+    acceptance_criteria:
+      - "All public methods have JSDoc comments"
+      - "Trust dimensions explained"
+      - "Migration script commented"
+
+    tags:
+      - documentation
+      - quality-assurance
+
+  - id: T7.2
+    title: "Create sprint completion summary"
+    description: |
+      Create sprint-63-completion.md with:
+      - What was delivered
+      - Test results (coverage, passing tests)
+      - Known issues / future work
+      - Bootstrap info for Sprint 64
+      - Lessons learned
+
+    priority: P2
+    status: pending
+    estimated_days: 0.5
+    assigned_to: christophernavta
+
+    dependencies:
+      - T6.5
+
+    files_to_create:
+      - planning/sprint-63-d78dvc/sprint-63-completion.md
+
+    acceptance_criteria:
+      - "Completion summary created"
+      - "Test results documented"
+      - "Bootstrap info for Sprint 64 provided"
+
+    tags:
+      - documentation
+      - sprint-completion
+
+# ========================================
+# Summary Statistics
+# ========================================
+
+summary:
+  total_tasks: 24
+  tasks_by_priority:
+    P0: 10
+    P1: 12
+    P2: 2
+  tasks_by_status:
+    pending: 24
+    in_progress: 0
+    completed: 0
+  estimated_total_days: 16
+
+  completion_criteria:
+    code_deliverables:
+      - "ToolRegistry implements full IToolRegistry interface (8 methods)"
+      - "ModelRegistry implements full IModelRegistry interface (6 methods)"
+      - "PostgreSQL migration 025 complete"
+      - "10+ models seeded (LLM + agent models)"
+      - "4 new MCP tools working"
+
+    testing:
+      - "25+ unit tests passing (15 ToolRegistry, 10 ModelRegistry)"
+      - "Integration test: Deploy to agent-dev, verify tool/model CRUD"
+      - "Code coverage >80%"
+
+    documentation:
+      - "Inline documentation for all public methods"
+      - "Trust score dimensions documented"
+      - "Migration script commented"
+
+    validation:
+      - "Deployed and validated in agent-dev context"
+      - "No errors in logs"
+      - "All MCP tools callable and functional"
+
+# ========================================
+# Dependencies Graph (Critical Path)
+# ========================================
+
+critical_path:
+  - T3.1 # PostgreSQL migration (prerequisite for all)
+  - T3.2 # Test migration locally
+  - T2.1 # ModelRegistry types
+  - T2.2 # ModelRegistry CRUD
+  - T4.1 # Model seed data
+  - T4.2 # Seed script implementation
+  - T6.1 # Deploy to agent-dev
+  - T6.5 # Final validation
+
+parallel_work_streams:
+  stream_1_tool_registry:
+    - T1.1 # Tool registration
+    - T1.2 # MCP import
+    - T1.3 # Deduplication
+    - T1.4 # Config/lifecycle
+    - T1.5 # Tests
+
+  stream_2_model_registry:
+    - T3.1 # Migration
+    - T2.1 # Types
+    - T2.2 # CRUD
+    - T2.3 # Permissions
+    - T2.4 # Tests
+
+  stream_3_mcp_tools:
+    - T5.1 # tool.import
+    - T5.2 # tool.update_config
+    - T5.3 # model.register
+    - T5.4 # model.get
+
+  stream_4_integration:
+    - T6.1 # Deploy
+    - T6.2 # Test ToolRegistry
+    - T6.3 # Test ModelRegistry
+    - T6.4 # Test MCP tools
+    - T6.5 # Final validation

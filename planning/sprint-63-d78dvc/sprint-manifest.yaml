@@ -1,0 +1,11 @@
+id: sprint-63-d78dvc
+title: "Foundation: ToolRegistry + ModelRegistry Completion"
+goal: Complete persistent tool/model registries with full CRUD operations,
+  PostgreSQL migration for model_registry, model seeding with 10+ LLM models,
+  and MCP tools for tool/model management
+owner: christophernavta
+createdAt: 2026-11-15T06:51:55.205Z
+status: planning
+links:
+  branch: feature/sprint-63-d78dvc-foundation-toolregistry-modelr
+notes: Sprint initialized via MCP start-sprint tool
