@@ -1,0 +1,423 @@
+# Sprint 62 Backlog: Tool-Orchestrator MCP Aggregation
+# Sprint ID: sprint-62-0auem0
+# Owner: christophernavta
+# Status: Planning
+# Created: 2026-11-13
+
+metadata:
+  sprintId: sprint-62-0auem0
+  title: "Tool-Orchestrator MCP Aggregation Implementation"
+  goal: "Implement MCP tool aggregation in tool-orchestrator service to expose aggregated tools from PostgreSQL registry via MCP endpoint"
+  duration: "10 working days (2 weeks)"
+  owner: christophernavta
+
+successCriteria:
+  - "llm-bot connects to tool-orchestrator when ENABLE_TOOL_ORCHESTRATOR=true"
+  - "llm-bot discovers all tools from PostgreSQL registry (not just admin tools)"
+  - "No INVALID_RESULT errors in llm-bot logs"
+  - "Tool count in llm-bot matches PostgreSQL registry"
+  - "Integration test passes"
+  - "RBAC filtering works correctly"
+  - "Multiple concurrent MCP connections supported"
+
+phases:
+  - id: phase-1
+    name: "Core Aggregation"
+    description: "Enable tool-orchestrator to serve aggregated tools from PostgreSQL registry"
+    priority: CRITICAL
+    duration: "2-3 days"
+
+  - id: phase-2
+    name: "Session & RBAC"
+    description: "Implement session-based MCP endpoint with RBAC-filtered tool discovery"
+    priority: HIGH
+    duration: "2-3 days"
+
+  - id: phase-3
+    name: "Cache Management"
+    description: "Keep tool cache fresh as registry changes"
+    priority: MEDIUM
+    duration: "1-2 days"
+
+  - id: phase-4
+    name: "Testing & Validation"
+    description: "Ensure MCP aggregation works correctly and feature flag enables cutover"
+    priority: CRITICAL
+    duration: "2-3 days"
+
+tasks:
+  # ============================================================================
+  # Phase 1: Core Aggregation (Critical Path)
+  # ============================================================================
+
+  - id: task-1.1
+    phase: phase-1
+    title: "Implement Tool Cache and Eager Loading"
+    description: "Create in-memory tool cache and implement loadToolsFromRegistry() for async PostgreSQL queries"
+    priority: P0
+    effort: 4h
+    status: DONE
+    dependencies: []
+    files:
+      - src/apps/tool-orchestrator-service.ts
+    acceptanceCriteria:
+      - "loadToolsFromRegistry() queries PostgreSQL and populates cache"
+      - "getAllToolsFromRegistry() returns cached tools synchronously"
+      - "Fail-open: Empty cache on error, service continues"
+      - "Logging: tool count and sources logged on successful load"
+    implementation:
+      - "Add private toolCache: ToolRegistration[] = []"
+      - "Implement loadToolsFromRegistry() with try/catch error handling"
+      - "Implement getAllToolsFromRegistry() synchronous accessor"
+      - "Add comprehensive logging (info, warn, error levels)"
+    references:
+      - "planning/sprint-61-s03uws/tool-orchestrator-mcp-aggregation-requirements.md:130-169"
+
+  - id: task-1.2
+    phase: phase-1
+    title: "Override getMcpServer() for Aggregation"
+    description: "Override base class getMcpServer() to serve aggregated tools from cache, not this.registeredTools"
+    priority: P0
+    effort: 6h
+    status: DONE
+    dependencies:
+      - task-1.1
+      - task-1.3
+    notes: "Type mismatch resolved with async wrapper and type cast"
+    files:
+      - src/apps/tool-orchestrator-service.ts
+    acceptanceCriteria:
+      - "MCP server serves tools from getAllToolsFromRegistry(), not this.registeredTools"
+      - "Tool count logged: aggregated vs own tools"
+      - "Tools registered with cleaned input schema"
+      - "Tool execution context includes userId, userRoles, modelId"
+    implementation:
+      - "Create McpServer instance with capabilities"
+      - "Loop through getAllToolsFromRegistry() results"
+      - "Call cleanInputSchema() for each tool"
+      - "Register tool with MCP server using server.registerTool()"
+      - "Implement tool execution handler with traceMcpOperation()"
+      - "Register resources and prompts from base class"
+      - "Add debug and info level logging"
+    references:
+      - "planning/sprint-61-s03uws/tool-orchestrator-mcp-aggregation-requirements.md:42-121"
+      - "src/apps/tool-gateway.ts:2602+"
+
+  - id: task-1.3
+    phase: phase-1
+    title: "Implement cleanInputSchema() for MCP Compliance"
+    description: "Strip non-MCP-compliant fields ($schema, definitions, $defs) from inputSchema"
+    priority: P0
+    effort: 2h
+    status: DONE
+    dependencies: []
+    files:
+      - src/apps/tool-orchestrator-service.ts
+    acceptanceCriteria:
+      - "Removes $schema, definitions, $defs fields"
+      - "Ensures type: 'object'"
+      - "Preserves properties, required, additionalProperties"
+      - "Handles null/undefined input gracefully"
+    implementation:
+      - "Create cleanInputSchema() private method"
+      - "Initialize cleanSchema with type: 'object'"
+      - "Guard against null/undefined input"
+      - "Conditionally copy MCP-compliant fields only"
+      - "Return clean schema"
+    references:
+      - "planning/sprint-61-s03uws/tool-orchestrator-mcp-aggregation-requirements.md:186-239"
+
+  - id: task-1.4
+    phase: phase-1
+    title: "Call loadToolsFromRegistry() During Setup"
+    description: "Integrate tool loading into service setup() lifecycle before MCP server starts"
+    priority: P0
+    effort: 1h
+    status: DONE
+    dependencies:
+      - task-1.1
+    files:
+      - src/apps/tool-orchestrator-service.ts
+    acceptanceCriteria:
+      - "loadToolsFromRegistry() called before MCP server starts"
+      - "Logging confirms tool count loaded"
+      - "Service continues on load failure (fail-open)"
+    implementation:
+      - "Add await this.loadToolsFromRegistry() in setup()"
+      - "Place BEFORE MCP server initialization"
+      - "Add TODO comment for Phase 3 cache invalidation"
+      - "Verify logging output"
+    references:
+      - "planning/sprint-61-s03uws/tool-orchestrator-mcp-aggregation-requirements.md:171-183"
+
+  # ============================================================================
+  # Phase 2: Session & RBAC (Required for Multi-Tenant)
+  # ============================================================================
+
+  - id: task-2.1
+    phase: phase-2
+    title: "Implement Session-Based MCP Endpoint"
+    description: "Create per-connection MCP server instances with session context extraction"
+    priority: P1
+    effort: 6h
+    status: TODO
+    dependencies:
+      - task-1.2
+    files:
+      - src/apps/tool-orchestrator-service.ts
+    acceptanceCriteria:
+      - "/mcp endpoint supports session-based connections"
+      - "Auth middleware validates MCP_AUTH_TOKEN"
+      - "Session context extracted from request headers"
+      - "Multiple concurrent connections supported"
+    implementation:
+      - "Implement setupSessionBasedMcpEndpoint()"
+      - "Create authMiddleware with MCP_AUTH_TOKEN validation"
+      - "Implement app.all('/mcp', ...) route handler"
+      - "Implement getMcpServerForConnection(req)"
+      - "Implement extractSessionContext(req)"
+      - "Use toNodeHandler and createMcpHandler from MCP SDK"
+      - "Add error handling with 500 response on failure"
+    references:
+      - "planning/sprint-61-s03uws/tool-orchestrator-mcp-aggregation-requirements.md:241-323"
+      - "src/apps/tool-gateway.ts:1821-1877"
+
+  - id: task-2.2
+    phase: phase-2
+    title: "Implement RBAC-Filtered tools/list Handler"
+    description: "Filter tools/list response based on session RBAC context (user roles, agent identity)"
+    priority: P1
+    effort: 4h
+    status: TODO
+    dependencies:
+      - task-2.1
+    files:
+      - src/apps/tool-orchestrator-service.ts
+    acceptanceCriteria:
+      - "tools/list handler filters by RBAC context"
+      - "Trusted discovery: llm-bot and 'discovery' role see all tools"
+      - "Non-trusted: RBAC enforced per tool"
+      - "Schemas cleaned before returning"
+      - "Description omitted if undefined"
+    implementation:
+      - "Implement setRequestHandler('tools/list') in getMcpServerForConnection()"
+      - "Check trustedDiscovery (llm-bot or 'discovery' role)"
+      - "Get rawTools from getAllToolsFromRegistry()"
+      - "Filter tools by RBAC if not trusted"
+      - "Transform to MCP format with cleanInputSchema()"
+      - "Omit description if undefined using spread operator"
+      - "Return { tools } array"
+    references:
+      - "planning/sprint-61-s03uws/tool-orchestrator-mcp-aggregation-requirements.md:325-371"
+      - "src/apps/tool-gateway.ts:2407-2474"
+
+  # ============================================================================
+  # Phase 3: Cache Management (Performance Optimization)
+  # ============================================================================
+
+  - id: task-3.1
+    phase: phase-3
+    title: "Implement Periodic Cache Refresh (Option 1)"
+    description: "Refresh tool cache every 60 seconds to keep registry changes synchronized"
+    priority: P2
+    effort: 2h
+    status: DONE
+    dependencies:
+      - task-1.4
+    files:
+      - src/apps/tool-orchestrator-service.ts
+    acceptanceCriteria:
+      - "Tools refreshed every 60 seconds"
+      - "Refresh failures logged but don't crash service"
+      - "Stale data acceptable (60s max)"
+    implementation:
+      - "Add setInterval in setup() after initial loadToolsFromRegistry()"
+      - "Call loadToolsFromRegistry() every 60000ms"
+      - "Use async callback in setInterval"
+      - "Verify fail-open behavior on refresh errors"
+    references:
+      - "planning/sprint-61-s03uws/tool-orchestrator-mcp-aggregation-requirements.md:373-424"
+    notes:
+      - "Option 2 (LISTEN/NOTIFY) is future work, not required for this sprint"
+
+  # ============================================================================
+  # Phase 4: Testing & Validation (Critical)
+  # ============================================================================
+
+  - id: task-4.1
+    phase: phase-4
+    title: "Add Integration Test for MCP Aggregation"
+    description: "Create integration test that connects via MCP and validates aggregated tool exposure"
+    priority: P0
+    effort: 4h
+    status: DONE
+    dependencies:
+      - task-1.2
+    notes: "Test created, skipped by default, enable with RUN_MCP_INTEGRATION_TESTS=true"
+    completedDate: 2026-11-14
+    files:
+      - src/apps/__tests__/mcp-aggregation.integration.test.ts
+    acceptanceCriteria:
+      - "Test connects to tool-orchestrator via MCP"
+      - "Verifies admin tools present"
+      - "Verifies aggregated tools present (count > 20)"
+      - "Verifies schema compliance (no $schema, definitions, $defs)"
+      - "Test passes in CI/CD"
+    implementation:
+      - "Add new test case: 'tool-orchestrator aggregation'"
+      - "Create MCP client with StreamableHTTPClientTransport"
+      - "Connect to TEST_TOOL_ORCHESTRATOR_URL"
+      - "Call client.listTools()"
+      - "Assert admin tools present (tool.list, tool.get, model.list, model.get)"
+      - "Assert tool count > 20"
+      - "Assert schema compliance for all tools"
+      - "Close client connection"
+    references:
+      - "planning/sprint-61-s03uws/tool-orchestrator-mcp-aggregation-requirements.md:426-483"
+      - "src/apps/__tests__/mcp-aggregation.integration.test.ts:19-91"
+
+  - id: task-4.2
+    phase: phase-4
+    title: "Test Feature Flag Cutover (Staging Environment)"
+    description: "Validate ENABLE_TOOL_ORCHESTRATOR flag correctly switches llm-bot connection from tool-gateway to tool-orchestrator"
+    priority: P0
+    effort: 3h
+    status: TODO
+    dependencies:
+      - task-4.1
+    files:
+      - env/staging/global.yaml
+      - env/local/global.yaml
+      - src/common/profiles/mcp-client-profile.ts
+    acceptanceCriteria:
+      - "Flag false: llm-bot connects to tool-gateway"
+      - "Flag true: llm-bot connects to tool-orchestrator"
+      - "Tool discovery works in both modes"
+      - "No schema validation errors"
+      - "Tool counts match expectations"
+    implementation:
+      - "Verify mcp-client-profile.ts checks ENABLE_TOOL_ORCHESTRATOR flag"
+      - "Test baseline: ENABLE_TOOL_ORCHESTRATOR=false, verify tool-gateway connection"
+      - "Check logs: llm_bot.tool_provider_selected shows 'tool-gateway'"
+      - "Test cutover: ENABLE_TOOL_ORCHESTRATOR=true, verify tool-orchestrator connection"
+      - "Check logs: llm_bot.tool_provider_selected shows 'tool-orchestrator'"
+      - "Verify tool discovery via mcp.client_manager.tool_registered logs"
+      - "Check for INVALID_RESULT errors (should be none)"
+    references:
+      - "planning/sprint-61-s03uws/tool-orchestrator-mcp-aggregation-requirements.md:485-523"
+    verification:
+      - "ssh root@bitbrat.lan \"docker logs bitbrat-staging-llm-bot-1 2>&1 | grep 'tool_provider_selected'\""
+      - "ssh root@bitbrat.lan \"docker logs bitbrat-staging-llm-bot-1 2>&1 | grep 'mcp.client_manager.tool_registered' | wc -l\""
+      - "ssh root@bitbrat.lan \"docker logs bitbrat-staging-llm-bot-1 2>&1 | grep 'INVALID_RESULT'\""
+
+  - id: task-4.3
+    phase: phase-4
+    title: "Validate Tool Count Matches PostgreSQL Registry"
+    description: "Cross-check tool count exposed via MCP matches PostgreSQL registry active tools"
+    priority: P1
+    effort: 1h
+    status: TODO
+    dependencies:
+      - task-4.1
+    files: []
+    acceptanceCriteria:
+      - "PostgreSQL count matches MCP exposed tool count"
+      - "All tool sources represented (mcp, internal, composition)"
+      - "Disabled/deprecated tools excluded"
+    implementation:
+      - "Query PostgreSQL: SELECT COUNT(*) FROM tool_registry.tools WHERE status = 'active'"
+      - "Query tool-orchestrator via MCP: npm run brat -- fleet info tool-orchestrator --json | jq '.tools | length'"
+      - "Compare counts (should match)"
+      - "Verify tool sources in both queries"
+      - "Document any discrepancies"
+    references:
+      - "planning/sprint-61-s03uws/tool-orchestrator-mcp-aggregation-requirements.md:548-556"
+
+  - id: task-4.4
+    phase: phase-4
+    title: "Verify No INVALID_RESULT Errors"
+    description: "Monitor logs to ensure MCP schema compliance prevents protocol violations"
+    priority: P1
+    effort: 1h
+    status: TODO
+    dependencies:
+      - task-4.2
+    files: []
+    acceptanceCriteria:
+      - "No INVALID_RESULT errors in llm-bot logs"
+      - "No INVALID_RESULT errors in tool-orchestrator logs"
+      - "MCP SDK validation passes"
+      - "All tools callable via MCP"
+    implementation:
+      - "Deploy tool-orchestrator to staging"
+      - "Connect llm-bot (feature flag enabled)"
+      - "Monitor logs: npm run brat -- fleet logs llm-bot --context staging --follow | grep 'INVALID_RESULT'"
+      - "Monitor logs: npm run brat -- fleet logs tool-orchestrator --context staging --follow | grep 'INVALID_RESULT'"
+      - "Should return no results"
+      - "Test tool invocation via MCP"
+    references:
+      - "planning/sprint-61-s03uws/tool-orchestrator-mcp-aggregation-requirements.md:548-556"
+
+# ============================================================================
+# Task Dependencies Visualization
+# ============================================================================
+#
+# Phase 1 (Core Aggregation):
+#   task-1.1 (Tool Cache) → task-1.4 (Setup Integration)
+#                        → task-1.2 (getMcpServer Override) ← task-1.3 (cleanInputSchema)
+#
+# Phase 2 (Session & RBAC):
+#   task-1.2 → task-2.1 (Session Endpoint) → task-2.2 (RBAC Filtering)
+#
+# Phase 3 (Cache Management):
+#   task-1.4 → task-3.1 (Periodic Refresh)
+#
+# Phase 4 (Testing):
+#   task-1.2, task-2.2 → task-4.1 (Integration Test) → task-4.2 (Feature Flag Test)
+#                                                    → task-4.3 (Tool Count Validation)
+#   task-4.2 → task-4.4 (Error Verification)
+#
+# Critical Path: 1.1 → 1.2 → 2.1 → 2.2 → 4.1 → 4.2
+
+# ============================================================================
+# Effort Summary
+# ============================================================================
+#
+# Phase 1: 13h (1.6 days)
+#   - task-1.1: 4h
+#   - task-1.2: 6h
+#   - task-1.3: 2h
+#   - task-1.4: 1h
+#
+# Phase 2: 10h (1.25 days)
+#   - task-2.1: 6h
+#   - task-2.2: 4h
+#
+# Phase 3: 2h (0.25 days)
+#   - task-3.1: 2h
+#
+# Phase 4: 9h (1.1 days)
+#   - task-4.1: 4h
+#   - task-4.2: 3h
+#   - task-4.3: 1h
+#   - task-4.4: 1h
+#
+# Total: 34h (4.25 days) @ 8h/day
+# With buffer: 10 working days (2 weeks)
+
+# ============================================================================
+# Priority Legend
+# ============================================================================
+# P0: Critical - Blocking, must be done first
+# P1: High - Important, required for feature completion
+# P2: Medium - Useful, but not blocking
+# P3: Low - Nice to have, optional
+
+# ============================================================================
+# Status Values
+# ============================================================================
+# TODO: Not started
+# IN_PROGRESS: Currently being worked on
+# BLOCKED: Waiting on dependency or external factor
+# DONE: Completed and verified
+# SKIPPED: Not needed or deferred to future sprint
