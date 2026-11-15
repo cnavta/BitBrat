@@ -163,6 +163,41 @@ export class McpTestClient {
   }
 
   /**
+   * Parse response data (handles both SSE and plain JSON formats)
+   * @private
+   */
+  private parseResponse(data: string): JsonRpcResponse {
+    // Try plain JSON first
+    if (data.trim().startsWith('{')) {
+      try {
+        return JSON.parse(data) as JsonRpcResponse;
+      } catch {
+        // Fall through to SSE parsing
+      }
+    }
+
+    // Parse SSE format: "event: message\ndata: {json}\n\n"
+    const lines = data.split('\n');
+    let jsonData: string | null = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+
+      // Look for "data:" line
+      if (line.startsWith('data:')) {
+        jsonData = line.substring(5).trim();
+        break;
+      }
+    }
+
+    if (!jsonData) {
+      throw new Error(`No JSON data found in SSE response: ${data.substring(0, 200)}`);
+    }
+
+    return JSON.parse(jsonData) as JsonRpcResponse;
+  }
+
+  /**
    * Send raw JSON-RPC 2.0 request to MCP endpoint
    */
   async sendRequest(method: string, params?: any): Promise<JsonRpcResponse> {
@@ -210,10 +245,12 @@ export class McpTestClient {
 
         res.on('end', () => {
           try {
-            const response = JSON.parse(data) as JsonRpcResponse;
+            // MCP Streamable HTTP returns SSE format even for POST requests
+            // Format: "event: message\ndata: {json}\n\n"
+            const response = this.parseResponse(data);
             resolve(response);
           } catch (err) {
-            reject(new Error(`Failed to parse JSON response: ${data.substring(0, 200)}`));
+            reject(new Error(`Failed to parse response: ${err instanceof Error ? err.message : String(err)}`));
           }
         });
       });
