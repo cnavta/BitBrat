@@ -817,23 +817,32 @@ export class ToolOrchestratorServer extends Bit {
       const ownToolNames = Array.from(baseThis.registeredTools.keys()) as string[];
       const duplicateCount = ownToolNames.filter(name => aggregatedToolIds.has(name)).length;
 
+      // Sprint 63 DEBUG: Log all tool names from both sources
       logger.debug('mcp_server.registering_own_tools', {
         totalOwnTools: baseThis.registeredTools.size,
         alreadyInCache: duplicateCount,
+        ownToolNames: ownToolNames.slice(0, 20), // First 20 for brevity
+        modelRegisterInCache: aggregatedToolIds.has('model.register'),
+        modelGetInCache: aggregatedToolIds.has('model.get'),
       });
 
       for (const [name, tool] of baseThis.registeredTools.entries()) {
         // Skip if already registered from PostgreSQL cache
         if (aggregatedToolIds.has(name)) {
-          logger.trace?.('mcp_server.skipping_duplicate_tool', { name });
+          logger.debug('mcp_server.skipping_duplicate_tool', { name });
           continue;
         }
         try {
-          logger.trace?.('mcp_server.registering_tool', { name });
+          logger.debug('mcp_server.registering_tool', {
+            name,
+            hasHandler: !!tool.handler,
+            hasSchema: !!tool.schema,
+          });
           server.registerTool(name, {
             description: tool.description,
             inputSchema: tool.schema, // These are Zod schemas - safe to pass
           }, async (args: any, ctx: any) => {
+            logger.debug('mcp_server.tool_handler_invoked', { toolName: name, args });
             const meta = (args as any)._meta;
             const combinedExtra = {
               ...ctx,
@@ -844,6 +853,7 @@ export class ToolOrchestratorServer extends Bit {
             };
             return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(args, combinedExtra), combinedExtra);
           });
+          logger.debug('mcp_server.tool_registered_successfully', { name });
         } catch (toolErr: any) {
           logger.error('mcp_server.tool_registration_failed', {
             tool: name,
