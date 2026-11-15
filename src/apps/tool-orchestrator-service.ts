@@ -806,6 +806,41 @@ export class ToolOrchestratorServer extends Bit {
         }
       }
 
+      // Sprint 63: CRITICAL FIX - Also register tool-orchestrator's own admin tools
+      // The PostgreSQL cache contains aggregated tools from OTHER services, but
+      // tool-orchestrator also registers its own tools (model.register, tool.update_config, etc.)
+      // We must serve BOTH sources to expose all tools.
+      logger.debug('mcp_server.registering_own_tools', {
+        count: baseThis.registeredTools.size,
+      });
+
+      for (const [name, tool] of baseThis.registeredTools.entries()) {
+        try {
+          logger.trace?.('mcp_server.registering_tool', { name });
+          server.registerTool(name, {
+            description: tool.description,
+            inputSchema: tool.schema, // These are Zod schemas - safe to pass
+          }, async (args: any, ctx: any) => {
+            const meta = (args as any)._meta;
+            const combinedExtra = {
+              ...ctx,
+              userId: meta?.userId || (ctx as any)?.http?.req?.headers?.['x-user-id'],
+              userRoles: meta?.userRoles || (ctx as any)?.http?.req?.headers?.['x-roles'],
+              correlationId: meta?.correlationId || (ctx as any)?.http?.req?.headers?.['x-correlation-id'],
+              sessionId: meta?.sessionId || (ctx as any)?.http?.req?.headers?.['x-session-id'],
+            };
+            return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(args, combinedExtra), combinedExtra);
+          });
+        } catch (toolErr: any) {
+          logger.error('mcp_server.tool_registration_failed', {
+            tool: name,
+            error: toolErr.message,
+            stack: toolErr.stack,
+          });
+          throw new Error(`Failed to register tool "${name}": ${toolErr.message}`);
+        }
+      }
+
       // Register resources and prompts from base class (no change)
       for (const [uri, resource] of baseThis.registeredResources.entries()) {
         server.registerResource(resource.name, uri, {
@@ -826,6 +861,8 @@ export class ToolOrchestratorServer extends Bit {
 
       logger.info('mcp_server.initialized_with_aggregation', {
         aggregatedTools: allTools.length,
+        ownTools: baseThis.registeredTools.size,
+        totalTools: allTools.length + baseThis.registeredTools.size,
       });
 
       return server;
