@@ -292,6 +292,184 @@ export class ToolOrchestratorServer extends Bit {
       }
     );
 
+    // Sprint 63: Tool/Model Management Tools
+
+    // tool.import - Import tools from MCP server
+    this.registerTool(
+      'tool.import',
+      'Import tools from an MCP server or Bit service into the tool registry',
+      z.object({
+        source: z.enum(['mcp', 'bit']).describe('Source type (mcp-server or bit service)'),
+        serverId: z.string().describe('MCP server name or Bit service name'),
+        toolIds: z.array(z.string()).optional().describe('Specific tool IDs to import (optional, imports all if omitted)'),
+      }),
+      async (args) => {
+        if (!this.toolRegistry) {
+          throw new Error('ToolRegistry not initialized');
+        }
+
+        try {
+          let imported: string[] = [];
+
+          if (args.source === 'mcp') {
+            // Import from MCP server
+            // Note: Requires MCP server connection - implementation depends on McpClientManager
+            throw new Error('MCP server import not yet implemented - requires McpClientManager integration');
+          } else if (args.source === 'bit') {
+            // Import from Bit service
+            throw new Error('Bit service import not yet implemented - requires Bit service discovery');
+          }
+
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify({ success: true, imported, count: imported.length }, null, 2),
+            }],
+          };
+        } catch (err) {
+          this.getLogger().error('tool.import.error', { error: err instanceof Error ? err.message : String(err) });
+          throw err;
+        }
+      }
+    );
+
+    // tool.update_config - Update tool configuration
+    this.registerTool(
+      'tool.update_config',
+      'Update configuration for a tool (RBAC, timeout, cost tier)',
+      z.object({
+        toolId: z.string().describe('Tool ID to update'),
+        config: z.object({
+          timeoutMs: z.number().optional().describe('Execution timeout in milliseconds'),
+          maxRetryAttempts: z.number().optional().describe('Maximum retry attempts'),
+          rbac: z.object({
+            userRoles: z.object({
+              required: z.array(z.string()).optional(),
+              denied: z.array(z.string()).optional(),
+            }).optional(),
+            modelRoles: z.object({
+              required: z.array(z.string()).optional(),
+              denied: z.array(z.string()).optional(),
+            }).optional(),
+            modelTiers: z.object({
+              allowed: z.array(z.string()).optional(),
+              denied: z.array(z.string()).optional(),
+            }).optional(),
+          }).optional().describe('RBAC configuration'),
+        }).describe('Configuration updates'),
+      }),
+      async (args) => {
+        if (!this.toolRegistry) {
+          throw new Error('ToolRegistry not initialized');
+        }
+
+        try {
+          const updates: any = {};
+
+          if (args.config.timeoutMs !== undefined || args.config.maxRetryAttempts !== undefined) {
+            updates.config = {
+              ...(args.config.timeoutMs !== undefined && { timeoutMs: args.config.timeoutMs }),
+              ...(args.config.maxRetryAttempts !== undefined && {
+                retryPolicy: { maxAttempts: args.config.maxRetryAttempts, backoffMs: 1000 }
+              }),
+            };
+          }
+
+          if (args.config.rbac) {
+            updates.rbac = args.config.rbac;
+          }
+
+          await this.toolRegistry.updateTool(args.toolId, updates);
+
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify({ success: true, toolId: args.toolId, updates }, null, 2),
+            }],
+          };
+        } catch (err) {
+          this.getLogger().error('tool.update_config.error', { error: err instanceof Error ? err.message : String(err) });
+          throw err;
+        }
+      }
+    );
+
+    // model.register - Register a new model
+    this.registerTool(
+      'model.register',
+      'Register a new model in the model registry',
+      z.object({
+        id: z.string().describe('Unique model identifier'),
+        provider: z.string().describe('Model provider (openai, anthropic, ollama, bitbrat)'),
+        displayName: z.string().describe('Human-readable model name'),
+        description: z.string().optional().describe('Model description'),
+        modelType: z.enum(['llm', 'rule-based', 'hybrid']).default('llm').describe('Model type'),
+        roles: z.array(z.string()).describe('Model roles'),
+        tier: z.enum(['free', 'basic', 'premium', 'enterprise', 'deterministic', 'system']).describe('Model tier'),
+        capabilities: z.object({
+          toolCalling: z.boolean().describe('Supports tool/function calling'),
+          vision: z.boolean().describe('Supports vision/image input'),
+          streaming: z.boolean().default(false).describe('Supports streaming responses'),
+          maxContextTokens: z.number().describe('Maximum context window size'),
+          maxOutputTokens: z.number().describe('Maximum output tokens'),
+        }).describe('Model capabilities'),
+        trust: z.array(z.object({
+          scope: z.string().describe('Trust scope (general, tool-use, etc.)'),
+          scores: z.object({
+            reliability: z.number().min(0).max(100).describe('Reliability score (0-100)'),
+            fidelity: z.number().min(0).max(100).describe('Fidelity score (0-100)'),
+            integrity: z.number().min(0).max(100).describe('Integrity score (0-100)'),
+            calibration: z.number().min(0).max(100).describe('Calibration score (0-100)'),
+          }),
+        })).optional().describe('Trust scores per scope'),
+        cost: z.object({
+          inputTokenCost: z.number().describe('Cost per 1M input tokens (USD)'),
+          outputTokenCost: z.number().describe('Cost per 1M output tokens (USD)'),
+        }).optional().describe('Token costs'),
+      }),
+      async (args) => {
+        if (!this.modelRegistry) {
+          throw new Error('ModelRegistry not initialized');
+        }
+
+        try {
+          const model: any = {
+            id: args.id,
+            provider: args.provider,
+            displayName: args.displayName,
+            description: args.description,
+            modelType: args.modelType,
+            roles: args.roles,
+            tier: args.tier,
+            capabilities: args.capabilities,
+            trust: args.trust || [],
+            cost: args.cost || { inputTokenCost: 0, outputTokenCost: 0 },
+            toolPolicy: { allowedTools: [], deniedTools: [] },
+            status: 'active' as const,
+            registeredAt: new Date(),
+            metrics: {
+              totalRequests: 0,
+              totalTokensUsed: 0,
+              totalCostUSD: 0,
+              avgResponseTimeMs: 0,
+            },
+          };
+
+          await this.modelRegistry.registerModel(model);
+
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify({ success: true, modelId: args.id }, null, 2),
+            }],
+          };
+        } catch (err) {
+          this.getLogger().error('model.register.error', { error: err instanceof Error ? err.message : String(err) });
+          throw err;
+        }
+      }
+    );
+
     // Observability tools (Sprint 59)
 
     // tool.get_metrics - Query Loki for tool metrics
@@ -450,7 +628,7 @@ export class ToolOrchestratorServer extends Bit {
       }
     );
 
-    this.getLogger().info('tool_orchestrator.mcp_tools_registration_complete', { toolsRegistered: 9 });
+    this.getLogger().info('tool_orchestrator.mcp_tools_registration_complete', { toolsRegistered: 12 });
   }
 
   /**
