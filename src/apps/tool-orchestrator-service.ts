@@ -728,89 +728,107 @@ export class ToolOrchestratorServer extends Bit {
    * (bit.*, tool.*, model.*), not the aggregated tools from upstream services.
    */
   protected getMcpServer(): McpServer {
-    const logger = this.getLogger();
-    const baseThis = this as any; // Access private members from base class
+    try {
+      const logger = this.getLogger();
+      const baseThis = this as any; // Access private members from base class
 
-    // Load ALL tools from PostgreSQL registry (not just admin tools)
-    // CRITICAL: This must include tools from all registered MCP servers and Bits
-    const allTools = this.getAllToolsFromRegistry();
+      // Load ALL tools from PostgreSQL registry (not just admin tools)
+      // CRITICAL: This must include tools from all registered MCP servers and Bits
+      const allTools = this.getAllToolsFromRegistry();
 
-    logger.debug('mcp_server.initializing', {
-      service: 'tool-orchestrator',
-      aggregatedTools: allTools.length,
-      ownTools: baseThis.registeredTools.size,
-    });
+      logger.debug('mcp_server.initializing', {
+        service: 'tool-orchestrator',
+        aggregatedTools: allTools.length,
+        ownTools: baseThis.registeredTools.size,
+      });
 
-    // Create MCP server
-    const server = new McpServer(
-      { name: 'tool-orchestrator', version: '1.0.0' },
-      { capabilities: { tools: allTools.length > 0 ? {} : undefined } }
-    );
+      // Create MCP server
+      const server = new McpServer(
+        { name: 'tool-orchestrator', version: '1.0.0' },
+        { capabilities: { tools: allTools.length > 0 ? {} : undefined } }
+      );
 
-    // Register aggregated tools from PostgreSQL registry (NOT this.registeredTools)
-    for (const tool of allTools) {
-      // Note: inputSchema in ToolRegistryDocument is already JSON Schema format
-      // We still need to clean it to ensure MCP compliance
-      const cleanInputSchema = this.cleanInputSchema(tool.inputSchema);
+      // Register aggregated tools from PostgreSQL registry (NOT this.registeredTools)
+      for (const tool of allTools) {
+        try {
+          // Note: inputSchema in ToolRegistryDocument is already JSON Schema format
+          // We still need to clean it to ensure MCP compliance
+          const cleanInputSchema = this.cleanInputSchema(tool.inputSchema);
 
-      server.registerTool(tool.id, {
-        description: tool.description, // MCP SDK handles undefined internally
-        inputSchema: cleanInputSchema, // MCP-compliant JSON schema
-      }, async (args, ctx) => {
-        // Extract execution context from MCP request
-        const combinedExtra = {
-          userId: (args as any)._meta?.userId || (ctx as any)?.http?.req?.headers?.['x-user-id'] || 'anonymous',
-          userRoles: (args as any)._meta?.userRoles || (ctx as any)?.http?.req?.headers?.['x-roles']?.split(',') || [],
-          modelId: (args as any)._meta?.modelId || 'tool-orchestrator',
-          sessionId: (args as any)._meta?.sessionId,
-        };
+          server.registerTool(tool.id, {
+            description: tool.description, // MCP SDK handles undefined internally
+            inputSchema: cleanInputSchema, // MCP-compliant JSON schema
+          }, async (args, ctx) => {
+            // Extract execution context from MCP request
+            const combinedExtra = {
+              userId: (args as any)._meta?.userId || (ctx as any)?.http?.req?.headers?.['x-user-id'] || 'anonymous',
+              userRoles: (args as any)._meta?.userRoles || (ctx as any)?.http?.req?.headers?.['x-roles']?.split(',') || [],
+              modelId: (args as any)._meta?.modelId || 'tool-orchestrator',
+              sessionId: (args as any)._meta?.sessionId,
+            };
 
-        logger.debug('mcp_server.tool_call', {
-          toolId: tool.id,
-          userId: combinedExtra.userId,
-          modelId: combinedExtra.modelId,
-        });
+            logger.debug('mcp_server.tool_call', {
+              toolId: tool.id,
+              userId: combinedExtra.userId,
+              modelId: combinedExtra.modelId,
+            });
 
-        // Execute tool through ToolGateway
-        if (!this.toolGateway) {
-          throw new Error('ToolGateway not initialized');
+            // Execute tool through ToolGateway
+            if (!this.toolGateway) {
+              throw new Error('ToolGateway not initialized');
+            }
+
+            return await this.traceMcpOperation(
+              `tool:${tool.id}`,
+              async () => {
+                const result = await this.toolGateway!.execute(tool.id, args, combinedExtra as any);
+                // ToolResult is compatible with CallToolResult structure
+                return result as any;
+              },
+              combinedExtra
+            );
+          });
+        } catch (toolErr: any) {
+          logger.error('mcp_server.tool_registration_failed', {
+            tool: tool.id,
+            error: toolErr.message,
+            stack: toolErr.stack,
+          });
+          throw new Error(`Failed to register tool "${tool.id}": ${toolErr.message}`);
         }
+      }
 
-        return await this.traceMcpOperation(
-          `tool:${tool.id}`,
-          async () => {
-            const result = await this.toolGateway!.execute(tool.id, args, combinedExtra as any);
-            // ToolResult is compatible with CallToolResult structure
-            return result as any;
-          },
-          combinedExtra
-        );
+      // Register resources and prompts from base class (no change)
+      for (const [uri, resource] of baseThis.registeredResources.entries()) {
+        server.registerResource(resource.name, uri, {
+          description: resource.description,
+        }, async (uriParam, ctx) => {
+          return await baseThis.handleResourceRead(resource, uriParam, ctx);
+        });
+      }
+
+      for (const [name, prompt] of baseThis.registeredPrompts.entries()) {
+        server.registerPrompt(prompt.name, {
+          description: prompt.description,
+          argsSchema: prompt.args && prompt.args.length > 0 ? prompt.args as any : undefined,
+        }, async (promptArgs, ctx) => {
+          return await baseThis.handlePromptGet(prompt, promptArgs, ctx);
+        });
+      }
+
+      logger.info('mcp_server.initialized_with_aggregation', {
+        aggregatedTools: allTools.length,
       });
-    }
 
-    // Register resources and prompts from base class (no change)
-    for (const [uri, resource] of baseThis.registeredResources.entries()) {
-      server.registerResource(resource.name, uri, {
-        description: resource.description,
-      }, async (uriParam, ctx) => {
-        return await baseThis.handleResourceRead(resource, uriParam, ctx);
+      return server;
+    } catch (err: any) {
+      this.getLogger().error('mcp_server.initialization_failed', {
+        service: 'tool-orchestrator',
+        error: err.message,
+        stack: err.stack,
       });
+      throw err;
     }
-
-    for (const [name, prompt] of baseThis.registeredPrompts.entries()) {
-      server.registerPrompt(prompt.name, {
-        description: prompt.description,
-        argsSchema: prompt.args && prompt.args.length > 0 ? prompt.args as any : undefined,
-      }, async (promptArgs, ctx) => {
-        return await baseThis.handlePromptGet(prompt, promptArgs, ctx);
-      });
-    }
-
-    logger.info('mcp_server.initialized_with_aggregation', {
-      aggregatedTools: allTools.length,
-    });
-
-    return server;
   }
 
   // Getter methods for modules (used externally if needed)
