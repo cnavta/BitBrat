@@ -1,0 +1,21 @@
+id: sprint-62-0auem0
+title: Tool-Orchestrator MCP Aggregation Implementation
+goal: Implement MCP tool aggregation in tool-orchestrator service to expose
+  aggregated tools from PostgreSQL registry via MCP endpoint, based on lessons
+  learned from tool-gateway Sprint 61 staging deployment fixes. Enables llm-bot
+  cutover to tool-orchestrator when ENABLE_TOOL_ORCHESTRATOR flag is enabled.
+owner: christophernavta
+createdAt: 2026-11-14T04:54:46.566Z
+status: complete
+completedAt: 2026-11-15T04:45:00.000Z
+completionMode: normal
+links:
+  branch: feature/sprint-62-0auem0-tool-orchestrator-mcp-aggregat
+notes: Sprint initialized via MCP start-sprint tool
+deliverables:
+  - MCP tool aggregation (19 tools from PostgreSQL)
+  - Schema cleaning for MCP SDK v2.0 compliance
+  - Periodic cache refresh (60-second interval)
+  - Integration test suite (5 tests)
+  - Staging validation complete
+  - Comprehensive documentation (8+ files)

@@ -3,7 +3,10 @@ import { ToolRegistry } from './tool-orchestrator-service/modules/registry/tool-
 import { ModelRegistry } from './tool-orchestrator-service/modules/models/model-registry';
 import { ToolObserver } from './tool-orchestrator-service/modules/observer/tool-observer';
 import { HealthUpdater } from './tool-orchestrator-service/modules/observer/health-updater';
+import { ToolGateway } from './tool-orchestrator-service/modules/gateway/tool-gateway';
 import { createDocumentStore } from '../common/persistence/factory';
+import { ToolRegistryDocument } from './tool-orchestrator-service/modules/types';
+import { McpServer, ServerContext } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 
 /**
@@ -20,6 +23,11 @@ export class ToolOrchestratorServer extends Bit {
   private modelRegistry?: ModelRegistry;
   private toolObserver?: ToolObserver;
   private healthUpdater?: HealthUpdater;
+  private toolGateway?: ToolGateway;
+
+  // Sprint 62: In-memory tool cache for MCP aggregation
+  // Loaded from PostgreSQL during startup to serve tools via MCP endpoint
+  private toolCache: ToolRegistryDocument[] = [];
 
   constructor() {
     super({ mcpExposure: 'platform-only' });
@@ -48,6 +56,21 @@ export class ToolOrchestratorServer extends Bit {
       // Initialize ModelRegistry module
       this.modelRegistry = new ModelRegistry(store, this.getLogger() as any);
       this.getLogger().info('tool_orchestrator.model_registry_initialized');
+
+      // Initialize ToolGateway module (Sprint 62)
+      this.toolGateway = new ToolGateway(
+        this.toolRegistry,
+        this.modelRegistry,
+        {
+          defaultTimeoutMs: 30000,
+          cacheMaxSize: 1000,
+          cacheTtlMs: 300000,
+          enableLogging: true
+        },
+        undefined, // MCP client manager will be added later
+        this.getLogger() as any
+      );
+      this.getLogger().info('tool_orchestrator.tool_gateway_initialized');
 
       // Initialize ToolObserver module (Sprint 59)
       const lokiUrl = process.env.LOKI_URL || 'http://localhost:3100';
@@ -103,6 +126,27 @@ export class ToolOrchestratorServer extends Bit {
       // Register MCP tools
       this.registerMcpTools();
       this.getLogger().info('tool_orchestrator.mcp_tools_registered');
+
+      // Sprint 62: Task 1.4 - Load tools from PostgreSQL BEFORE starting MCP server
+      // CRITICAL: This must happen before MCP server initialization so aggregated tools
+      // are available when getMcpServer() is called
+      await this.loadToolsFromRegistry();
+
+      // Sprint 62: Task 3.1 - Periodic cache refresh (every 60 seconds)
+      // Keeps tool registry changes synchronized without requiring service restart
+      setInterval(async () => {
+        try {
+          await this.loadToolsFromRegistry();
+        } catch (err) {
+          this.getLogger().warn('tool_orchestrator.periodic_refresh_failed', {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }, 60000); // 60 seconds
+
+      this.getLogger().info('tool_orchestrator.periodic_cache_refresh_enabled', {
+        intervalMs: 60000,
+      });
 
       // TODO: Seed model registry (Task 3.1) - run scripts/seed-model-registry.ts
       // TODO: Import tools from tool-gateway (Task 3.2) - to be done in integration testing
@@ -410,33 +454,182 @@ export class ToolOrchestratorServer extends Bit {
   }
 
   /**
+   * Load all tools from PostgreSQL registry into in-memory cache.
+   * Called during service startup (async context available).
+   *
+   * Sprint 62: Task 1.1 - Implement Tool Cache and Eager Loading
+   */
+  private async loadToolsFromRegistry(): Promise<void> {
+    if (!this.toolRegistry) {
+      this.getLogger().warn('tool_orchestrator.no_registry', {
+        message: 'ToolRegistry not initialized, skipping tool load'
+      });
+      return;
+    }
+
+    try {
+      // Query ALL tools from PostgreSQL (no filters)
+      const tools = await this.toolRegistry.queryTools({});
+
+      this.toolCache = tools;
+
+      this.getLogger().info('tool_orchestrator.tools_loaded', {
+        count: tools.length,
+        sources: [...new Set(tools.map(t => t.source))],
+      });
+    } catch (err) {
+      this.getLogger().error('tool_orchestrator.tools_load_failed', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      // Fail-open: Continue with empty cache
+      this.toolCache = [];
+    }
+  }
+
+  /**
+   * Get all tools from in-memory cache (synchronous).
+   * Used by getMcpServer() to serve aggregated tools via MCP.
+   *
+   * Sprint 62: Task 1.1 - Implement Tool Cache and Eager Loading
+   */
+  private getAllToolsFromRegistry(): ToolRegistryDocument[] {
+    return this.toolCache;
+  }
+
+  /**
+   * Clean inputSchema to conform to MCP protocol requirements.
+   *
+   * Sprint 61: MCP SDK v2.0 enforces strict schema validation.
+   * Zod to JSON Schema conversion produces extra fields ($schema, definitions, $defs)
+   * that violate the protocol and cause INVALID_RESULT errors.
+   *
+   * This method strips non-compliant fields and ensures type is "object".
+   *
+   * Sprint 62: Task 1.3 - Implement cleanInputSchema() for MCP Compliance
+   */
+  private cleanInputSchema(inputSchema: any): any {
+    const cleanSchema: any = { type: 'object' };
+
+    if (!inputSchema || typeof inputSchema !== 'object') {
+      return cleanSchema;
+    }
+
+    // Only copy MCP-compliant fields
+    if (inputSchema.type === 'object') {
+      cleanSchema.type = 'object';
+    }
+
+    if (inputSchema.properties) {
+      cleanSchema.properties = inputSchema.properties;
+    }
+
+    if (inputSchema.required) {
+      cleanSchema.required = inputSchema.required;
+    }
+
+    // Preserve additionalProperties if present (MCP allows catchall)
+    if ('additionalProperties' in inputSchema) {
+      cleanSchema.additionalProperties = inputSchema.additionalProperties;
+    }
+
+    return cleanSchema;
+  }
+
+  /**
    * Override base class getMcpServer() to serve aggregated tools from PostgreSQL registry.
    *
    * Problem: Base class only serves tools from this.registeredTools (tool-orchestrator's admin tools).
-   * Solution: Query PostgreSQL ToolRegistry for all active tools and serve them via MCP.
+   * Solution: Load aggregated tools from PostgreSQL ToolRegistry and serve them via MCP.
    *
    * Context: Sprint 61 - Same issue as tool-gateway. Tool-orchestrator stores aggregated tools in
    * PostgreSQL but wasn't exposing them via MCP, only exposing admin tools (tool.list, model.list, etc.).
    *
-   * NOTE: This is a placeholder implementation that delegates to base class for now.
-   * Full implementation requires async initialization to load tools from PostgreSQL.
-   * Planned for Sprint 61+.
+   * Sprint 62: Task 1.2 - Override getMcpServer() for Aggregation
+   *
+   * Critical: Without this override, MCP clients only see tool-orchestrator's own tools
+   * (bit.*, tool.*, model.*), not the aggregated tools from upstream services.
    */
-  protected getMcpServer(): any {
+  protected getMcpServer(): McpServer {
     const logger = this.getLogger();
+    const baseThis = this as any; // Access private members from base class
 
-    logger.debug('mcp_server.initializing_tool_orchestrator', {
+    // Load ALL tools from PostgreSQL registry (not just admin tools)
+    // CRITICAL: This must include tools from all registered MCP servers and Bits
+    const allTools = this.getAllToolsFromRegistry();
+
+    logger.debug('mcp_server.initializing', {
       service: 'tool-orchestrator',
-      note: 'Currently serving admin tools only. Tool aggregation from PostgreSQL registry planned for Sprint 61+'
+      aggregatedTools: allTools.length,
+      ownTools: baseThis.registeredTools.size,
     });
 
-    // Delegate to base class (serves admin tools from this.registeredTools)
-    // TODO Sprint 61+: Load aggregated tools from this.toolRegistry.queryTools({})
-    // and register them on the MCP server (requires async initialization)
-    const server = super.getMcpServer();
+    // Create MCP server
+    const server = new McpServer(
+      { name: 'tool-orchestrator', version: '1.0.0' },
+      { capabilities: { tools: allTools.length > 0 ? {} : undefined } }
+    );
 
-    logger.info('mcp_server.initialized_tool_orchestrator', {
-      note: 'Tool aggregation from PostgreSQL registry requires async initialization - planned for Sprint 61+'
+    // Register aggregated tools from PostgreSQL registry (NOT this.registeredTools)
+    for (const tool of allTools) {
+      // Note: inputSchema in ToolRegistryDocument is already JSON Schema format
+      // We still need to clean it to ensure MCP compliance
+      const cleanInputSchema = this.cleanInputSchema(tool.inputSchema);
+
+      server.registerTool(tool.id, {
+        description: tool.description, // MCP SDK handles undefined internally
+        inputSchema: cleanInputSchema, // MCP-compliant JSON schema
+      }, async (args, ctx) => {
+        // Extract execution context from MCP request
+        const combinedExtra = {
+          userId: (args as any)._meta?.userId || (ctx as any)?.http?.req?.headers?.['x-user-id'] || 'anonymous',
+          userRoles: (args as any)._meta?.userRoles || (ctx as any)?.http?.req?.headers?.['x-roles']?.split(',') || [],
+          modelId: (args as any)._meta?.modelId || 'tool-orchestrator',
+          sessionId: (args as any)._meta?.sessionId,
+        };
+
+        logger.debug('mcp_server.tool_call', {
+          toolId: tool.id,
+          userId: combinedExtra.userId,
+          modelId: combinedExtra.modelId,
+        });
+
+        // Execute tool through ToolGateway
+        if (!this.toolGateway) {
+          throw new Error('ToolGateway not initialized');
+        }
+
+        return await this.traceMcpOperation(
+          `tool:${tool.id}`,
+          async () => {
+            const result = await this.toolGateway!.execute(tool.id, args, combinedExtra as any);
+            // ToolResult is compatible with CallToolResult structure
+            return result as any;
+          },
+          combinedExtra
+        );
+      });
+    }
+
+    // Register resources and prompts from base class (no change)
+    for (const [uri, resource] of baseThis.registeredResources.entries()) {
+      server.registerResource(resource.name, uri, {
+        description: resource.description,
+      }, async (uriParam, ctx) => {
+        return await baseThis.handleResourceRead(resource, uriParam, ctx);
+      });
+    }
+
+    for (const [name, prompt] of baseThis.registeredPrompts.entries()) {
+      server.registerPrompt(prompt.name, {
+        description: prompt.description,
+        argsSchema: prompt.args && prompt.args.length > 0 ? prompt.args as any : undefined,
+      }, async (promptArgs, ctx) => {
+        return await baseThis.handlePromptGet(prompt, promptArgs, ctx);
+      });
+    }
+
+    logger.info('mcp_server.initialized_with_aggregation', {
+      aggregatedTools: allTools.length,
     });
 
     return server;
