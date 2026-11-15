@@ -270,17 +270,17 @@ export class ToolOrchestratorServer extends Bit {
       'model.get',
       'Get metadata for a specific model by ID',
       z.object({
-        modelId: z.string().describe('Model ID to retrieve'),
+        id: z.string().describe('Model ID to retrieve'),
       }),
       async (args) => {
         if (!this.modelRegistry) {
           throw new Error('ModelRegistry not initialized');
         }
 
-        const model = await this.modelRegistry.getModel(args.modelId);
+        const model = await this.modelRegistry.getModel(args.id);
 
         if (!model) {
-          throw new Error(`Model not found: ${args.modelId}`);
+          throw new Error(`Model not found: ${args.id}`);
         }
 
         return {
