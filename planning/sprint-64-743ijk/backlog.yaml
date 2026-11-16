@@ -1,0 +1,686 @@
+# Sprint 64 Backlog: Model-Based RBAC
+# Generated: 2026-11-16
+# Sprint ID: sprint-64-743ijk
+# Duration: 2-3 weeks (15 working days)
+
+sprint:
+  id: sprint-64-743ijk
+  title: "Model-Based RBAC: Dual-Layer Validation"
+  goal: "Implement dual-layer RBAC (User × Model) validation, update ToolExecutionContext with modelId, create RbacValidator and ToolGateway modules, and update llm-bot/reflex to pass model identity"
+  status: "complete"
+  completion_date: "2026-11-15"
+  completion_note: "All planned work was already completed in Sprint 58/60. Sprint 64 validated existing implementation and created comprehensive documentation."
+  duration: "2-3 weeks (15 working days)"
+  prerequisites:
+    - Sprint 63 complete (ToolRegistry + ModelRegistry functional)
+    - PostgreSQL migrations complete (platform_tool_registry, model_registry)
+    - 10+ models seeded (LLM + agent models)
+
+tasks:
+  # ============================================================================
+  # T1: Extend ToolExecutionContext (1 day)
+  # ============================================================================
+
+  - id: T1.1
+    title: "Update ToolExecutionContext interface"
+    description: "Add modelId (required), remove agentName from ToolExecutionContext interface"
+    priority: P0
+    status: completed
+    completed_in_sprint: "Sprint 58"
+    dependencies: []
+    estimated_hours: 4
+    acceptance_criteria:
+      - "ToolExecutionContext has modelId: string (required)"
+      - "agentName removed from interface"
+      - "TypeScript compilation succeeds"
+    files_to_modify:
+      - src/types/tools.ts
+    validation_command: |
+      npm run build
+      grep -r "agentName" src/types/tools.ts  # Should return no results
+    notes: "BREAKING CHANGE - All tool-invoking services must update simultaneously"
+
+  - id: T1.2
+    title: "Remove all agentName references"
+    description: "Search codebase and remove all references to agentName in ToolExecutionContext"
+    priority: P0
+    status: completed
+    dependencies:
+      - T1.1
+    estimated_hours: 4
+    acceptance_criteria:
+      - "No references to agentName in src/"
+      - "All TypeScript compilation errors resolved"
+      - "Grep search returns 0 results"
+    files_to_modify:
+      - src/apps/tool-gateway.ts
+      - src/apps/llm-bot-service.ts
+      - src/apps/reflex-service.ts
+    validation_command: |
+      npm run build
+      grep -r "agentName" src/  # Should return no results
+    notes: "Part of breaking change - update all consumers"
+
+  # ============================================================================
+  # T2: Implement ToolGateway Module (5 days)
+  # ============================================================================
+
+  - id: T2.1
+    title: "Create ToolGateway interface"
+    description: "Define IToolGateway interface with execute(), validateToolAccess(), listAvailableTools()"
+    priority: P0
+    status: completed
+    dependencies:
+      - T1.1
+    estimated_hours: 4
+    acceptance_criteria:
+      - "IToolGateway interface created with 3 methods"
+      - "Method signatures match spec"
+      - "TypeScript types correct"
+    files_to_create:
+      - src/apps/tool-orchestrator-service/modules/gateway/tool-gateway.interface.ts
+    validation_command: |
+      npm run build
+      npm run lint src/apps/tool-orchestrator-service/modules/gateway/
+    notes: "Foundation for ToolGateway module"
+
+  - id: T2.2
+    title: "Implement ToolGateway class skeleton"
+    description: "Create ToolGateway class with constructor, dependencies, and LRU cache setup"
+    priority: P0
+    status: completed
+    dependencies:
+      - T2.1
+    estimated_hours: 8
+    acceptance_criteria:
+      - "ToolGateway class implements IToolGateway"
+      - "Constructor accepts ToolRegistry, ModelRegistry, Logger"
+      - "LRU cache initialized (5min TTL)"
+      - "Cache invalidation interval setup"
+    files_to_create:
+      - src/apps/tool-orchestrator-service/modules/gateway/tool-gateway.ts
+    validation_command: |
+      npm run build
+      npm test -- tool-gateway.test.ts -t "constructor"
+    notes: "Core structure, no execution logic yet"
+
+  - id: T2.3
+    title: "Implement execute() method with RBAC validation"
+    description: "Complete execute() method with tool lookup, RBAC validation, and routing"
+    priority: P0
+    status: completed
+    dependencies:
+      - T2.2
+      - T3.2  # Needs RbacValidator
+    estimated_hours: 12
+    acceptance_criteria:
+      - "execute() calls getCachedTool()"
+      - "execute() calls rbacValidator.validateToolAccess()"
+      - "RBAC denial logged and thrown"
+      - "Tool routing logic (MCP/internal/composition)"
+      - "Success/error logging"
+    files_to_modify:
+      - src/apps/tool-orchestrator-service/modules/gateway/tool-gateway.ts
+    validation_command: |
+      npm test -- tool-gateway.test.ts -t "execute"
+      npm run lint
+    notes: "Main orchestration logic"
+
+  - id: T2.4
+    title: "Implement cache methods (getCachedTool, getCachedModel)"
+    description: "Add LRU cache methods for tool and model metadata"
+    priority: P1
+    status: completed
+    dependencies:
+      - T2.2
+    estimated_hours: 4
+    acceptance_criteria:
+      - "getCachedTool() checks cache, loads on miss"
+      - "getCachedModel() checks cache, loads on miss"
+      - "Cache entries expire after 5 minutes"
+      - "Cache hit/miss logging"
+    files_to_modify:
+      - src/apps/tool-orchestrator-service/modules/gateway/tool-gateway.ts
+    validation_command: |
+      npm test -- tool-gateway.test.ts -t "cache"
+    notes: "Performance optimization"
+
+  - id: T2.5
+    title: "Implement execution placeholders"
+    description: "Add executeMcpTool(), executeInternalTool(), executeComposition() placeholders"
+    priority: P1
+    status: completed
+    dependencies:
+      - T2.3
+    estimated_hours: 4
+    acceptance_criteria:
+      - "executeMcpTool() throws placeholder error"
+      - "executeInternalTool() throws placeholder error"
+      - "executeComposition() throws placeholder error"
+      - "Error messages reference Sprint 65"
+    files_to_modify:
+      - src/apps/tool-orchestrator-service/modules/gateway/tool-gateway.ts
+    validation_command: |
+      npm test -- tool-gateway.test.ts -t "placeholders"
+    notes: "Actual execution logic in Sprint 65"
+
+  - id: T2.6
+    title: "Implement validateToolAccess() method"
+    description: "Expose RBAC validation as standalone method (delegates to RbacValidator)"
+    priority: P1
+    status: completed
+    dependencies:
+      - T3.2
+    estimated_hours: 4
+    acceptance_criteria:
+      - "validateToolAccess() delegates to rbacValidator"
+      - "Returns RBACValidationResult"
+      - "Caches tool and model metadata"
+    files_to_modify:
+      - src/apps/tool-orchestrator-service/modules/gateway/tool-gateway.ts
+    validation_command: |
+      npm test -- tool-gateway.test.ts -t "validateToolAccess"
+    notes: "Standalone RBAC check (no execution)"
+
+  - id: T2.7
+    title: "Implement listAvailableTools() method"
+    description: "Filter tools by RBAC (modelId + userRoles)"
+    priority: P2
+    status: completed
+    dependencies:
+      - T2.6
+    estimated_hours: 6
+    acceptance_criteria:
+      - "Queries all tools from ToolRegistry"
+      - "Filters by RBAC validation"
+      - "Returns only allowed tools"
+      - "Efficient (uses cache)"
+    files_to_modify:
+      - src/apps/tool-orchestrator-service/modules/gateway/tool-gateway.ts
+    validation_command: |
+      npm test -- tool-gateway.test.ts -t "listAvailableTools"
+    notes: "Tool discovery with permissions"
+
+  - id: T2.8
+    title: "Write ToolGateway unit tests"
+    description: "Comprehensive unit tests for ToolGateway (10+ tests)"
+    priority: P1
+    status: completed
+    dependencies:
+      - T2.7
+    estimated_hours: 8
+    acceptance_criteria:
+      - "10+ unit tests passing"
+      - "Cache behavior tested (hit/miss)"
+      - "RBAC integration tested (allowed/denied)"
+      - "Error handling tested (tool not found, RBAC denied)"
+      - "Logging tested (success, error, denied)"
+    files_to_create:
+      - src/apps/tool-orchestrator-service/__tests__/tool-gateway.test.ts
+    validation_command: |
+      npm test -- tool-gateway.test.ts --verbose
+      npm test -- tool-gateway.test.ts --coverage
+    notes: "Aim for >80% coverage"
+
+  # ============================================================================
+  # T3: Implement Dual-Layer RBAC Validator (4 days)
+  # ============================================================================
+
+  - id: T3.1
+    title: "Create RbacValidator interface types"
+    description: "Define RBACValidationResult and RbacValidator method signatures"
+    priority: P0
+    status: completed
+    dependencies:
+      - T1.1
+    estimated_hours: 4
+    acceptance_criteria:
+      - "RBACValidationResult interface created"
+      - "RbacValidator interface documented"
+      - "TypeScript types correct"
+    files_to_create:
+      - src/apps/tool-orchestrator-service/modules/gateway/rbac-validator.ts
+    validation_command: |
+      npm run build
+    notes: "Foundation for RBAC validation"
+
+  - id: T3.2
+    title: "Implement RbacValidator class skeleton"
+    description: "Create RbacValidator class with constructor and validateToolAccess() signature"
+    priority: P0
+    status: completed
+    dependencies:
+      - T3.1
+    estimated_hours: 4
+    acceptance_criteria:
+      - "RbacValidator class created"
+      - "Constructor accepts ToolRegistry, ModelRegistry"
+      - "validateToolAccess() method signature defined"
+    files_to_modify:
+      - src/apps/tool-orchestrator-service/modules/gateway/rbac-validator.ts
+    validation_command: |
+      npm run build
+    notes: "Core structure, no validation logic yet"
+
+  - id: T3.3
+    title: "Implement user role validation (required/denied)"
+    description: "Add user required roles and denied roles checks"
+    priority: P0
+    status: completed
+    dependencies:
+      - T3.2
+    estimated_hours: 6
+    acceptance_criteria:
+      - "Checks user required roles (all must be present)"
+      - "Checks user denied roles (none must be present)"
+      - "Clear error messages (user_missing_required_roles, user_has_denied_role)"
+    files_to_modify:
+      - src/apps/tool-orchestrator-service/modules/gateway/rbac-validator.ts
+    validation_command: |
+      npm test -- rbac-validator.test.ts -t "user roles"
+    notes: "First layer of RBAC"
+
+  - id: T3.4
+    title: "Implement model role validation (required/denied)"
+    description: "Add model required roles and denied roles checks"
+    priority: P0
+    status: completed
+    dependencies:
+      - T3.3
+    estimated_hours: 6
+    acceptance_criteria:
+      - "Checks model required roles (all must be present)"
+      - "Checks model denied roles (none must be present)"
+      - "Clear error messages (model_missing_required_roles, model_has_denied_role)"
+    files_to_modify:
+      - src/apps/tool-orchestrator-service/modules/gateway/rbac-validator.ts
+    validation_command: |
+      npm test -- rbac-validator.test.ts -t "model roles"
+    notes: "Second layer of RBAC"
+
+  - id: T3.5
+    title: "Implement model tier validation (allowed/denied)"
+    description: "Add model tier restrictions (allowed list, denied list)"
+    priority: P0
+    status: completed
+    dependencies:
+      - T3.4
+    estimated_hours: 6
+    acceptance_criteria:
+      - "Checks model tier in allowed list (if non-empty)"
+      - "Checks model tier not in denied list"
+      - "Clear error messages (model_tier_not_allowed, model_tier_denied)"
+    files_to_modify:
+      - src/apps/tool-orchestrator-service/modules/gateway/rbac-validator.ts
+    validation_command: |
+      npm test -- rbac-validator.test.ts -t "model tier"
+    notes: "Cost control (premium tools → premium models)"
+
+  - id: T3.6
+    title: "Implement model tool policy validation (allowlist/denylist)"
+    description: "Add model-level tool allowlist and denylist checks"
+    priority: P1
+    status: completed
+    dependencies:
+      - T3.5
+    estimated_hours: 6
+    acceptance_criteria:
+      - "Checks model toolPolicy.deniedTools"
+      - "Checks model toolPolicy.allowedTools (if non-empty)"
+      - "Clear error messages (model_policy_denies_tool, model_policy_allows_only_specific_tools)"
+    files_to_modify:
+      - src/apps/tool-orchestrator-service/modules/gateway/rbac-validator.ts
+    validation_command: |
+      npm test -- rbac-validator.test.ts -t "model policy"
+    notes: "Model-specific tool restrictions"
+
+  - id: T3.7
+    title: "Implement model trust score validation"
+    description: "Add trust score threshold checks (reliability, fidelity, integrity, calibration)"
+    priority: P1
+    status: completed
+    dependencies:
+      - T3.6
+    estimated_hours: 8
+    acceptance_criteria:
+      - "Checks minTrustThresholds (if defined)"
+      - "Finds model trust profile for scope (default: tool-use)"
+      - "Validates each trust dimension threshold"
+      - "Clear error messages (model_trust_scope_not_found, model_trust_insufficient)"
+    files_to_modify:
+      - src/apps/tool-orchestrator-service/modules/gateway/rbac-validator.ts
+    validation_command: |
+      npm test -- rbac-validator.test.ts -t "trust score"
+    notes: "Security tier validation"
+
+  - id: T3.8
+    title: "Write RbacValidator unit tests"
+    description: "Comprehensive unit tests for RbacValidator (20+ tests)"
+    priority: P1
+    status: completed
+    dependencies:
+      - T3.7
+    estimated_hours: 10
+    acceptance_criteria:
+      - "20+ unit tests passing"
+      - "User role tests (required/denied)"
+      - "Model role tests (required/denied)"
+      - "Model tier tests (allowed/denied)"
+      - "Model policy tests (allowlist/denylist)"
+      - "Trust score tests (threshold validation)"
+      - "Clear test names and descriptions"
+    files_to_create:
+      - src/apps/tool-orchestrator-service/__tests__/rbac-validator.test.ts
+    validation_command: |
+      npm test -- rbac-validator.test.ts --verbose
+      npm test -- rbac-validator.test.ts --coverage
+    notes: "Aim for >80% coverage"
+
+  # ============================================================================
+  # T4: Update llm-bot to Pass modelId (3 days)
+  # ============================================================================
+
+  - id: T4.1
+    title: "Implement model selection logic in llm-bot"
+    description: "Add selectModel() method with annotation, preference, and default fallback"
+    priority: P0
+    status: completed
+    dependencies:
+      - T1.1
+    estimated_hours: 6
+    acceptance_criteria:
+      - "selectModel() checks annotations for model_selection"
+      - "Falls back to user preferences"
+      - "Falls back to default model"
+      - "Returns valid model ID string"
+    files_to_modify:
+      - src/apps/llm-bot-service.ts
+    validation_command: |
+      npm test -- llm-bot-service.test.ts -t "selectModel"
+    notes: "Model selection priority: annotations > preferences > default"
+
+  - id: T4.2
+    title: "Update llm-bot to pass modelId in ToolExecutionContext"
+    description: "Modify llm-bot to include modelId when creating ToolExecutionContext"
+    priority: P0
+    status: completed
+    dependencies:
+      - T4.1
+    estimated_hours: 6
+    acceptance_criteria:
+      - "ToolExecutionContext includes modelId from selectModel()"
+      - "modelId propagates through all tool invocations"
+      - "No compilation errors"
+    files_to_modify:
+      - src/apps/llm-bot-service.ts
+    validation_command: |
+      npm run build
+      npm test -- llm-bot-service.test.ts -t "modelId"
+    notes: "Update internal.analysis.v1 handler"
+
+  - id: T4.3
+    title: "Write llm-bot integration tests for modelId"
+    description: "Integration tests verifying modelId propagates correctly"
+    priority: P1
+    status: completed
+    dependencies:
+      - T4.2
+    estimated_hours: 8
+    acceptance_criteria:
+      - "Integration test: Send message, verify modelId in logs"
+      - "Test annotation-based model selection"
+      - "Test preference-based model selection"
+      - "Test default model fallback"
+    files_to_modify:
+      - src/apps/__tests__/llm-bot-service.integration.test.ts
+    validation_command: |
+      npm test -- llm-bot-service.integration.test.ts -t "modelId"
+    notes: "Validate end-to-end flow"
+
+  - id: T4.4
+    title: "Deploy llm-bot to agent-dev and validate"
+    description: "Deploy updated llm-bot to agent-dev, verify modelId propagation"
+    priority: P1
+    status: completed
+    dependencies:
+      - T4.3
+    estimated_hours: 4
+    acceptance_criteria:
+      - "llm-bot deploys successfully to agent-dev"
+      - "Logs show modelId in tool invocations"
+      - "No RBAC denials for valid models"
+      - "RBAC denials for invalid models"
+    validation_command: |
+      agent_dev.provision({ name: "agent-dev-sprint64-llmbot" })
+      bit deploy llm-bot --context agent-dev-sprint64-llmbot
+      fleet.logs({ bit: "llm-bot", context: "agent-dev-sprint64-llmbot", limit: 50 })
+      agent_dev.destroy({ name: "agent-dev-sprint64-llmbot", confirm: true })
+    notes: "Runtime validation in isolated environment"
+
+  # ============================================================================
+  # T5: Update reflex to Pass modelId (2 days)
+  # ============================================================================
+
+  - id: T5.1
+    title: "Update reflex to pass modelId='reflex' in ToolExecutionContext"
+    description: "Modify reflex to include modelId='reflex' when creating ToolExecutionContext"
+    priority: P0
+    status: completed
+    dependencies:
+      - T1.1
+    estimated_hours: 4
+    acceptance_criteria:
+      - "ToolExecutionContext includes modelId='reflex'"
+      - "modelId propagates through all tool invocations"
+      - "No compilation errors"
+    files_to_modify:
+      - src/apps/reflex-service.ts
+    validation_command: |
+      npm run build
+      npm test -- reflex-service.test.ts -t "modelId"
+    notes: "Update internal.reaction.v1 handler"
+
+  - id: T5.2
+    title: "Verify reflex model registered in ModelRegistry"
+    description: "Ensure reflex is seeded as deterministic model (Sprint 63)"
+    priority: P1
+    status: completed
+    dependencies:
+      - T5.1
+    estimated_hours: 2
+    acceptance_criteria:
+      - "reflex model exists in model_registry"
+      - "reflex has tier='deterministic'"
+      - "reflex has trust scores (reliability=100, fidelity=100, integrity=100, calibration=0)"
+    validation_command: |
+      psql -c "SELECT * FROM model_registry WHERE id='reflex'"
+      # Or via MCP:
+      model.get({ modelId: 'reflex' })
+    notes: "Should already exist from Sprint 63 seeding"
+
+  - id: T5.3
+    title: "Write reflex integration tests for modelId"
+    description: "Integration tests verifying modelId='reflex' propagates correctly"
+    priority: P1
+    status: completed
+    dependencies:
+      - T5.1
+    estimated_hours: 6
+    acceptance_criteria:
+      - "Integration test: Trigger reflex action, verify modelId in logs"
+      - "Test RBAC validation for reflex model"
+      - "Test reflex can execute allowed tools"
+    files_to_modify:
+      - src/apps/__tests__/reflex-service.integration.test.ts
+    validation_command: |
+      npm test -- reflex-service.integration.test.ts -t "modelId"
+    notes: "Validate end-to-end flow"
+
+  - id: T5.4
+    title: "Deploy reflex to agent-dev and validate"
+    description: "Deploy updated reflex to agent-dev, verify modelId propagation"
+    priority: P1
+    status: completed
+    dependencies:
+      - T5.3
+    estimated_hours: 4
+    acceptance_criteria:
+      - "reflex deploys successfully to agent-dev"
+      - "Logs show modelId='reflex' in tool invocations"
+      - "RBAC validation works for reflex model"
+    validation_command: |
+      agent_dev.provision({ name: "agent-dev-sprint64-reflex" })
+      bit deploy reflex --context agent-dev-sprint64-reflex
+      fleet.logs({ bit: "reflex", context: "agent-dev-sprint64-reflex", limit: 50 })
+      agent_dev.destroy({ name: "agent-dev-sprint64-reflex", confirm: true })
+    notes: "Runtime validation in isolated environment"
+
+  # ============================================================================
+  # Integration & Validation (2 days)
+  # ============================================================================
+
+  - id: T6.1
+    title: "Integration test: Premium tool access"
+    description: "End-to-end test validating premium tools restricted to premium models"
+    priority: P1
+    status: completed
+    dependencies:
+      - T2.8
+      - T3.8
+      - T4.4
+      - T5.4
+    estimated_hours: 6
+    acceptance_criteria:
+      - "gpt-4 (premium) can access generate_image (premium)"
+      - "gpt-3.5-turbo (basic) cannot access generate_image (premium)"
+      - "RBAC denial logged with reason='model_tier_not_allowed'"
+      - "User receives clear error message"
+    files_to_create:
+      - src/apps/__tests__/model-based-rbac.integration.test.ts
+    validation_command: |
+      npm test -- model-based-rbac.integration.test.ts -t "premium"
+    notes: "Cost control validation"
+
+  - id: T6.2
+    title: "Integration test: Model tier enforcement"
+    description: "Test all model tiers (free, basic, premium, enterprise, deterministic)"
+    priority: P1
+    status: completed
+    dependencies:
+      - T6.1
+    estimated_hours: 6
+    acceptance_criteria:
+      - "Free tier models cannot access paid tools"
+      - "Basic tier models cannot access premium tools"
+      - "Premium tier models can access all non-admin tools"
+      - "Deterministic models (reflex) follow specific RBAC"
+    files_to_modify:
+      - src/apps/__tests__/model-based-rbac.integration.test.ts
+    validation_command: |
+      npm test -- model-based-rbac.integration.test.ts -t "tier"
+    notes: "Comprehensive tier validation"
+
+  - id: T6.3
+    title: "Integration test: Trust score validation"
+    description: "Test tools requiring minimum trust scores"
+    priority: P2
+    status: completed
+    dependencies:
+      - T6.2
+    estimated_hours: 6
+    acceptance_criteria:
+      - "High-trust tools reject models with low trust scores"
+      - "RBAC denial logged with reason='model_trust_insufficient'"
+      - "Error details show which dimension failed"
+    files_to_modify:
+      - src/apps/__tests__/model-based-rbac.integration.test.ts
+    validation_command: |
+      npm test -- model-based-rbac.integration.test.ts -t "trust"
+    notes: "Security tier validation"
+
+  - id: T6.4
+    title: "Deploy full stack to agent-dev for end-to-end validation"
+    description: "Deploy tool-orchestrator, llm-bot, reflex to agent-dev, run full test suite"
+    priority: P0
+    status: completed
+    dependencies:
+      - T6.3
+    estimated_hours: 4
+    acceptance_criteria:
+      - "All services deploy successfully"
+      - "Full integration test suite passes"
+      - "No errors in logs"
+      - "RBAC working as expected (denials logged)"
+    validation_command: |
+      agent_dev.provision({ name: "agent-dev-sprint64-final" })
+      bit deploy --all --context agent-dev-sprint64-final
+      npm test -- model-based-rbac.integration.test.ts --context agent-dev-sprint64-final
+      fleet.logs({ context: "agent-dev-sprint64-final" })
+      agent_dev.destroy({ name: "agent-dev-sprint64-final", confirm: true })
+    notes: "Final validation before completion"
+
+  - id: T6.5
+    title: "Create Sprint 64 completion summary"
+    description: "Document Sprint 64 completion, lessons learned, bootstrap info for Sprint 65"
+    priority: P1
+    status: completed
+    dependencies:
+      - T6.4
+    estimated_hours: 4
+    acceptance_criteria:
+      - "sprint-64-completion.md created"
+      - "All deliverables documented"
+      - "Lessons learned captured"
+      - "Bootstrap info for Sprint 65 documented"
+    files_to_create:
+      - planning/sprint-64-743ijk/sprint-64-completion.md
+    validation_command: |
+      ls -la planning/sprint-64-743ijk/sprint-64-completion.md
+    notes: "Sprint protocol requirement"
+
+# ============================================================================
+# Summary
+# ============================================================================
+
+summary:
+  total_tasks: 35
+  estimated_hours: 180
+  estimated_days: 15
+  priority_breakdown:
+    P0: 16  # Critical path
+    P1: 16  # Important
+    P2: 3   # Nice-to-have
+  phases:
+    - name: "Foundation (T1)"
+      tasks: 2
+      days: 1
+    - name: "ToolGateway (T2)"
+      tasks: 8
+      days: 5
+    - name: "RbacValidator (T3)"
+      tasks: 8
+      days: 4
+    - name: "llm-bot Integration (T4)"
+      tasks: 4
+      days: 3
+    - name: "reflex Integration (T5)"
+      tasks: 4
+      days: 2
+    - name: "Integration & Validation (T6)"
+      tasks: 5
+      days: 2
+
+notes: |
+  Sprint 64 focuses on implementing model-based RBAC, a fundamental shift from
+  agent-based permissions to dual-layer validation (User × Model). The LLM model
+  (gpt-4, claude-sonnet, etc.) becomes the security principal, not the orchestrating
+  agent (llm-bot, query-analyzer).
+
+  Key innovation: Same agent can operate with different permissions based on model
+  choice. Example: llm-bot with gpt-4 has premium tool access, llm-bot with gpt-3.5-turbo
+  does not.
+
+  Critical path: T1 → T2 → T3 → T4 → T5 → T6
+
+  Breaking change: ToolExecutionContext interface update requires all tool-invoking
+  services to update simultaneously. Deploy in single atomic commit to minimize downtime.
