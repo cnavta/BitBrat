@@ -270,17 +270,17 @@ export class ToolOrchestratorServer extends Bit {
       'model.get',
       'Get metadata for a specific model by ID',
       z.object({
-        modelId: z.string().describe('Model ID to retrieve'),
+        id: z.string().describe('Model ID to retrieve'),
       }),
       async (args) => {
         if (!this.modelRegistry) {
           throw new Error('ModelRegistry not initialized');
         }
 
-        const model = await this.modelRegistry.getModel(args.modelId);
+        const model = await this.modelRegistry.getModel(args.id);
 
         if (!model) {
-          throw new Error(`Model not found: ${args.modelId}`);
+          throw new Error(`Model not found: ${args.id}`);
         }
 
         return {
@@ -289,6 +289,206 @@ export class ToolOrchestratorServer extends Bit {
             text: JSON.stringify(model, null, 2),
           }],
         };
+      }
+    );
+
+    // Sprint 63: Tool/Model Management Tools
+
+    // tool.import - Import tools from MCP server
+    this.registerTool(
+      'tool.import',
+      'Import tools from an MCP server or Bit service into the tool registry',
+      z.object({
+        source: z.enum(['mcp', 'bit']).describe('Source type (mcp-server or bit service)'),
+        serverId: z.string().describe('MCP server name or Bit service name'),
+        toolIds: z.array(z.string()).optional().describe('Specific tool IDs to import (optional, imports all if omitted)'),
+      }),
+      async (args) => {
+        if (!this.toolRegistry) {
+          throw new Error('ToolRegistry not initialized');
+        }
+
+        try {
+          let imported: string[] = [];
+
+          if (args.source === 'mcp') {
+            // Import from MCP server
+            // Note: Requires MCP server connection - implementation depends on McpClientManager
+            throw new Error('MCP server import not yet implemented - requires McpClientManager integration');
+          } else if (args.source === 'bit') {
+            // Import from Bit service
+            throw new Error('Bit service import not yet implemented - requires Bit service discovery');
+          }
+
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify({ success: true, imported, count: imported.length }, null, 2),
+            }],
+          };
+        } catch (err) {
+          this.getLogger().error('tool.import.error', { error: err instanceof Error ? err.message : String(err) });
+          throw err;
+        }
+      }
+    );
+
+    // tool.update_config - Update tool configuration
+    this.registerTool(
+      'tool.update_config',
+      'Update configuration for a tool (RBAC, timeout, cost tier)',
+      z.object({
+        toolId: z.string().describe('Tool ID to update'),
+        config: z.object({
+          timeoutMs: z.number().optional().describe('Execution timeout in milliseconds'),
+          maxRetryAttempts: z.number().optional().describe('Maximum retry attempts'),
+          rbac: z.object({
+            userRoles: z.object({
+              required: z.array(z.string()).optional(),
+              denied: z.array(z.string()).optional(),
+            }).optional(),
+            modelRoles: z.object({
+              required: z.array(z.string()).optional(),
+              denied: z.array(z.string()).optional(),
+            }).optional(),
+            modelTiers: z.object({
+              allowed: z.array(z.string()).optional(),
+              denied: z.array(z.string()).optional(),
+            }).optional(),
+          }).optional().describe('RBAC configuration'),
+        }).describe('Configuration updates'),
+      }),
+      async (args) => {
+        if (!this.toolRegistry) {
+          throw new Error('ToolRegistry not initialized');
+        }
+
+        try {
+          const updates: any = {};
+
+          if (args.config.timeoutMs !== undefined || args.config.maxRetryAttempts !== undefined) {
+            updates.config = {
+              ...(args.config.timeoutMs !== undefined && { timeoutMs: args.config.timeoutMs }),
+              ...(args.config.maxRetryAttempts !== undefined && {
+                retryPolicy: { maxAttempts: args.config.maxRetryAttempts, backoffMs: 1000 }
+              }),
+            };
+          }
+
+          if (args.config.rbac) {
+            updates.rbac = args.config.rbac;
+          }
+
+          await this.toolRegistry.updateTool(args.toolId, updates);
+
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify({ success: true, toolId: args.toolId, updates }, null, 2),
+            }],
+          };
+        } catch (err) {
+          this.getLogger().error('tool.update_config.error', { error: err instanceof Error ? err.message : String(err) });
+          throw err;
+        }
+      }
+    );
+
+    // model.register - Register a new model
+    this.registerTool(
+      'model.register',
+      'Register a new model in the model registry',
+      z.object({
+        id: z.string().describe('Unique model identifier'),
+        provider: z.string().describe('Model provider (openai, anthropic, ollama, bitbrat)'),
+        displayName: z.string().describe('Human-readable model name'),
+        description: z.string().optional().describe('Model description'),
+        modelType: z.enum(['llm', 'rule-based', 'hybrid']).default('llm').describe('Model type'),
+        roles: z.array(z.string()).optional().describe('Model roles'),
+        tier: z.enum(['free', 'basic', 'premium', 'enterprise', 'deterministic', 'system']).describe('Model tier'),
+        capabilities: z.object({
+          toolCalling: z.boolean().describe('Supports tool/function calling'),
+          vision: z.boolean().describe('Supports vision/image input'),
+          streaming: z.boolean().default(false).describe('Supports streaming responses'),
+          maxContextTokens: z.number().describe('Maximum context window size'),
+          maxOutputTokens: z.number().describe('Maximum output tokens'),
+        }).describe('Model capabilities'),
+        trust: z.array(z.object({
+          scope: z.string().describe('Trust scope (general, tool-use, etc.)'),
+          scores: z.object({
+            reliability: z.number().min(0).max(100).describe('Reliability score (0-100)'),
+            fidelity: z.number().min(0).max(100).describe('Fidelity score (0-100)'),
+            integrity: z.number().min(0).max(100).describe('Integrity score (0-100)'),
+            calibration: z.number().min(0).max(100).describe('Calibration score (0-100)'),
+          }),
+        })).optional().describe('Trust scores per scope'),
+        cost: z.object({
+          inputTokenCost: z.number().describe('Cost per 1M input tokens (USD)'),
+          outputTokenCost: z.number().describe('Cost per 1M output tokens (USD)'),
+        }).optional().describe('Token costs'),
+      }),
+      async (args) => {
+        if (!this.modelRegistry) {
+          throw new Error('ModelRegistry not initialized');
+        }
+
+        try {
+          // Sprint 63: Implement idempotent upsert logic
+          // Check if model already exists
+          const existing = await this.modelRegistry.getModel(args.id);
+
+          if (existing) {
+            // Update existing model
+            const updates: any = {
+              provider: args.provider,
+              displayName: args.displayName,
+              description: args.description,
+              modelType: args.modelType,
+              roles: args.roles || ['model'],
+              tier: args.tier,
+              capabilities: args.capabilities,
+              trust: args.trust || [],
+              cost: args.cost || { inputTokenCost: 0, outputTokenCost: 0 },
+            };
+
+            await this.modelRegistry.updateModel(args.id, updates);
+          } else {
+            // Register new model
+            const model: any = {
+              id: args.id,
+              provider: args.provider,
+              displayName: args.displayName,
+              description: args.description,
+              modelType: args.modelType,
+              roles: args.roles || ['model'], // Sprint 63: Default to ['model'] if not provided
+              tier: args.tier,
+              capabilities: args.capabilities,
+              trust: args.trust || [],
+              cost: args.cost || { inputTokenCost: 0, outputTokenCost: 0 },
+              toolPolicy: { allowedTools: [], deniedTools: [] },
+              status: 'active' as const,
+              registeredAt: new Date(),
+              metrics: {
+                totalRequests: 0,
+                totalTokensUsed: 0,
+                totalCostUSD: 0,
+                avgResponseTimeMs: 0,
+              },
+            };
+
+            await this.modelRegistry.registerModel(model);
+          }
+
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify({ success: true, modelId: args.id }, null, 2),
+            }],
+          };
+        } catch (err) {
+          this.getLogger().error('model.register.error', { error: err instanceof Error ? err.message : String(err) });
+          throw err;
+        }
       }
     );
 
@@ -450,7 +650,7 @@ export class ToolOrchestratorServer extends Bit {
       }
     );
 
-    this.getLogger().info('tool_orchestrator.mcp_tools_registration_complete', { toolsRegistered: 9 });
+    this.getLogger().info('tool_orchestrator.mcp_tools_registration_complete', { toolsRegistered: 12 });
   }
 
   /**
@@ -550,89 +750,175 @@ export class ToolOrchestratorServer extends Bit {
    * (bit.*, tool.*, model.*), not the aggregated tools from upstream services.
    */
   protected getMcpServer(): McpServer {
-    const logger = this.getLogger();
-    const baseThis = this as any; // Access private members from base class
+    try {
+      const logger = this.getLogger();
+      const baseThis = this as any; // Access private members from base class
 
-    // Load ALL tools from PostgreSQL registry (not just admin tools)
-    // CRITICAL: This must include tools from all registered MCP servers and Bits
-    const allTools = this.getAllToolsFromRegistry();
+      // Load ALL tools from PostgreSQL registry (not just admin tools)
+      // CRITICAL: This must include tools from all registered MCP servers and Bits
+      const allTools = this.getAllToolsFromRegistry();
 
-    logger.debug('mcp_server.initializing', {
-      service: 'tool-orchestrator',
-      aggregatedTools: allTools.length,
-      ownTools: baseThis.registeredTools.size,
-    });
+      logger.debug('mcp_server.initializing', {
+        service: 'tool-orchestrator',
+        aggregatedTools: allTools.length,
+        ownTools: baseThis.registeredTools.size,
+      });
 
-    // Create MCP server
-    const server = new McpServer(
-      { name: 'tool-orchestrator', version: '1.0.0' },
-      { capabilities: { tools: allTools.length > 0 ? {} : undefined } }
-    );
+      // Create MCP server
+      const server = new McpServer(
+        { name: 'tool-orchestrator', version: '1.0.0' },
+        { capabilities: { tools: allTools.length > 0 ? {} : undefined } }
+      );
 
-    // Register aggregated tools from PostgreSQL registry (NOT this.registeredTools)
-    for (const tool of allTools) {
-      // Note: inputSchema in ToolRegistryDocument is already JSON Schema format
-      // We still need to clean it to ensure MCP compliance
-      const cleanInputSchema = this.cleanInputSchema(tool.inputSchema);
+      // Register aggregated tools from PostgreSQL registry (NOT this.registeredTools)
+      for (const tool of allTools) {
+        try {
+          // Sprint 63: CRITICAL FIX - Omit inputSchema for aggregated tools
+          //
+          // Problem: Tools loaded from PostgreSQL have inputSchema in JSON Schema format,
+          // but MCP SDK v2.0 requires Zod schemas or "raw Zod shapes". Passing JSON Schema
+          // causes error: "inputSchema must be a Standard Schema (e.g. z.object({...}))"
+          //
+          // Solution: Omit inputSchema parameter entirely. The MCP SDK will accept any
+          // arguments without strict validation. This is acceptable for aggregated tools
+          // because validation happens at the source service (the tool's origin Bit).
+          //
+          // Note: cleanInputSchema() method is now unused but kept for potential future use.
 
-      server.registerTool(tool.id, {
-        description: tool.description, // MCP SDK handles undefined internally
-        inputSchema: cleanInputSchema, // MCP-compliant JSON schema
-      }, async (args, ctx) => {
-        // Extract execution context from MCP request
-        const combinedExtra = {
-          userId: (args as any)._meta?.userId || (ctx as any)?.http?.req?.headers?.['x-user-id'] || 'anonymous',
-          userRoles: (args as any)._meta?.userRoles || (ctx as any)?.http?.req?.headers?.['x-roles']?.split(',') || [],
-          modelId: (args as any)._meta?.modelId || 'tool-orchestrator',
-          sessionId: (args as any)._meta?.sessionId,
-        };
+          server.registerTool(tool.id, {
+            description: tool.description || `Tool: ${tool.id}`,
+            // inputSchema omitted - PostgreSQL stores JSON Schema, SDK requires Zod
+          }, async (args: any, ctx: any) => {
+            // Extract execution context from MCP request
+            const combinedExtra = {
+              userId: (args as any)._meta?.userId || (ctx as any)?.http?.req?.headers?.['x-user-id'] || 'anonymous',
+              userRoles: (args as any)._meta?.userRoles || (ctx as any)?.http?.req?.headers?.['x-roles']?.split(',') || [],
+              modelId: (args as any)._meta?.modelId || 'tool-orchestrator',
+              sessionId: (args as any)._meta?.sessionId,
+            };
 
-        logger.debug('mcp_server.tool_call', {
-          toolId: tool.id,
-          userId: combinedExtra.userId,
-          modelId: combinedExtra.modelId,
-        });
+            logger.debug('mcp_server.tool_call', {
+              toolId: tool.id,
+              userId: combinedExtra.userId,
+              modelId: combinedExtra.modelId,
+            });
 
-        // Execute tool through ToolGateway
-        if (!this.toolGateway) {
-          throw new Error('ToolGateway not initialized');
+            // Execute tool through ToolGateway
+            if (!this.toolGateway) {
+              throw new Error('ToolGateway not initialized');
+            }
+
+            return await this.traceMcpOperation(
+              `tool:${tool.id}`,
+              async () => {
+                const result = await this.toolGateway!.execute(tool.id, args, combinedExtra as any);
+                // ToolResult is compatible with CallToolResult structure
+                return result as any;
+              },
+              combinedExtra
+            );
+          });
+        } catch (toolErr: any) {
+          logger.error('mcp_server.tool_registration_failed', {
+            tool: tool.id,
+            error: toolErr.message,
+            stack: toolErr.stack,
+          });
+          throw new Error(`Failed to register tool "${tool.id}": ${toolErr.message}`);
         }
+      }
 
-        return await this.traceMcpOperation(
-          `tool:${tool.id}`,
-          async () => {
-            const result = await this.toolGateway!.execute(tool.id, args, combinedExtra as any);
-            // ToolResult is compatible with CallToolResult structure
-            return result as any;
-          },
-          combinedExtra
-        );
+      // Sprint 63: CRITICAL FIX - Also register tool-orchestrator's own admin tools
+      // The PostgreSQL cache contains aggregated tools from OTHER services, but
+      // tool-orchestrator also registers its own tools (model.register, tool.update_config, etc.)
+      // We must serve BOTH sources to expose all tools.
+      //
+      // IMPORTANT: Skip tools that are already in PostgreSQL cache (e.g., bit.* tools)
+      // to avoid "already registered" errors. Only register NEW tools not in cache.
+      const aggregatedToolIds = new Set(allTools.map(t => t.id));
+      const ownToolNames = Array.from(baseThis.registeredTools.keys()) as string[];
+      const duplicateCount = ownToolNames.filter(name => aggregatedToolIds.has(name)).length;
+
+      // Sprint 63 DEBUG: Log all tool names from both sources
+      logger.debug('mcp_server.registering_own_tools', {
+        totalOwnTools: baseThis.registeredTools.size,
+        alreadyInCache: duplicateCount,
+        ownToolNames: ownToolNames.slice(0, 20), // First 20 for brevity
+        modelRegisterInCache: aggregatedToolIds.has('model.register'),
+        modelGetInCache: aggregatedToolIds.has('model.get'),
       });
-    }
 
-    // Register resources and prompts from base class (no change)
-    for (const [uri, resource] of baseThis.registeredResources.entries()) {
-      server.registerResource(resource.name, uri, {
-        description: resource.description,
-      }, async (uriParam, ctx) => {
-        return await baseThis.handleResourceRead(resource, uriParam, ctx);
+      for (const [name, tool] of baseThis.registeredTools.entries()) {
+        // Skip if already registered from PostgreSQL cache
+        if (aggregatedToolIds.has(name)) {
+          logger.debug('mcp_server.skipping_duplicate_tool', { name });
+          continue;
+        }
+        try {
+          logger.debug('mcp_server.registering_tool', {
+            name,
+            hasHandler: !!tool.handler,
+            hasSchema: !!tool.schema,
+          });
+          server.registerTool(name, {
+            description: tool.description,
+            inputSchema: tool.schema, // These are Zod schemas - safe to pass
+          }, async (args: any, ctx: any) => {
+            logger.debug('mcp_server.tool_handler_invoked', { toolName: name, args });
+            const meta = (args as any)._meta;
+            const combinedExtra = {
+              ...ctx,
+              userId: meta?.userId || (ctx as any)?.http?.req?.headers?.['x-user-id'],
+              userRoles: meta?.userRoles || (ctx as any)?.http?.req?.headers?.['x-roles'],
+              correlationId: meta?.correlationId || (ctx as any)?.http?.req?.headers?.['x-correlation-id'],
+              sessionId: meta?.sessionId || (ctx as any)?.http?.req?.headers?.['x-session-id'],
+            };
+            return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(args, combinedExtra), combinedExtra);
+          });
+          logger.debug('mcp_server.tool_registered_successfully', { name });
+        } catch (toolErr: any) {
+          logger.error('mcp_server.tool_registration_failed', {
+            tool: name,
+            error: toolErr.message,
+            stack: toolErr.stack,
+          });
+          throw new Error(`Failed to register tool "${name}": ${toolErr.message}`);
+        }
+      }
+
+      // Register resources and prompts from base class (no change)
+      for (const [uri, resource] of baseThis.registeredResources.entries()) {
+        server.registerResource(resource.name, uri, {
+          description: resource.description,
+        }, async (uriParam, ctx) => {
+          return await baseThis.handleResourceRead(resource, uriParam, ctx);
+        });
+      }
+
+      for (const [name, prompt] of baseThis.registeredPrompts.entries()) {
+        server.registerPrompt(prompt.name, {
+          description: prompt.description,
+          argsSchema: prompt.args && prompt.args.length > 0 ? prompt.args as any : undefined,
+        }, async (promptArgs, ctx) => {
+          return await baseThis.handlePromptGet(prompt, promptArgs, ctx);
+        });
+      }
+
+      logger.info('mcp_server.initialized_with_aggregation', {
+        aggregatedTools: allTools.length,
+        ownTools: baseThis.registeredTools.size,
+        totalTools: allTools.length + baseThis.registeredTools.size,
       });
-    }
 
-    for (const [name, prompt] of baseThis.registeredPrompts.entries()) {
-      server.registerPrompt(prompt.name, {
-        description: prompt.description,
-        argsSchema: prompt.args && prompt.args.length > 0 ? prompt.args as any : undefined,
-      }, async (promptArgs, ctx) => {
-        return await baseThis.handlePromptGet(prompt, promptArgs, ctx);
+      return server;
+    } catch (err: any) {
+      this.getLogger().error('mcp_server.initialization_failed', {
+        service: 'tool-orchestrator',
+        error: err.message,
+        stack: err.stack,
       });
+      throw err;
     }
-
-    logger.info('mcp_server.initialized_with_aggregation', {
-      aggregatedTools: allTools.length,
-    });
-
-    return server;
   }
 
   // Getter methods for modules (used externally if needed)

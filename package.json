@@ -23,6 +23,8 @@
     "lint": "eslint .",
     "build": "tsc -p tsconfig.json",
     "test": "jest",
+    "test:mcp": "npx ts-node scripts/test-mcp-tools.ts",
+    "test:mcp:staging": "npx ts-node scripts/test-mcp-tools.ts staging",
     "regen": "npm ci && npm run build && npm test",
     "local": "npm run brat -- bit deploy --all --context local --loki",
     "local:down": "npm run brat -- docker down --context local",
