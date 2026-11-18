@@ -1538,15 +1538,20 @@ Returns composition metadata (id, name, version, contentHash).`,
             // ✅ Sprint 65: MCP SDK v2 - Extract execution context from v2 ServerContext
             // CRITICAL: _meta is in ctx.mcpReq._meta (v2), NOT args._meta (v1)
             // HOTFIX: Added optional chaining to handle undefined ctx
+            // HOTFIX 2: Don't use invalid 'tool-orchestrator' fallback for modelId
             const meta = ctx?.mcpReq?._meta;
 
-            const combinedExtra = {
+            const combinedExtra: any = {
               userId: meta?.userId || ctx?.http?.req?.headers.get('x-user-id') || 'anonymous',
               userRoles: meta?.userRoles || ctx?.http?.req?.headers.get('x-roles')?.split(',') || [],
-              modelId: meta?.modelId || 'tool-orchestrator',
               sessionId: meta?.sessionId,
               correlationId: meta?.correlationId,
             };
+
+            // Only include modelId if present in _meta (don't use invalid fallback)
+            if (meta?.modelId) {
+              combinedExtra.modelId = meta.modelId;
+            }
 
             logger.debug('mcp_server.tool_call', {
               toolId: tool.id,
