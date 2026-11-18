@@ -469,7 +469,8 @@ export class ToolGateway implements IToolGateway {
    */
   private isTransientError(error: any): boolean {
     const errorMessage = error.message?.toLowerCase() || '';
-    const errorCode = error.code?.toLowerCase() || '';
+    // Sprint 65 FIX: error.code might be a number (HTTP status codes), convert to string first
+    const errorCode = error.code ? String(error.code).toLowerCase() : '';
 
     // Network errors
     const networkErrors = [
