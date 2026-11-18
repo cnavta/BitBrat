@@ -12,7 +12,6 @@ import { CompositionRegistry } from '../common/composition/registry';
 import { CompositionExecutor } from '../common/composition/executor';
 import { PostgresCompositionStore } from '../common/composition/postgres-composition-store';
 import { z } from 'zod';
-import { jsonSchema } from 'ai';
 // Sprint 65: MCP server automatic registration
 import { INTERNAL_MCP_REGISTRATION_V1, InternalEventV2 } from '../types/events';
 import { RegistryWatcher } from '../common/mcp/registry-watcher';
@@ -1486,19 +1485,10 @@ Returns composition metadata (id, name, version, contentHash).`,
           // Track this sanitized name
           registeredSanitizedNames.add(sanitizedToolName);
 
-          // Extract and convert JSON Schema from database
-          // The database stores inputSchema as: { jsonSchema: { type: 'object', properties: {...} } }
-          // We need to extract the inner jsonSchema object
-          let inputSchemaForRegistration: any = undefined;
-          if (tool.inputSchema && typeof tool.inputSchema === 'object') {
-            const schemaData = (tool.inputSchema as any).jsonSchema || tool.inputSchema;
-            // Use jsonSchema helper from AI SDK to support raw JSON Schema (same pattern as bridge.ts)
-            inputSchemaForRegistration = jsonSchema(schemaData);
-          }
-
           server.registerTool(sanitizedToolName, {
             description: tool.description || `Tool: ${tool.id}`,
-            inputSchema: inputSchemaForRegistration,
+            // inputSchema omitted - MCP SDK v2 requires Zod schemas, PostgreSQL stores JSON Schema
+            // TODO: Convert JSON Schema to Zod, or use schema-less registration
           }, async (args: any, ctx: any) => {
             // HOTFIX 7: MCP SDK v2 RUNTIME passes ServerContext as first parameter (args), not second (ctx)!
             // The diagnostic logs showed: argsKeys: ["sessionId", "mcpReq", "http"], ctxKeys: []
