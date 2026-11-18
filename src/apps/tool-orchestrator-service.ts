@@ -1489,61 +1489,32 @@ Returns composition metadata (id, name, version, contentHash).`,
             description: tool.description || `Tool: ${tool.id}`,
             // inputSchema omitted - PostgreSQL stores JSON Schema, SDK requires Zod
           }, async (args: any, ctx: any) => {
-            // Sprint 65 DEBUG: Log what we're actually receiving
-            // Check all possible locations where MCP SDK might pass context
-            const ctxRequestInfo = (ctx as any)?.requestInfo;
-            const ctxRequestInfoHeaders = ctxRequestInfo?.headers;
-            let headersList: string[] | undefined;
-            if (ctxRequestInfoHeaders) {
-              // Headers is a Headers object (Web API), need to convert to array
-              try {
-                headersList = Array.from(ctxRequestInfoHeaders.keys());
-              } catch {}
-            }
+            // HOTFIX 7: MCP SDK v2 RUNTIME passes ServerContext as first parameter (args), not second (ctx)!
+            // The diagnostic logs showed: argsKeys: ["sessionId", "mcpReq", "http"], ctxKeys: []
+            // TypeScript signature shows (args, ctx) but runtime passes (ServerContext, undefined)
+            const serverContext = args; // args IS ServerContext at runtime
 
-            // Sprint 65 DEBUG: Dump full ctx.mcpReq structure to find where _meta is
-            let mcpReqDump: any = undefined;
-            if ((ctx as any)?.mcpReq) {
-              try {
-                // Try to serialize mcpReq to see its structure
-                const mcpReq = (ctx as any).mcpReq;
-                mcpReqDump = {
-                  keys: Object.keys(mcpReq),
-                  hasParams: !!mcpReq.params,
-                  paramsKeys: mcpReq.params ? Object.keys(mcpReq.params) : undefined,
-                  paramsMeta: mcpReq.params?._meta,
-                  hasEnvelope: !!mcpReq.envelope,
-                  envelopeKeys: mcpReq.envelope ? Object.keys(mcpReq.envelope) : undefined,
-                  method: mcpReq.method,
-                  id: mcpReq.id,
-                };
-              } catch (err) {
-                mcpReqDump = { error: err instanceof Error ? err.message : String(err) };
-              }
-            }
+            // Extract _meta from ServerContext (was incorrectly looking in empty ctx)
+            const meta = serverContext?.mcpReq?._meta;
 
+            // Extract tool arguments from MCP request params
+            const toolArgs = serverContext?.mcpReq?.params?.arguments || {};
+
+            // Sprint 65 DEBUG: Log what we're receiving
             logger.debug('mcp_server.tool_call.raw_params', {
               toolId: tool.id,
-              argsHasMeta: !!(args as any)._meta,
-              argsKeys: args ? Object.keys(args) : [],
-              ctxKeys: ctx ? Object.keys(ctx) : [],
-              ctxMeta: (ctx as any)?._meta,
-              ctxMcpReqMeta: (ctx as any)?.mcpReq?._meta,
-              ctxHasRequestInfo: !!ctxRequestInfo,
-              ctxRequestInfoKeys: ctxRequestInfo ? Object.keys(ctxRequestInfo) : [],
-              ctxRequestInfoHeaderKeys: headersList,
-              mcpReqDump,
+              hasServerContext: !!serverContext,
+              serverContextKeys: serverContext ? Object.keys(serverContext) : [],
+              hasMcpReq: !!serverContext?.mcpReq,
+              mcpReqKeys: serverContext?.mcpReq ? Object.keys(serverContext.mcpReq) : [],
+              hasMeta: !!meta,
+              metaKeys: meta ? Object.keys(meta) : [],
+              toolArgsKeys: Object.keys(toolArgs),
             });
 
-            // ✅ Sprint 65: MCP SDK v2 - Extract execution context from v2 ServerContext
-            // CRITICAL: _meta is in ctx.mcpReq._meta (v2), NOT args._meta (v1)
-            // HOTFIX: Added optional chaining to handle undefined ctx
-            // HOTFIX 2: Don't use invalid 'tool-orchestrator' fallback for modelId
-            const meta = ctx?.mcpReq?._meta;
-
             const combinedExtra: any = {
-              userId: meta?.userId || ctx?.http?.req?.headers.get('x-user-id') || 'anonymous',
-              userRoles: meta?.userRoles || ctx?.http?.req?.headers.get('x-roles')?.split(',') || [],
+              userId: meta?.userId || serverContext?.http?.req?.headers.get('x-user-id') || 'anonymous',
+              userRoles: meta?.userRoles || serverContext?.http?.req?.headers.get('x-roles')?.split(',') || [],
               sessionId: meta?.sessionId,
               correlationId: meta?.correlationId,
             };
@@ -1569,7 +1540,7 @@ Returns composition metadata (id, name, version, contentHash).`,
             return await this.traceMcpOperation(
               `tool:${tool.id}`,
               async () => {
-                const result = await this.toolGateway!.execute(tool.id, args, combinedExtra as any);
+                const result = await this.toolGateway!.execute(tool.id, toolArgs, combinedExtra as any);
                 // ToolResult is compatible with CallToolResult structure
                 return result as any;
               },
@@ -1637,16 +1608,18 @@ Returns composition metadata (id, name, version, contentHash).`,
             description: tool.description,
             inputSchema: tool.schema, // These are Zod schemas - safe to pass
           }, async (args: any, ctx: any) => {
-            logger.debug('mcp_server.tool_handler_invoked', { toolName: name, args });
-            // ✅ Sprint 65: MCP SDK v2 - Extract _meta from v2 ServerContext
-            // HOTFIX: Added optional chaining to handle undefined ctx
-            // HOTFIX 3: Don't spread ctx - it may contain modelId: undefined
-            const meta = ctx?.mcpReq?._meta;
+            // HOTFIX 7: MCP SDK v2 RUNTIME passes ServerContext as first parameter
+            const serverContext = args; // args IS ServerContext at runtime
+            const meta = serverContext?.mcpReq?._meta;
+            const toolArgs = serverContext?.mcpReq?.params?.arguments || {};
+
+            logger.debug('mcp_server.tool_handler_invoked', { toolName: name, hasMeta: !!meta, hasArgs: Object.keys(toolArgs).length > 0 });
+
             const combinedExtra: any = {
-              userId: meta?.userId || ctx?.http?.req?.headers.get('x-user-id'),
-              userRoles: meta?.userRoles || ctx?.http?.req?.headers.get('x-roles'),
-              correlationId: meta?.correlationId || ctx?.http?.req?.headers.get('x-correlation-id'),
-              sessionId: meta?.sessionId || ctx?.http?.req?.headers.get('x-session-id'),
+              userId: meta?.userId || serverContext?.http?.req?.headers.get('x-user-id'),
+              userRoles: meta?.userRoles || serverContext?.http?.req?.headers.get('x-roles'),
+              correlationId: meta?.correlationId || serverContext?.http?.req?.headers.get('x-correlation-id'),
+              sessionId: meta?.sessionId || serverContext?.http?.req?.headers.get('x-session-id'),
             };
 
             // Only include modelId if present in _meta (don't use invalid fallback or undefined)
@@ -1654,7 +1627,7 @@ Returns composition metadata (id, name, version, contentHash).`,
               combinedExtra.modelId = meta.modelId;
             }
 
-            return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(args, combinedExtra), combinedExtra);
+            return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(toolArgs, combinedExtra), combinedExtra);
           });
           logger.debug('mcp_server.tool_registered_successfully', { name });
         } catch (toolErr: any) {
