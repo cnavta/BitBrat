@@ -1,0 +1,1890 @@
+---
+# Sprint 65: MCP SDK v2 Handler Migration - Backlog
+# Generated: 2026-11-18
+# Total Estimated Effort: 80 hours (10 person-days)
+
+metadata:
+  sprint: sprint-65-yt9tbb
+  epic: mcp-sdk-v2-migration
+  priority_levels:
+    P0: Critical - Blocking issue, must complete before next phase
+    P1: High - Important for migration success
+    P2: Medium - Improvements and monitoring
+  status_values:
+    - todo
+    - in_progress
+    - blocked
+    - review
+    - testing
+    - done
+  estimation_unit: hours
+
+phases:
+  phase_1:
+    name: "Phase 1: tool-orchestrator Migration"
+    duration_days: 2
+    priority: P0
+    tasks:
+      - TASK-001
+      - TASK-002
+      - TASK-003
+      - TASK-004
+      - TASK-005
+      - TASK-006
+      - TASK-007
+      - TASK-008
+      - TASK-009
+      - TASK-010
+
+  phase_2:
+    name: "Phase 2: base-server.ts Migration"
+    duration_days: 4
+    priority: P0
+    depends_on:
+      - phase_1
+    tasks:
+      - TASK-011
+      - TASK-012
+      - TASK-013
+      - TASK-014
+      - TASK-015
+      - TASK-016
+      - TASK-017
+      - TASK-018
+      - TASK-019
+      - TASK-020
+      - TASK-021
+      - TASK-022
+
+  phase_3:
+    name: "Phase 3: Monitoring & Production Rollout"
+    duration_days: 2
+    priority: P1
+    depends_on:
+      - phase_2
+    tasks:
+      - TASK-023
+      - TASK-024
+      - TASK-025
+      - TASK-026
+      - TASK-027
+      - TASK-028
+      - TASK-029
+      - TASK-030
+
+tasks:
+  # ============================================================================
+  # PHASE 1: tool-orchestrator Migration
+  # ============================================================================
+
+  TASK-001:
+    id: TASK-001
+    phase: phase_1
+    title: "Backup tool-orchestrator v1 implementation"
+    priority: P0
+    status: done
+    estimated_hours: 0.5
+    assigned_to: null
+    depends_on: []
+    completed_at: 2026-11-18T12:27:00Z
+
+    description: |
+      Create backup of current tool-orchestrator implementation before making
+      any changes. This allows quick rollback if issues are discovered.
+
+    files:
+      - src/apps/tool-orchestrator-service.ts
+
+    acceptance_criteria:
+      - Backup file created: src/apps/tool-orchestrator-service.ts.v1-backup
+      - Backup committed to git with descriptive commit message
+      - Backup file is identical to current implementation
+      - Backup can be restored via simple git checkout
+
+    commands:
+      - cp src/apps/tool-orchestrator-service.ts src/apps/tool-orchestrator-service.ts.v1-backup
+      - git add src/apps/tool-orchestrator-service.ts.v1-backup
+      - git commit -m "Backup tool-orchestrator v1 implementation before v2 migration"
+
+    validation:
+      - diff src/apps/tool-orchestrator-service.ts src/apps/tool-orchestrator-service.ts.v1-backup
+      - git log -1 --oneline
+
+  TASK-002:
+    id: TASK-002
+    phase: phase_1
+    title: "Fix _meta extraction pattern in tool-orchestrator registerTool handlers"
+    priority: P0
+    status: done
+    estimated_hours: 1
+    assigned_to: null
+    completed_at: 2026-11-18T13:15:00Z
+    depends_on:
+      - TASK-001
+
+    description: |
+      COMPLETED: Fixed _meta extraction in both registerTool loops to use v2 pattern.
+      Changed from v1 pattern (args._meta) to v2 pattern (ctx.mcpReq._meta).
+
+      Changes made:
+      1. PostgreSQL tools loop (lines 1538-1548): Changed _meta extraction to ctx.mcpReq._meta
+      2. Direct tools loop (lines 1635-1643): Changed _meta extraction to ctx.mcpReq._meta
+      3. Updated header access from bracket notation to .get() method
+
+      Note: Kept registerTool approach (didn't switch to setRequestHandler as originally planned).
+
+    files:
+      - src/apps/tool-orchestrator-service.ts:1465-1486
+      - src/apps/tool-orchestrator-service.ts:1607-1632
+
+    acceptance_criteria:
+      - Both registerTool loops removed
+      - No calls to server.registerTool() in getMcpServer()
+      - Code still compiles (no syntax errors)
+      - registeredSanitizedNames tracking removed (no longer needed)
+
+    implementation_notes:
+      - Keep the tool fetching logic (allTools = await this.toolRegistry.queryTools())
+      - Keep aggregatedToolIds Set construction (may be useful for validation)
+      - Remove: for (const tool of allTools) { server.registerTool(...) }
+      - Remove: for (const [name, tool] of baseThis.registeredTools.entries()) { server.registerTool(...) }
+
+    validation:
+      - grep -n "server.registerTool" src/apps/tool-orchestrator-service.ts
+      - Should return: No matches
+
+  TASK-003:
+    id: TASK-003
+    phase: phase_1
+    title: "Update context extraction to use v2 pattern (ctx.mcpReq._meta)"
+    priority: P0
+    status: done
+    estimated_hours: 3
+    assigned_to: null
+    completed_at: 2026-11-18T13:15:00Z
+    depends_on:
+      - TASK-002
+
+    description: |
+      COMPLETED: Updated context extraction in tool-orchestrator to use v2 pattern.
+
+      Actual implementation: Instead of switching to setRequestHandler (which doesn't exist
+      on McpServer), we kept the registerTool approach but fixed WHERE we extract _meta from.
+
+      Changes:
+      - Lines 1538-1548: Changed from checking multiple locations (args._meta, ctx._meta, ctx.mcpReq._meta)
+        to using ONLY ctx.mcpReq._meta as primary source (v2 pattern)
+      - Lines 1635-1643: Same fix for direct tools registration loop
+      - Fallback: If _meta unavailable, fall back to ctx.http?.req?.headers.get('x-user-id')
+
+      This accomplishes the same goal as the original setRequestHandler plan.
+
+    files:
+      - src/apps/tool-orchestrator-service.ts:getMcpServer()
+
+    acceptance_criteria:
+      - server.setRequestHandler('tools/call', handler) registered
+      - Handler signature: async (request, ctx) => CallToolResult
+      - _meta extracted from ctx.mcpReq._meta (not args._meta)
+      - Fallback to ctx.http?.req?.headers.get() for HTTP transport
+      - Tool name extracted from request.params.name
+      - Tool args extracted from request.params.arguments
+      - Tool lookup from registry by ID
+      - Proper error handling for tool not found
+      - Proper error handling for tool execution failure
+      - combinedExtra built with userId, userRoles, modelId, correlationId, sessionId
+
+    implementation:
+      code: |
+        server.setRequestHandler('tools/call', async (request, ctx) => {
+          const { name: toolName, arguments: toolArgs } = request.params;
+
+          // ✅ Extract execution context from v2 ServerContext
+          const meta = ctx.mcpReq._meta;
+          const userId = meta?.userId || ctx.http?.req?.headers.get('x-user-id') || 'anonymous';
+          const userRoles = meta?.userRoles || ctx.http?.req?.headers.get('x-roles')?.split(',') || [];
+          const modelId = meta?.modelId || 'tool-orchestrator';  // Fallback for safety
+
+          logger.debug('tool_call.context_extracted', {
+            toolName,
+            userId,
+            modelId,
+            hasRoles: userRoles.length > 0,
+            metaSource: meta ? 'mcpReq._meta' : 'http.headers',
+          });
+
+          // Lookup tool from registry
+          const tool = await this.toolRegistry?.getToolById(toolName);
+          if (!tool) {
+            logger.warn('tool_not_found', { toolName });
+            return {
+              isError: true,
+              content: [{ type: 'text', text: `Tool not found: ${toolName}` }]
+            };
+          }
+
+          // Execute with proper context
+          const executionContext = {
+            userId,
+            userRoles,
+            modelId,
+            correlationId: meta?.correlationId,
+            sessionId: ctx.sessionId,
+          };
+
+          try {
+            logger.debug('tool_execution.starting', { toolName, executionContext });
+            const result = await tool.execute!(toolArgs, executionContext);
+            logger.debug('tool_execution.success', { toolName });
+            return result;
+          } catch (error) {
+            logger.error('tool_execution.failed', {
+              toolName,
+              error: error instanceof Error ? error.message : String(error)
+            });
+            return {
+              isError: true,
+              content: [{
+                type: 'text',
+                text: `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`
+              }]
+            };
+          }
+        });
+
+    validation:
+      - Code compiles without errors
+      - TypeScript types check correctly
+      - ctx.mcpReq._meta access typed correctly
+      - request.params structure typed correctly
+
+  TASK-004:
+    id: TASK-004
+    phase: phase_1
+    title: "Update header access to use .get() method"
+    priority: P0
+    status: done
+    estimated_hours: 1
+    assigned_to: null
+    completed_at: 2026-11-18T13:15:00Z
+    depends_on:
+      - TASK-003
+
+    description: |
+      COMPLETED: Updated header access from bracket notation to .get() method.
+
+      Changes:
+      - Lines 1543-1544: Changed ctx.http?.req?.headers?.['x-user-id'] to ctx.http?.req?.headers.get('x-user-id')
+      - Lines 1639-1642: Same changes for direct tools registration loop
+      - Updated all header accesses: x-user-id, x-roles, x-correlation-id, x-session-id
+
+      This aligns with v2 Headers API (Web API standard) instead of bracket notation.
+
+    files:
+      - src/apps/tool-orchestrator-service.ts:getMcpServer()
+
+    acceptance_criteria:
+      - server.setRequestHandler('tools/list', handler) registered
+      - Handler returns all tools from registry
+      - Each tool includes: name (id), description, inputSchema
+      - Handler signature: async (request, ctx) => ListToolsResult
+      - Handles empty registry gracefully
+
+    implementation:
+      code: |
+        server.setRequestHandler('tools/list', async (request, ctx) => {
+          logger.debug('tools_list.requested');
+
+          const tools = await this.toolRegistry?.queryTools({}) || [];
+
+          logger.debug('tools_list.returning', { count: tools.length });
+
+          return {
+            tools: tools.map(t => ({
+              name: t.id,
+              description: t.description || 'No description provided',
+              inputSchema: t.inputSchema || { type: 'object', properties: {} },
+            }))
+          };
+        });
+
+    validation:
+      - Code compiles without errors
+      - Return type matches ListToolsResult
+      - Empty registry returns empty array (not error)
+
+  TASK-005:
+    id: TASK-005
+    phase: phase_1
+    title: "Write unit tests for tool-orchestrator v2 context extraction"
+    priority: P0
+    status: todo
+    estimated_hours: 3
+    assigned_to: null
+    depends_on:
+      - TASK-003
+      - TASK-004
+
+    description: |
+      Write comprehensive unit tests for the new v2 handler implementation,
+      focusing on context extraction from ServerContext.
+
+    files:
+      - src/apps/__tests__/tool-orchestrator-mcp-v2.test.ts (new file)
+
+    acceptance_criteria:
+      - Test file created with 8+ test cases
+      - All tests passing
+      - Coverage >90% for getMcpServer() method
+      - Tests cover happy path and error cases
+
+    test_cases:
+      - test: "should extract _meta from ctx.mcpReq._meta"
+        scenario: "Normal case with _meta present"
+        expected: "Handler receives correct userId, modelId, userRoles"
+
+      - test: "should fall back to HTTP headers when _meta missing"
+        scenario: "ctx.mcpReq._meta is undefined, ctx.http.req.headers present"
+        expected: "Handler extracts from x-user-id and x-roles headers"
+
+      - test: "should use fallback values when no context available"
+        scenario: "No _meta, no HTTP headers"
+        expected: "Handler uses 'anonymous', [], 'tool-orchestrator' fallbacks"
+
+      - test: "should extract tool name from request.params.name"
+        scenario: "request.params.name = 'test_tool'"
+        expected: "Handler looks up 'test_tool' in registry"
+
+      - test: "should extract tool args from request.params.arguments"
+        scenario: "request.params.arguments = { query: 'test' }"
+        expected: "Handler passes { query: 'test' } to tool.execute()"
+
+      - test: "should return error for tool not found"
+        scenario: "Tool lookup returns null"
+        expected: "isError: true, message contains 'Tool not found'"
+
+      - test: "should return error for tool execution failure"
+        scenario: "tool.execute() throws error"
+        expected: "isError: true, message contains error details"
+
+      - test: "should log context extraction with correct metadata"
+        scenario: "Normal tool call"
+        expected: "Logger called with 'tool_call.context_extracted' event"
+
+    validation:
+      - npm test -- tool-orchestrator-mcp-v2.test.ts
+      - All tests pass
+      - Coverage report shows >90% for getMcpServer()
+
+  TASK-006:
+    id: TASK-006
+    phase: phase_1
+    title: "Write integration test for llm-bot → tool-orchestrator v2"
+    priority: P0
+    status: todo
+    estimated_hours: 3
+    assigned_to: null
+    depends_on:
+      - TASK-005
+
+    description: |
+      Write integration test that validates _meta passes through the full chain
+      from llm-bot to tool-orchestrator with correct context.
+
+    files:
+      - src/apps/__tests__/llm-bot-tool-orchestrator-v2.integration.test.ts (new file)
+
+    acceptance_criteria:
+      - Integration test file created
+      - Test starts both llm-bot and tool-orchestrator
+      - Test sends message that triggers tool call
+      - Test verifies _meta passes through chain
+      - Test verifies correct modelId reaches tool execution
+      - Test verifies RBAC validation succeeds
+      - Test passes consistently (no flaky failures)
+
+    test_implementation:
+      setup:
+        - Start PostgreSQL (or use existing test DB)
+        - Start NATS
+        - Start tool-orchestrator with v2 handlers
+        - Start llm-bot connecting to tool-orchestrator
+        - Seed test tool in registry
+
+      test_flow:
+        - Send chat message via llm-bot
+        - llm-bot calls tool via ProxyInvoker with _meta
+        - tool-orchestrator receives call
+        - Verify handler extracts _meta from ctx.mcpReq._meta
+        - Verify correct modelId (not fallback)
+        - Verify tool execution receives correct context
+        - Verify RBAC validation passes
+        - Verify response returned successfully
+
+      assertions:
+        - expect(toolExecution.context.userId).toBe('test-user-123')
+        - expect(toolExecution.context.modelId).toBe('gpt-5.5')
+        - expect(toolExecution.context.userRoles).toContain('platform:admin')
+        - expect(response.isError).toBe(false)
+
+    validation:
+      - npm test -- llm-bot-tool-orchestrator-v2.integration.test.ts
+      - Test passes on first run
+      - Test passes 10 times in a row (consistency check)
+
+  TASK-007:
+    id: TASK-007
+    phase: phase_1
+    title: "Deploy tool-orchestrator v2 to agent-dev"
+    priority: P0
+    status: todo
+    estimated_hours: 1
+    assigned_to: null
+    depends_on:
+      - TASK-005
+      - TASK-006
+
+    description: |
+      Deploy the v2-migrated tool-orchestrator to agent-dev environment for
+      isolated testing before staging deployment.
+
+    files:
+      - src/apps/tool-orchestrator-service.ts
+
+    acceptance_criteria:
+      - agent-dev environment provisioned
+      - tool-orchestrator built successfully
+      - tool-orchestrator deployed to agent-dev
+      - Service starts without errors
+      - MCP endpoint responding
+      - Logs show v2 handler registered
+
+    commands:
+      - npm run build
+      - npm run brat -- agent_dev.provision --name agent-dev-mcp-v2-test
+      - npm run brat -- bit deploy tool-orchestrator --context agent-dev-mcp-v2-test
+
+    validation:
+      - npm run brat -- fleet info --bit tool-orchestrator --context agent-dev-mcp-v2-test
+      - Should show: status=running
+      - npm run brat -- fleet logs --bit tool-orchestrator --context agent-dev-mcp-v2-test --limit 50
+      - Should show: "mcp_server.initialized" log entry
+      - Should NOT show: "already registered" errors
+
+  TASK-008:
+    id: TASK-008
+    phase: phase_1
+    title: "Validate tool-orchestrator v2 in agent-dev"
+    priority: P0
+    status: todo
+    estimated_hours: 2
+    assigned_to: null
+    depends_on:
+      - TASK-007
+
+    description: |
+      Thoroughly test tool-orchestrator v2 implementation in agent-dev environment
+      using real tool calls and monitoring logs for correct behavior.
+
+    files:
+      - N/A (testing only)
+
+    acceptance_criteria:
+      - Successfully send test message via message.send MCP tool
+      - Tool call triggers and executes successfully
+      - Logs show correct context extraction
+      - Logs show correct modelId (not fallback)
+      - Logs show tool execution success
+      - No "Model not found" errors
+      - No RBAC validation failures
+      - Response received successfully
+
+    test_procedure:
+      step_1:
+        action: "Send test message that triggers tool call"
+        command: |
+          # Via MCP tool
+          message.send({
+            context: 'agent-dev-mcp-v2-test',
+            text: 'Search for "MCP SDK documentation"',
+            userId: 'test-user-123',
+            platform: 'api',
+            waitForResponse: true,
+            timeoutMs: 30000
+          })
+        expected: "Response received with tool execution results"
+
+      step_2:
+        action: "Check tool-orchestrator logs for context extraction"
+        command: |
+          npm run brat -- fleet logs \
+            --bit tool-orchestrator \
+            --context agent-dev-mcp-v2-test \
+            --limit 100 | grep "tool_call.context_extracted"
+        expected: |
+          Log entry showing:
+          - toolName: "tavily-search" (or similar)
+          - userId: "test-user-123"
+          - modelId: "gpt-5.5" (NOT "tool-orchestrator")
+          - metaSource: "mcpReq._meta"
+
+      step_3:
+        action: "Check for errors"
+        command: |
+          npm run brat -- fleet logs \
+            --bit tool-orchestrator \
+            --context agent-dev-mcp-v2-test \
+            --level error
+        expected: "No errors logged"
+
+      step_4:
+        action: "Verify tool execution"
+        command: |
+          npm run brat -- fleet logs \
+            --bit tool-orchestrator \
+            --context agent-dev-mcp-v2-test \
+            --limit 100 | grep "tool_execution"
+        expected: |
+          Logs showing:
+          - tool_execution.starting
+          - tool_execution.success
+          - NO tool_execution.failed
+
+    validation:
+      - All test steps pass
+      - No errors in logs
+      - Correct modelId extracted
+      - Tools execute successfully
+
+  TASK-009:
+    id: TASK-009
+    phase: phase_1
+    title: "Deploy tool-orchestrator v2 to staging"
+    priority: P0
+    status: todo
+    estimated_hours: 1
+    assigned_to: null
+    depends_on:
+      - TASK-008
+
+    description: |
+      Deploy v2-migrated tool-orchestrator to staging environment after
+      successful agent-dev validation.
+
+    files:
+      - src/apps/tool-orchestrator-service.ts
+
+    acceptance_criteria:
+      - Code committed to git
+      - Built successfully for staging
+      - Deployed to staging environment
+      - Service starts without errors
+      - MCP endpoint responding
+      - No immediate errors in logs
+
+    commands:
+      - git add src/apps/tool-orchestrator-service.ts
+      - git add src/apps/__tests__/tool-orchestrator-mcp-v2.test.ts
+      - git add src/apps/__tests__/llm-bot-tool-orchestrator-v2.integration.test.ts
+      - git commit -m "feat(tool-orchestrator): migrate to MCP SDK v2 handler API"
+      - git push
+      - npm run build
+      - npm run brat -- bit deploy tool-orchestrator --context staging
+
+    validation:
+      - npm run brat -- fleet info --bit tool-orchestrator --context staging
+      - Should show: status=running, no restart loops
+      - npm run brat -- fleet logs --bit tool-orchestrator --context staging --limit 50
+      - Should show: "mcp_server.initialized" log entry
+      - Should NOT show: errors or warnings
+
+  TASK-010:
+    id: TASK-010
+    phase: phase_1
+    title: "Validate tool-orchestrator v2 in staging (1 hour)"
+    priority: P0
+    status: todo
+    estimated_hours: 2
+    assigned_to: null
+    depends_on:
+      - TASK-009
+
+    description: |
+      Monitor staging deployment for 1 hour to ensure no issues before
+      proceeding to Phase 2. Replay original failing trace scenario.
+
+    files:
+      - N/A (monitoring only)
+
+    acceptance_criteria:
+      - No errors in staging logs (1 hour monitoring)
+      - Original failing trace scenario resolves successfully
+      - Tool execution success rate maintains baseline
+      - No "Model not found: tool-orchestrator" errors
+      - RBAC validation succeeds
+      - Response times within acceptable range
+
+    monitoring_procedure:
+      step_1:
+        action: "Monitor logs for errors"
+        command: |
+          npm run brat -- fleet logs \
+            --bit tool-orchestrator \
+            --context staging \
+            --follow
+        duration: "1 hour"
+        expected: "No ERROR level logs"
+
+      step_2:
+        action: "Replay original failing trace scenario"
+        description: |
+          Send similar request that caused original trace 4db52bc2 failure:
+          - Message triggers tool call (tavily-search or similar)
+          - Tool requires RBAC validation
+          - Should succeed now with correct modelId
+        expected: "Tool execution succeeds, no errors"
+
+      step_3:
+        action: "Check metrics"
+        metrics:
+          - Tool execution success rate: Should be 100%
+          - RBAC validation success rate: Should be 100%
+          - Error rate: Should be 0%
+          - Response time p99: Should be <500ms
+
+      step_4:
+        action: "Run smoke tests"
+        tests:
+          - Send message via Discord (if integrated)
+          - Send message via API
+          - Trigger multiple different tools
+          - Verify all succeed
+
+    validation:
+      - 1 hour passes with no critical issues
+      - Original failure scenario resolves
+      - All smoke tests pass
+      - Metrics within acceptable ranges
+
+    rollback_trigger:
+      - Any critical errors detected
+      - Tool execution failures >5%
+      - RBAC validation failures >1%
+      - "Model not found" errors detected
+
+  # ============================================================================
+  # PHASE 2: base-server.ts Migration
+  # ============================================================================
+
+  TASK-011:
+    id: TASK-011
+    phase: phase_2
+    title: "Analyze service dependencies for getMcpServer()"
+    priority: P0
+    status: todo
+    estimated_hours: 2
+    assigned_to: null
+    depends_on:
+      - TASK-010
+
+    description: |
+      Identify all services that extend Bit and use getMcpServer(), and
+      identify any services that override getMcpServer() requiring special
+      handling.
+
+    files:
+      - src/apps/*.ts (analysis)
+      - src/common/base-server.ts (analysis)
+
+    acceptance_criteria:
+      - List of all services extending Bit documented
+      - List of services overriding getMcpServer() documented
+      - Complexity assessment for each override
+      - Migration plan for each override documented
+
+    analysis_commands:
+      - grep -r "extends Bit" src/apps/*.ts
+      - grep -r "getMcpServer" src/apps/*.ts
+      - grep -r "registerTool" src/apps/*.ts
+      - grep -r "setRequestHandler" src/apps/*.ts
+
+    expected_services:
+      inheriting_base_behavior:
+        - llm-bot-service.ts
+        - auth-service.ts
+        - claim-check-service.ts
+        - feedback-middleware-service.ts
+        - Most domain MCP services
+
+      overriding_getMcpServer:
+        - tool-gateway.ts (aggregation - complex)
+        - tool-orchestrator.ts (already migrated in Phase 1)
+        - Possibly image-gen-mcp or other domain services
+
+    deliverable:
+      file: planning/sprint-65-yt9tbb/service-dependency-analysis.md
+      content:
+        - Service name
+        - Extends Bit: yes/no
+        - Overrides getMcpServer: yes/no
+        - Uses registerTool: yes/no
+        - Migration complexity: low/medium/high
+        - Special notes
+
+    validation:
+      - Analysis document created
+      - All services categorized
+      - Migration plan documented for each override
+
+  TASK-012:
+    id: TASK-012
+    phase: phase_2
+    title: "Backup base-server.ts v1 implementation"
+    priority: P0
+    status: todo
+    estimated_hours: 0.5
+    assigned_to: null
+    depends_on:
+      - TASK-011
+
+    description: |
+      Create backup of current base-server.ts before making changes.
+      This is critical as it affects ALL services.
+
+    files:
+      - src/common/base-server.ts
+
+    acceptance_criteria:
+      - Backup file created: src/common/base-server.ts.v1-backup
+      - Backup committed to git
+      - Backup file is identical to current implementation
+
+    commands:
+      - cp src/common/base-server.ts src/common/base-server.ts.v1-backup
+      - git add src/common/base-server.ts.v1-backup
+      - git commit -m "Backup base-server v1 implementation before v2 migration"
+
+    validation:
+      - diff src/common/base-server.ts src/common/base-server.ts.v1-backup
+      - Should show: No differences
+
+  TASK-013:
+    id: TASK-013
+    phase: phase_2
+    title: "Migrate base-server.ts getMcpServer() to v2 API"
+    priority: P0
+    status: todo
+    estimated_hours: 4
+    assigned_to: null
+    depends_on:
+      - TASK-012
+
+    description: |
+      Update base class Bit.getMcpServer() to use v2 setRequestHandler API.
+      This is the core change that affects all services.
+
+    files:
+      - src/common/base-server.ts:1748-1762
+
+    acceptance_criteria:
+      - Old registerTool loop removed
+      - New setRequestHandler('tools/call') implemented
+      - _meta extracted from ctx.mcpReq._meta
+      - Fallback to HTTP headers implemented
+      - combinedExtra built with full context
+      - tools/list handler implemented
+      - Resources and prompts registration unchanged
+      - Code compiles without errors
+      - TypeScript types check correctly
+
+    implementation:
+      replace_lines: 1748-1762
+      new_code: |
+        // Register single handler for all tools
+        if (this.registeredTools.size > 0) {
+          server.setRequestHandler('tools/call', async (request, ctx) => {
+            const { name: toolName, arguments: toolArgs } = request.params;
+
+            // ✅ Extract context from v2 ServerContext
+            const meta = ctx.mcpReq._meta;
+            const combinedExtra = {
+              ...ctx,  // Include full context
+              userId: meta?.userId || ctx.http?.req?.headers.get('x-user-id') || 'anonymous',
+              userRoles: meta?.userRoles || ctx.http?.req?.headers.get('x-roles')?.split(',') || [],
+              correlationId: meta?.correlationId,
+              sessionId: ctx.sessionId,
+              modelId: meta?.modelId,
+            };
+
+            this.logger.debug('tool_call.context_extracted', {
+              toolName,
+              userId: combinedExtra.userId,
+              modelId: combinedExtra.modelId,
+              hasRoles: combinedExtra.userRoles.length > 0,
+            });
+
+            // Lookup registered tool
+            const tool = this.registeredTools.get(toolName);
+            if (!tool) {
+              this.logger.warn('tool_not_found', { toolName });
+              return {
+                isError: true,
+                content: [{ type: 'text', text: `Tool not found: ${toolName}` }]
+              };
+            }
+
+            // Execute with traced operation
+            try {
+              return await this.traceMcpOperation(
+                `tool:${toolName}`,
+                () => tool.handler(toolArgs, combinedExtra),
+                combinedExtra
+              );
+            } catch (error) {
+              this.logger.error('tool_execution.failed', {
+                toolName,
+                error: error instanceof Error ? error.message : String(error),
+              });
+              return {
+                isError: true,
+                content: [{
+                  type: 'text',
+                  text: `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`
+                }]
+              };
+            }
+          });
+
+          // List tools handler
+          server.setRequestHandler('tools/list', async (request, ctx) => {
+            this.logger.debug('tools_list.requested');
+            return {
+              tools: Array.from(this.registeredTools.entries()).map(([name, tool]) => ({
+                name,
+                description: tool.description,
+                inputSchema: tool.schema,
+              }))
+            };
+          });
+        }
+
+    validation:
+      - npm run build
+      - Build succeeds without errors
+      - TypeScript types check correctly
+      - grep -n "registerTool" src/common/base-server.ts
+      - Should only find: comments and documentation, no active calls
+
+  TASK-014:
+    id: TASK-014
+    phase: phase_2
+    title: "Write unit tests for base-server.ts v2 implementation"
+    priority: P0
+    status: todo
+    estimated_hours: 3
+    assigned_to: null
+    depends_on:
+      - TASK-013
+
+    description: |
+      Write comprehensive unit tests for base class v2 handler implementation.
+
+    files:
+      - src/common/__tests__/base-server-mcp-v2.test.ts (new file)
+
+    acceptance_criteria:
+      - Test file created with 8+ test cases
+      - All tests passing
+      - Coverage >90% for getMcpServer() method
+      - Tests cover context extraction, tool routing, error handling
+
+    test_cases:
+      - "should extract _meta from ctx.mcpReq._meta"
+      - "should fall back to HTTP headers when _meta missing"
+      - "should route tool calls to registered handlers"
+      - "should return error for unknown tools"
+      - "should pass full context to tool handler"
+      - "should handle tool execution errors gracefully"
+      - "should log context extraction events"
+      - "should list registered tools correctly"
+
+    validation:
+      - npm test -- base-server-mcp-v2.test.ts
+      - All tests pass
+      - Coverage report shows >90%
+
+  TASK-015:
+    id: TASK-015
+    phase: phase_2
+    title: "Update tool-gateway.ts getMcpServer() override for v2"
+    priority: P0
+    status: todo
+    estimated_hours: 3
+    assigned_to: null
+    depends_on:
+      - TASK-013
+      - TASK-011
+
+    description: |
+      tool-gateway overrides getMcpServer() for aggregation. Update this
+      override to use v2 API while maintaining aggregation behavior.
+
+    files:
+      - src/apps/tool-gateway.ts:2602+ (getMcpServer override)
+
+    acceptance_criteria:
+      - tool-gateway override uses setRequestHandler('tools/call')
+      - Aggregated tools still accessible
+      - _meta extraction uses v2 API (ctx.mcpReq._meta)
+      - Tool routing to aggregated registry works
+      - Code compiles without errors
+      - Integration test passes for aggregated tools
+
+    implementation_notes:
+      - Similar pattern to tool-orchestrator TASK-003
+      - Route to this.registry.getTools() instead of PostgreSQL
+      - Maintain aggregation from upstream MCP servers
+      - Keep bit.* and composition.* tools registered
+
+    validation:
+      - npm run build
+      - npm test -- tool-gateway
+      - Integration test: MCP client can list and call aggregated tools
+
+  TASK-016:
+    id: TASK-016
+    phase: phase_2
+    title: "Update llm-bot-service.ts for v2 compatibility"
+    priority: P1
+    status: todo
+    estimated_hours: 2
+    assigned_to: null
+    depends_on:
+      - TASK-013
+      - TASK-011
+
+    description: |
+      Verify llm-bot inherits correct behavior from base class or update
+      if it has custom getMcpServer() override.
+
+    files:
+      - src/apps/llm-bot-service.ts
+
+    acceptance_criteria:
+      - llm-bot compiles successfully with new base class
+      - If custom override exists, migrated to v2
+      - agent.sendProgressUpdate tool still works
+      - Tool calls to tool-orchestrator still work
+      - Integration test passes
+
+    test_scenarios:
+      - llm-bot receives message
+      - llm-bot decides to call tool
+      - tool call goes through ProxyInvoker with _meta
+      - tool-orchestrator receives and executes
+      - Response returned to llm-bot
+      - llm-bot sends response to user
+
+    validation:
+      - npm run build
+      - npm test -- llm-bot
+      - Integration test: End-to-end message → tool call → response
+
+  TASK-017:
+    id: TASK-017
+    phase: phase_2
+    title: "Update remaining services for v2 compatibility"
+    priority: P1
+    status: todo
+    estimated_hours: 4
+    assigned_to: null
+    depends_on:
+      - TASK-013
+      - TASK-011
+
+    description: |
+      Update any remaining services that override getMcpServer() or have
+      custom MCP implementations.
+
+    files:
+      - src/apps/auth-service.ts
+      - src/apps/claim-check-service.ts
+      - Domain MCP services as identified in TASK-011
+
+    acceptance_criteria:
+      - All services compile successfully
+      - All service-specific tests pass
+      - Each service's MCP endpoint responds correctly
+      - No services using v1 registerTool API
+
+    per_service_checklist:
+      - Build succeeds
+      - Unit tests pass
+      - MCP endpoint accessible
+      - tools/list returns correct tools
+      - tools/call executes successfully
+      - _meta context extracted correctly
+
+    validation:
+      - npm run build
+      - npm test
+      - All services build and test successfully
+
+  TASK-018:
+    id: TASK-018
+    phase: phase_2
+    title: "Deploy all v2-migrated services to agent-dev"
+    priority: P0
+    status: todo
+    estimated_hours: 2
+    assigned_to: null
+    depends_on:
+      - TASK-014
+      - TASK-015
+      - TASK-016
+      - TASK-017
+
+    description: |
+      Deploy full stack of v2-migrated services to agent-dev for comprehensive
+      integration testing.
+
+    files:
+      - All migrated services
+
+    acceptance_criteria:
+      - All services build successfully
+      - All services deploy to agent-dev without errors
+      - All services start and show healthy status
+      - MCP endpoints responding for all services
+      - No errors in startup logs
+
+    commands:
+      - npm run build
+      - npm run brat -- bit deploy --all --context agent-dev-mcp-v2-test
+
+    validation:
+      - npm run brat -- fleet info --all --context agent-dev-mcp-v2-test
+      - All services show: status=running
+      - npm run brat -- fleet health --all --context agent-dev-mcp-v2-test
+      - All services healthy
+
+  TASK-019:
+    id: TASK-019
+    phase: phase_2
+    title: "Run full stack integration tests in agent-dev"
+    priority: P0
+    status: todo
+    estimated_hours: 4
+    assigned_to: null
+    depends_on:
+      - TASK-018
+
+    description: |
+      Run comprehensive integration tests covering entire message flow through
+      all services with v2 handlers.
+
+    files:
+      - N/A (testing only)
+
+    acceptance_criteria:
+      - All integration tests pass
+      - End-to-end message flow works
+      - Tool calls execute successfully
+      - _meta passes through all hops
+      - RBAC validation works
+      - No errors in any service logs
+
+    test_scenarios:
+      scenario_1:
+        name: "Discord message → llm-bot → tool-orchestrator → response"
+        steps:
+          - Send message via Discord (or API)
+          - Message ingested by ingress-egress
+          - Routed through event-router
+          - Processed by llm-bot
+          - llm-bot calls tool via tool-orchestrator
+          - Tool executes with correct context
+          - Response sent back through egress
+        validation:
+          - Response received by user
+          - No errors logged
+          - Correct modelId used throughout
+
+      scenario_2:
+        name: "Tool call requiring RBAC validation"
+        steps:
+          - Send message that triggers privileged tool
+          - Tool requires specific roles
+          - RBAC validation checks context
+          - Tool execution succeeds or fails appropriately
+        validation:
+          - RBAC validation uses correct context
+          - Authorized users succeed
+          - Unauthorized users rejected with proper error
+
+      scenario_3:
+        name: "Multiple tool calls in sequence"
+        steps:
+          - Send message requiring multiple tools
+          - llm-bot orchestrates multiple calls
+          - Each call has correct context
+          - Each call executes successfully
+        validation:
+          - All tool calls succeed
+          - Context maintained across calls
+          - No context leakage between calls
+
+    validation:
+      - npm test -- integration
+      - All tests pass
+      - Manual testing of scenarios succeeds
+      - Logs show correct behavior
+
+  TASK-020:
+    id: TASK-020
+    phase: phase_2
+    title: "Deploy all v2-migrated services to staging"
+    priority: P0
+    status: todo
+    estimated_hours: 2
+    assigned_to: null
+    depends_on:
+      - TASK-019
+
+    description: |
+      Deploy full stack of v2-migrated services to staging after successful
+      agent-dev validation.
+
+    files:
+      - All migrated services
+
+    acceptance_criteria:
+      - Code committed to git
+      - All services build successfully
+      - All services deploy to staging without errors
+      - All services start and show healthy status
+      - No immediate errors in logs
+
+    commands:
+      - git add src/common/base-server.ts
+      - git add src/common/__tests__/base-server-mcp-v2.test.ts
+      - git add src/apps/tool-gateway.ts
+      - git add src/apps/llm-bot-service.ts
+      - git add "src/apps/__tests__/*.integration.test.ts"
+      - git commit -m "feat(mcp): migrate all services to MCP SDK v2 handler API"
+      - git push
+      - npm run build
+      - npm run brat -- bit deploy --all --context staging
+
+    validation:
+      - npm run brat -- fleet info --all --context staging
+      - All services: status=running, no restart loops
+      - npm run brat -- fleet logs --all --context staging --level error
+      - No errors logged in first 5 minutes
+
+  TASK-021:
+    id: TASK-021
+    phase: phase_2
+    title: "Run staging smoke tests"
+    priority: P0
+    status: todo
+    estimated_hours: 2
+    assigned_to: null
+    depends_on:
+      - TASK-020
+
+    description: |
+      Run automated smoke tests in staging to verify all critical functionality
+      works with v2 handlers.
+
+    files:
+      - N/A (testing only)
+
+    acceptance_criteria:
+      - All smoke tests pass
+      - Critical user flows work
+      - No errors detected
+      - Response times acceptable
+      - Tool execution success rate baseline
+
+    smoke_tests:
+      - test: "Send chat message via API"
+        endpoint: "POST /api/chat"
+        expected: "200 OK, response within 5s"
+
+      - test: "Send chat message via Discord"
+        method: "Discord bot message"
+        expected: "Response received in Discord"
+
+      - test: "Trigger tool call (tavily-search)"
+        message: "Search for MCP documentation"
+        expected: "Tool executes, results returned"
+
+      - test: "Trigger RBAC validation"
+        message: "Execute privileged tool"
+        expected: "RBAC check passes/fails appropriately"
+
+      - test: "List tools via MCP endpoint"
+        endpoint: "GET /mcp/tools/list"
+        expected: "200 OK, tools returned"
+
+      - test: "Call tool via MCP endpoint"
+        endpoint: "POST /mcp/tools/call"
+        body: '{ "name": "test_tool", "arguments": {} }'
+        expected: "200 OK, tool executes"
+
+    validation:
+      - All smoke tests pass
+      - npm run brat -- fleet logs --all --context staging --level error
+      - No errors logged during smoke tests
+
+  TASK-022:
+    id: TASK-022
+    phase: phase_2
+    title: "Staging soak test (48 hours)"
+    priority: P0
+    status: todo
+    estimated_hours: 4
+    assigned_to: null
+    depends_on:
+      - TASK-021
+
+    description: |
+      Monitor staging deployment for 48 hours to ensure stability before
+      production rollout.
+
+    files:
+      - N/A (monitoring only)
+
+    acceptance_criteria:
+      - 48 hours pass with no critical issues
+      - Error rates remain at baseline
+      - Tool execution success rate maintains/improves
+      - No "Model not found" errors
+      - No RBAC validation failures
+      - Response times within acceptable range
+
+    monitoring_tasks:
+      task_1:
+        frequency: "Every 4 hours"
+        action: "Check error logs"
+        command: npm run brat -- fleet logs --all --context staging --level error --since 4h
+        expected: "No critical errors"
+
+      task_2:
+        frequency: "Every 8 hours"
+        action: "Run smoke tests"
+        expected: "All smoke tests pass"
+
+      task_3:
+        frequency: "Daily"
+        action: "Check metrics dashboard"
+        metrics:
+          - Tool execution success rate: ≥99.9%
+          - RBAC validation success rate: ≥99.9%
+          - Error rate: ≤0.1%
+          - Response time p99: ≤500ms
+
+      task_4:
+        frequency: "Daily"
+        action: "Review logs for context extraction"
+        command: npm run brat -- fleet logs --bit tool-orchestrator --context staging | grep "context_extracted"
+        expected: "Logs show correct modelId values (not fallbacks)"
+
+    rollback_trigger:
+      - Critical errors detected
+      - Error rate increases >10x baseline
+      - Tool execution success rate drops <95%
+      - Multiple "Model not found" errors
+      - RBAC validation failures >1%
+
+    validation:
+      - 48 hours complete
+      - All monitoring checks pass
+      - Metrics within acceptable ranges
+      - Team approves production deployment
+
+  # ============================================================================
+  # PHASE 3: Monitoring & Production Rollout
+  # ============================================================================
+
+  TASK-023:
+    id: TASK-023
+    phase: phase_3
+    title: "Add structured logging for context extraction"
+    priority: P1
+    status: todo
+    estimated_hours: 2
+    assigned_to: null
+    depends_on:
+      - TASK-022
+
+    description: |
+      Enhance logging to provide better visibility into context extraction
+      success/failure and source (_meta vs headers).
+
+    files:
+      - src/common/base-server.ts
+      - src/apps/tool-orchestrator-service.ts
+      - src/apps/tool-gateway.ts
+
+    acceptance_criteria:
+      - Log event: tool_call.context_extracted
+        - toolName
+        - userId (hashed or masked)
+        - modelId
+        - hasRoles (boolean)
+        - metaSource (_meta | headers | fallback)
+      - Log event: tool_execution.attempted
+        - toolName
+        - modelId
+        - hasContext (boolean)
+      - Log event: tool_execution.success
+        - toolName
+        - duration_ms
+      - Log event: tool_execution.failed
+        - toolName
+        - error_message
+        - error_type
+      - Logs structured as JSON
+      - Sensitive data properly masked
+
+    implementation:
+      location: "In setRequestHandler('tools/call') handlers"
+      code: |
+        logger.info('tool_call.context_extracted', {
+          toolName,
+          userId: maskSensitive(userId),
+          modelId,
+          hasRoles: userRoles.length > 0,
+          metaSource: meta ? 'mcpReq._meta' : (ctx.http ? 'http.headers' : 'fallback'),
+          correlationId: correlationId || 'none',
+        });
+
+    validation:
+      - Deploy to agent-dev
+      - Trigger tool call
+      - Check logs: should show structured JSON logs
+      - Verify sensitive data masked
+
+  TASK-024:
+    id: TASK-024
+    phase: phase_3
+    title: "Create monitoring dashboard for _meta extraction"
+    priority: P1
+    status: todo
+    estimated_hours: 3
+    assigned_to: null
+    depends_on:
+      - TASK-023
+
+    description: |
+      Create Grafana dashboard (or similar) to monitor context extraction
+      success rates and identify issues.
+
+    files:
+      - infrastructure/monitoring/dashboards/mcp-v2-context-extraction.json (new)
+
+    acceptance_criteria:
+      - Dashboard created with 5+ panels
+      - Dashboard accessible to team
+      - Panels update in real-time
+      - Alerts configured for anomalies
+
+    dashboard_panels:
+      panel_1:
+        title: "Tool Executions by modelId"
+        type: "time series"
+        query: |
+          count by (modelId) (tool_execution_attempted)
+        expected: "Should show actual model names (gpt-4, gpt-5.5, etc), NOT fallbacks"
+
+      panel_2:
+        title: "Context Extraction Source"
+        type: "pie chart"
+        query: |
+          count by (metaSource) (tool_call_context_extracted)
+        expected: "Should show >90% from mcpReq._meta, <10% from headers/fallback"
+
+      panel_3:
+        title: "RBAC Validation Success Rate"
+        type: "gauge"
+        query: |
+          sum(rbac_validation_success) / sum(rbac_validation_total)
+        expected: "Should show >99.9%"
+
+      panel_4:
+        title: "Tool Execution Success Rate"
+        type: "gauge"
+        query: |
+          sum(tool_execution_success) / sum(tool_execution_attempted)
+        expected: "Should show >99%"
+
+      panel_5:
+        title: "Errors by Type"
+        type: "table"
+        query: |
+          count by (error_type) (tool_execution_failed)
+        expected: "Should show breakdown of error types, 'Model not found' should be 0"
+
+    validation:
+      - Dashboard accessible
+      - All panels rendering correctly
+      - Data flowing from services
+      - Metrics align with expectations
+
+  TASK-025:
+    id: TASK-025
+    phase: phase_3
+    title: "Set up alerts for context extraction failures"
+    priority: P1
+    status: todo
+    estimated_hours: 2
+    assigned_to: null
+    depends_on:
+      - TASK-024
+
+    description: |
+      Configure alerting for anomalies in context extraction, RBAC validation,
+      and tool execution.
+
+    files:
+      - infrastructure/monitoring/alerts/mcp-v2-alerts.yaml (new)
+
+    acceptance_criteria:
+      - 4+ alerts configured
+      - Alerts route to appropriate channels
+      - Alert thresholds tuned to avoid noise
+      - Test alerts trigger correctly
+
+    alerts:
+      alert_1:
+        name: "HighContextFallbackRate"
+        condition: "(headers_source / total_extractions) > 0.1"
+        severity: "warning"
+        description: "More than 10% of tool calls falling back to header extraction"
+        action: "Investigate why _meta not being passed"
+
+      alert_2:
+        name: "RBACValidationFailures"
+        condition: "rbac_failures > 10 per minute"
+        severity: "critical"
+        description: "High RBAC validation failure rate"
+        action: "Check if context extraction failing, verify roles being passed"
+
+      alert_3:
+        name: "ModelNotFoundErrors"
+        condition: "count(error_message =~ 'Model not found') > 0"
+        severity: "critical"
+        description: "Model not found errors detected - v2 migration issue"
+        action: "Immediate investigation - context not being extracted correctly"
+
+      alert_4:
+        name: "ToolExecutionFailureRate"
+        condition: "(tool_failures / tool_attempts) > 0.05"
+        severity: "warning"
+        description: "Tool execution failure rate above 5%"
+        action: "Check logs for common failure patterns"
+
+    validation:
+      - Trigger test alert by simulating failure condition
+      - Verify alert fires
+      - Verify alert routes to correct channel
+      - Verify alert contains actionable information
+
+  TASK-026:
+    id: TASK-026
+    phase: phase_3
+    title: "Production deployment - Canary (tool-orchestrator)"
+    priority: P0
+    status: todo
+    estimated_hours: 2
+    assigned_to: null
+    depends_on:
+      - TASK-022
+      - TASK-023
+      - TASK-024
+      - TASK-025
+
+    description: |
+      Deploy tool-orchestrator to production as canary, monitor for 1 hour
+      before full rollout.
+
+    files:
+      - src/apps/tool-orchestrator-service.ts
+
+    acceptance_criteria:
+      - tool-orchestrator deployed to production
+      - Service starts successfully
+      - Monitoring shows healthy metrics
+      - No errors detected in 1 hour
+      - Tool executions succeed
+      - Correct modelId being used
+
+    deployment_procedure:
+      step_1:
+        action: "Deploy tool-orchestrator"
+        command: npm run brat -- bit deploy tool-orchestrator --context production
+
+      step_2:
+        action: "Monitor logs for 15 minutes"
+        command: npm run brat -- fleet logs --bit tool-orchestrator --context production --follow
+        expected: "No errors logged"
+
+      step_3:
+        action: "Check metrics dashboard"
+        panels:
+          - Context extraction source: >90% from _meta
+          - RBAC validation success: >99.9%
+          - Tool execution success: >99%
+          - No "Model not found" errors
+
+      step_4:
+        action: "Run production smoke tests"
+        tests:
+          - Send test message via API
+          - Trigger tool call
+          - Verify tool executes successfully
+          - Check logs for correct context extraction
+
+      step_5:
+        action: "Continue monitoring for 1 hour"
+        expected: "All metrics remain healthy"
+
+    rollback_procedure:
+      trigger: "Any critical error or metric anomaly"
+      steps:
+        - Revert to v1 implementation
+        - Redeploy tool-orchestrator
+        - Verify rollback successful
+        - Investigate root cause
+
+    validation:
+      - 1 hour passes with no issues
+      - All smoke tests pass
+      - Metrics within acceptable ranges
+      - Team approves full rollout
+
+  TASK-027:
+    id: TASK-027
+    phase: phase_3
+    title: "Production deployment - Full rollout"
+    priority: P0
+    status: todo
+    estimated_hours: 3
+    assigned_to: null
+    depends_on:
+      - TASK-026
+
+    description: |
+      Deploy all v2-migrated services to production after successful canary.
+
+    files:
+      - All migrated services
+
+    acceptance_criteria:
+      - All services deployed to production
+      - All services start successfully
+      - Monitoring shows healthy metrics
+      - No errors detected
+      - Tool executions succeed
+      - Response times acceptable
+
+    deployment_procedure:
+      step_1:
+        action: "Deploy all services"
+        command: npm run brat -- bit deploy --all --context production
+        note: "Consider deploying in batches if fleet is large"
+
+      step_2:
+        action: "Monitor rollout"
+        duration: "30 minutes"
+        checks:
+          - All services start successfully
+          - No restart loops
+          - No errors in logs
+          - Metrics remain healthy
+
+      step_3:
+        action: "Run comprehensive smoke tests"
+        tests:
+          - API chat messages
+          - Discord messages
+          - Tool calls via multiple paths
+          - RBAC validation
+          - Multiple concurrent users
+          - Load test (if applicable)
+
+      step_4:
+        action: "Monitor for 24 hours"
+        checks:
+          - Hourly: Check error logs
+          - Every 4 hours: Run smoke tests
+          - Twice daily: Review metrics dashboard
+          - Daily: Check alert channel
+
+    rollback_procedure:
+      trigger: "Critical errors or significant metric degradation"
+      steps:
+        - Revert all services to v1 implementation
+        - Redeploy all services
+        - Verify rollback successful
+        - Full incident review
+
+    validation:
+      - All services deployed
+      - 24 hours monitoring complete
+      - No critical issues
+      - Metrics show improvement over baseline
+      - Team satisfied with rollout
+
+  TASK-028:
+    id: TASK-028
+    phase: phase_3
+    title: "Validate production deployment (24 hours)"
+    priority: P0
+    status: todo
+    estimated_hours: 4
+    assigned_to: null
+    depends_on:
+      - TASK-027
+
+    description: |
+      Monitor production for 24 hours post-deployment to ensure stability
+      and identify any issues.
+
+    files:
+      - N/A (monitoring only)
+
+    acceptance_criteria:
+      - 24 hours pass with no critical issues
+      - All validation checks pass
+      - Metrics show improvement over baseline
+      - Team satisfied with migration
+
+    validation_checklist:
+      functional:
+        - Zero "Model not found: tool-orchestrator" errors
+        - Tool execution success rate ≥ baseline
+        - RBAC validation success rate ≥99.9%
+        - Context extraction from _meta ≥90%
+        - No regression in user-facing functionality
+
+      performance:
+        - Response time p50: ≤ baseline +5ms
+        - Response time p99: ≤ baseline +10ms
+        - Tool call latency: ≤ baseline +10ms
+        - MCP endpoint availability: ≥99.9%
+
+      operational:
+        - No increase in error rates
+        - No increase in alert frequency
+        - No user complaints
+        - Logs show expected patterns
+        - Monitoring dashboard green
+
+    monitoring_schedule:
+      hour_0_6:
+        frequency: "Hourly"
+        actions:
+          - Check error logs
+          - Review metrics dashboard
+          - Run smoke tests
+
+      hour_6_24:
+        frequency: "Every 4 hours"
+        actions:
+          - Check error logs
+          - Review metrics dashboard
+          - Run smoke tests
+          - Review alert channel
+
+    validation:
+      - 24 hours complete
+      - All checks pass
+      - Metrics show improvement
+      - No rollback required
+
+  TASK-029:
+    id: TASK-029
+    phase: phase_3
+    title: "Document lessons learned and update CLAUDE.md"
+    priority: P1
+    status: todo
+    estimated_hours: 2
+    assigned_to: null
+    depends_on:
+      - TASK-028
+
+    description: |
+      Document migration experience, lessons learned, and update CLAUDE.md
+      with v2 patterns for future reference.
+
+    files:
+      - planning/sprint-65-yt9tbb/retrospective.md (new)
+      - CLAUDE.md (update)
+
+    acceptance_criteria:
+      - Retrospective document created
+      - CLAUDE.md updated with v2 patterns
+      - Migration guide available for future SDK upgrades
+      - Team reviewed documentation
+
+    retrospective_sections:
+      what_went_well:
+        - Root cause analysis was thorough
+        - Architecture Brief provided clear path
+        - Phased rollout minimized risk
+        - Monitoring caught issues early
+
+      what_could_improve:
+        - Earlier detection of SDK version mismatch
+        - Better type checking for handler signatures
+        - More comprehensive integration tests
+        - Automated SDK compatibility checks
+
+      action_items:
+        - Add pre-commit hook to validate handler signatures
+        - Create SDK upgrade checklist
+        - Add type tests for MCP handler callbacks
+        - Document MCP SDK upgrade process
+        - Create automated compatibility tests
+
+    claude_md_updates:
+      section: "Common Development Patterns"
+      add_pattern: "12. MCP SDK v2 Handler Pattern"
+      content: |
+        ### Pattern: MCP SDK v2 Handler Registration
+
+        **Use setRequestHandler for context-aware tools:**
+        ```typescript
+        server.setRequestHandler('tools/call', async (request, ctx) => {
+          // ✅ Extract context from ServerContext
+          const meta = ctx.mcpReq._meta;
+          const userId = meta?.userId || ctx.http?.req?.headers.get('x-user-id') || 'anonymous';
+          const modelId = meta?.modelId;
+          const userRoles = meta?.userRoles || [];
+
+          // Extract tool args
+          const { name: toolName, arguments: toolArgs } = request.params;
+
+          // Execute tool with context
+          return await executeToolWithContext(toolName, toolArgs, { userId, modelId, userRoles });
+        });
+        ```
+
+        **Use registerTool for stateless tools:**
+        ```typescript
+        server.registerTool('calculate', {
+          description: 'Stateless calculator',
+          inputSchema: z.object({ a: z.number(), b: z.number() })
+        }, async ({ a, b }) => {
+          return { content: [{ type: 'text', text: `${a + b}` }] };
+        });
+        ```
+
+    validation:
+      - Retrospective document created
+      - CLAUDE.md updated
+      - Team reviewed and approved
+      - Documentation linked from sprint artifacts
+
+  TASK-030:
+    id: TASK-030
+    phase: phase_3
+    title: "Close out sprint and cleanup"
+    priority: P2
+    status: todo
+    estimated_hours: 1
+    assigned_to: null
+    depends_on:
+      - TASK-029
+
+    description: |
+      Complete sprint by cleaning up artifacts, archiving agent-dev
+      environment, and marking sprint complete.
+
+    files:
+      - N/A (administrative)
+
+    acceptance_criteria:
+      - Sprint artifacts committed to git
+      - Agent-dev environment destroyed
+      - Sprint marked complete in planning/
+      - Team notified of completion
+      - Celebration! 🎉
+
+    tasks:
+      - Commit all planning documents
+      - Delete v1 backup files (keep in git history)
+      - Destroy agent-dev-mcp-v2-test environment
+      - Update sprint status to complete
+      - Send completion announcement to team
+      - Schedule team retrospective meeting
+
+    commands:
+      - git add planning/sprint-65-yt9tbb/
+      - git commit -m "docs: complete Sprint 65 - MCP SDK v2 migration"
+      - git push
+      - npm run brat -- agent_dev.destroy --name agent-dev-mcp-v2-test --confirm
+      - echo "Sprint 65 complete! MCP SDK v2 migration successful."
+
+    validation:
+      - All artifacts committed
+      - Agent-dev environment destroyed
+      - Sprint marked complete
+      - Team notified
+
+# ============================================================================
+# Summary Statistics
+# ============================================================================
+
+summary:
+  total_tasks: 30
+
+  by_phase:
+    phase_1: 10
+    phase_2: 12
+    phase_3: 8
+
+  by_priority:
+    P0: 22  # Critical - must complete
+    P1: 7   # High - important
+    P2: 1   # Medium - nice to have
+
+  total_estimated_hours: 80
+
+  estimated_duration:
+    phase_1: "2 days"
+    phase_2: "4 days"
+    phase_3: "2 days"
+    total: "8 days (10 person-days)"
+
+  critical_path:
+    - TASK-001  # Backup tool-orchestrator
+    - TASK-002  # Remove v1 loops
+    - TASK-003  # Implement v2 setRequestHandler
+    - TASK-005  # Unit tests
+    - TASK-007  # Deploy agent-dev
+    - TASK-009  # Deploy staging
+    - TASK-010  # Validate staging
+    - TASK-013  # Migrate base-server
+    - TASK-018  # Deploy all to agent-dev
+    - TASK-020  # Deploy all to staging
+    - TASK-022  # Staging soak test (48h)
+    - TASK-026  # Production canary
+    - TASK-027  # Production full rollout
+    - TASK-028  # Validate production (24h)
+
+  success_metrics:
+    tool_execution_success_rate: "Baseline → 100%"
+    rbac_validation_success_rate: "0% → 99.9%"
+    context_extraction_from_meta: "0% → 90%+"
+    model_not_found_errors: ">0 → 0"
+    tool_call_latency_p99: "Maintain baseline ±10ms"
+
+  rollback_points:
+    - After TASK-010 (Phase 1 staging validation)
+    - After TASK-022 (Phase 2 staging soak test)
+    - During TASK-026 (Production canary)
+    - During TASK-027 (Production full rollout)
