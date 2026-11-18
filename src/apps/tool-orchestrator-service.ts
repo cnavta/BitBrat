@@ -1640,14 +1640,20 @@ Returns composition metadata (id, name, version, contentHash).`,
             logger.debug('mcp_server.tool_handler_invoked', { toolName: name, args });
             // ✅ Sprint 65: MCP SDK v2 - Extract _meta from v2 ServerContext
             // HOTFIX: Added optional chaining to handle undefined ctx
+            // HOTFIX 3: Don't spread ctx - it may contain modelId: undefined
             const meta = ctx?.mcpReq?._meta;
-            const combinedExtra = {
-              ...ctx,
+            const combinedExtra: any = {
               userId: meta?.userId || ctx?.http?.req?.headers.get('x-user-id'),
               userRoles: meta?.userRoles || ctx?.http?.req?.headers.get('x-roles'),
               correlationId: meta?.correlationId || ctx?.http?.req?.headers.get('x-correlation-id'),
               sessionId: meta?.sessionId || ctx?.http?.req?.headers.get('x-session-id'),
             };
+
+            // Only include modelId if present in _meta (don't use invalid fallback or undefined)
+            if (meta?.modelId) {
+              combinedExtra.modelId = meta.modelId;
+            }
+
             return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(args, combinedExtra), combinedExtra);
           });
           logger.debug('mcp_server.tool_registered_successfully', { name });
