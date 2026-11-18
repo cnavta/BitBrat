@@ -1537,11 +1537,12 @@ Returns composition metadata (id, name, version, contentHash).`,
 
             // ✅ Sprint 65: MCP SDK v2 - Extract execution context from v2 ServerContext
             // CRITICAL: _meta is in ctx.mcpReq._meta (v2), NOT args._meta (v1)
-            const meta = ctx.mcpReq._meta;
+            // HOTFIX: Added optional chaining to handle undefined ctx
+            const meta = ctx?.mcpReq?._meta;
 
             const combinedExtra = {
-              userId: meta?.userId || ctx.http?.req?.headers.get('x-user-id') || 'anonymous',
-              userRoles: meta?.userRoles || ctx.http?.req?.headers.get('x-roles')?.split(',') || [],
+              userId: meta?.userId || ctx?.http?.req?.headers.get('x-user-id') || 'anonymous',
+              userRoles: meta?.userRoles || ctx?.http?.req?.headers.get('x-roles')?.split(',') || [],
               modelId: meta?.modelId || 'tool-orchestrator',
               sessionId: meta?.sessionId,
               correlationId: meta?.correlationId,
@@ -1633,13 +1634,14 @@ Returns composition metadata (id, name, version, contentHash).`,
           }, async (args: any, ctx: any) => {
             logger.debug('mcp_server.tool_handler_invoked', { toolName: name, args });
             // ✅ Sprint 65: MCP SDK v2 - Extract _meta from v2 ServerContext
-            const meta = ctx.mcpReq._meta;
+            // HOTFIX: Added optional chaining to handle undefined ctx
+            const meta = ctx?.mcpReq?._meta;
             const combinedExtra = {
               ...ctx,
-              userId: meta?.userId || ctx.http?.req?.headers.get('x-user-id'),
-              userRoles: meta?.userRoles || ctx.http?.req?.headers.get('x-roles'),
-              correlationId: meta?.correlationId || ctx.http?.req?.headers.get('x-correlation-id'),
-              sessionId: meta?.sessionId || ctx.http?.req?.headers.get('x-session-id'),
+              userId: meta?.userId || ctx?.http?.req?.headers.get('x-user-id'),
+              userRoles: meta?.userRoles || ctx?.http?.req?.headers.get('x-roles'),
+              correlationId: meta?.correlationId || ctx?.http?.req?.headers.get('x-correlation-id'),
+              sessionId: meta?.sessionId || ctx?.http?.req?.headers.get('x-session-id'),
             };
             return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(args, combinedExtra), combinedExtra);
           });
