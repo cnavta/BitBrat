@@ -1,0 +1,11 @@
+id: sprint-65-yt9tbb
+title: Tool Execution Migration & Validation
+goal: Complete tool execution migration from tool-gateway to tool-orchestrator,
+  validate equivalence, migrate consumers (llm-bot/reflex), and prepare for
+  tool-gateway deprecation with comprehensive testing and performance validation
+owner: christophernavta
+createdAt: 2026-11-16T01:08:13.088Z
+status: planning
+links:
+  branch: feature/sprint-65-yt9tbb-tool-execution-migration-valid
+notes: Sprint initialized via MCP start-sprint tool

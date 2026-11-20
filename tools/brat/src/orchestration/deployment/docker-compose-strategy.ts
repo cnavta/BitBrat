@@ -317,10 +317,26 @@ export class DockerComposeStrategy implements DeploymentStrategy {
         const serviceYaml = await fs.promises.readFile(serviceComposeFilePath, 'utf-8');
         const serviceCompose = yaml.load(serviceYaml) as any;
 
+        // Sprint 65: Strip depends_on from service definitions for single-service deploys
+        // Infrastructure services (postgres, nats, redis) are assumed to be running externally
+        // and won't be in the minimal compose file. Remove depends_on to prevent Docker errors.
+        const cleanedServices: any = {};
+        for (const [serviceName, serviceConfig] of Object.entries(serviceCompose.services || {})) {
+          const config = { ...(serviceConfig as any) };
+          if (config.depends_on) {
+            console.log(
+              `[docker-compose-strategy] Sprint 65: Removing depends_on from ${serviceName} ` +
+              `(infrastructure assumed running: ${Object.keys(config.depends_on).join(', ')})`
+            );
+            delete config.depends_on;
+          }
+          cleanedServices[serviceName] = config;
+        }
+
         // Create minimal compose structure with ONLY the service (no infrastructure)
         const minimalCompose: any = {
           version: baseCompose.version || '3.8',
-          services: serviceCompose.services || {},
+          services: cleanedServices,
           networks: {
             [networkName]: {
               external: true, // Connect to existing network (don't recreate)

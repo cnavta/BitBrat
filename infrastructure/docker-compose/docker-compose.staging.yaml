@@ -600,38 +600,9 @@ services:
       bitbrat-network:
         aliases:
           - image-gen-mcp.bitbrat.local
-  stream-analyst-service:
-    env_file:
-      - .env.brat
-    build:
-      context: ../..
-      dockerfile: Dockerfile.service
-      args:
-        SERVICE_NAME: stream-analyst-service
-        SERVICE_ENTRY: dist/apps/stream-analyst-service.js
-        SERVICE_PORT: '3000'
-    environment:
-      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN}
-    ports:
-      - ${STREAM_ANALYST_SERVICE_HOST_PORT:-3100}:${SERVICE_PORT:-3000}
-    depends_on:
-      nats:
-        condition: service_healthy
-      tool-gateway:
-        condition: service_started
-    healthcheck:
-      test:
-        - CMD
-        - curl
-        - '-sf'
-        - http://localhost:3000/healthz
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    networks:
-      bitbrat-network:
-        aliases:
-          - stream-analyst-service.bitbrat.local
+  # Sprint 65: Removed stream-analyst-service (replaced by event-stream-analyzer service-specific compose)
+  # Port 3100 conflicted with Loki. New service uses port 3000 and is defined in
+  # infrastructure/docker-compose/services/event-stream-analyzer.compose.yaml
   story-engine-mcp:
     env_file:
       - .env.brat

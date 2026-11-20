@@ -143,7 +143,9 @@ export default class BitDeploy extends BratCommand {
     // Build deploy options
     const deployOptions: DeployOptions = {
       dryRun: flags['dry-run'],
-      forceRecreate: flags['force-recreate'],
+      // Sprint 65: Enable --force-recreate by default for bulk deployments (--all)
+      // to prevent container name conflicts when containers exist from previous deployments
+      forceRecreate: flags['force-recreate'] || flags.all,
       forceBuild: flags['no-cache'],
       rebuildBase: flags['rebuild-base'], // Sprint 375: Force rebuild base image
       concurrency: flags.concurrency,

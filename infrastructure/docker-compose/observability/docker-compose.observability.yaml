@@ -44,9 +44,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 1G
         reservations:
-          memory: 64M
+          memory: 256M
 
     restart: unless-stopped
 
@@ -88,9 +88,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 64M
+          memory: 512M
         reservations:
-          memory: 32M
+          memory: 64M
 
     restart: unless-stopped
 

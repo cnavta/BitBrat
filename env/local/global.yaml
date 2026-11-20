@@ -22,11 +22,10 @@ COMPOSE_PROJECT_NAME: "bitbrat-local"
 PERSISTENCE_DRIVER: postgres
 
 # DATABASE_URL: PostgreSQL connection string
-# Format: postgresql://username:password@host:port/database
-# Credentials are sourced from .secure.local (POSTGRES_USER, POSTGRES_PASSWORD)
-# Local default: bitbrat user, bitbrat_dev_password, postgres container, bitbrat database
-# Production: Use managed PostgreSQL (Cloud SQL, RDS, Azure PostgreSQL) with strong passwords
-DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/bitbrat"
+# Sprint 65: Removed explicit DATABASE_URL with shell variables (YAML doesn't expand them)
+# Instead, DATABASE_URL is auto-constructed by EnvironmentResolver from POSTGRES_* components
+# See: tools/brat/src/orchestration/docker/environment-resolver.ts lines 78-87
+# Components defined in infra.yaml: POSTGRES_HOST, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
 
 # PERSISTENCE_SNAPSHOT_MODE: What to snapshot for event replay
 # Options: "all" (snapshot everything) | "selective" (only important events) | "none" (no snapshots)

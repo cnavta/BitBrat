@@ -50,10 +50,17 @@ describe('McpBridge', () => {
     const result = await tool.execute!({ message: 'hello' }, { userRoles: [], modelId: 'test-model' });
 
     // Sprint 28: MCP SDK 2.0 - callTool now takes only params (no schema argument)
+    // Sprint 65: Now passes modelId, correlationId, and sessionId in _meta
     expect(mockClient.callTool).toHaveBeenCalledWith({
       name: 'echo',
       arguments: { message: 'hello' },
-      _meta: { userRoles: [], userId: undefined }
+      _meta: {
+        userRoles: [],
+        userId: undefined,
+        correlationId: undefined,
+        sessionId: undefined,
+        modelId: 'test-model'
+      }
     });
     expect(result).toBe('hello');
 
