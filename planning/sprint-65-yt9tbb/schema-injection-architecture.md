@@ -49,9 +49,357 @@ If other Bits (reflex, query-analyzer, future services) need LLM + tool access, 
 
 ## Architecture Options
 
-### Option 1: Shared Schema Injection Utility (RECOMMENDED)
+### Option 0: Base Class Integration via LlmProfile (RECOMMENDED - Seamless)
 
-**Approach**: Create a reusable utility that any service can use to fetch and inject schemas.
+**Approach**: Integrate schema injection directly into the `LlmProfile` capability so it's completely transparent to service implementations.
+
+**Key Insight**: The base `Bit` class uses composable profiles (LlmProfile, McpClientProfile) that add capabilities. Schema injection should be a capability method that services call, not manual utility code they must write.
+
+#### Current Bootstrap Pattern
+
+**How services currently use LLM + tools**:
+
+```typescript
+// src/services/llm-bot/processor.ts (line 755-798)
+
+// 1. Get tools from MCP registry
+const allTools = deps?.registry?.getTools() || {};
+
+// 2. Filter tools (RBAC, scope, behavioral)
+const filteredTools: Record<string, any> = {};
+for (const [name, tool] of Object.entries(allTools)) {
+  // ... filtering logic ...
+
+  if (allowed && scopeAllowed && behavioralDecision.allowed) {
+    // 3. Register with AI SDK (line 798: inputSchema used directly)
+    filteredTools[name] = {
+      description: tool.description,
+      inputSchema: tool.inputSchema,  // ⚠️ MISSING for PostgreSQL tools!
+      execute: tool.execute ? async (args: any) => {
+        // ... execution wrapper ...
+      } : undefined,
+    };
+  }
+}
+
+// 4. Call LLM with tools
+const result = await generateText({
+  model: provider,
+  messages: coreMessages,
+  tools: filteredTools,  // AI SDK needs schemas!
+  stopWhen: stepCountIs(5),
+});
+```
+
+**Problem**: Line 798 sets `inputSchema: tool.inputSchema` directly, which is undefined for PostgreSQL tools.
+
+#### Proposed Solution: Add `bit.llm.prepareToolsForLlm()`
+
+**Extend LlmCapability interface** (`src/common/profiles/llm-profile.ts`):
+
+```typescript
+export interface LlmCapability {
+  getModel(): { provider: string; model: string };
+  setModel(next: { provider?: string; model?: string }): { provider: string; model: string };
+  resolveProvider(kind?: 'language' | 'embedding'): unknown;
+  getConfigKnobs(): LlmConfigKnobs;
+  toolFilter: { mode: 'off' | 'allow' | 'deny'; list: string[] };
+
+  // NEW: Prepare tools for LLM usage (injects schemas + converts to AI SDK format)
+  prepareToolsForLlm(tools: Record<string, RegisteredTool>): Promise<Record<string, AiSdkTool>>;
+}
+```
+
+**Implementation in LlmProfile.install()**:
+
+```typescript
+// src/common/profiles/llm-profile.ts (new method in install function)
+
+import { jsonSchema } from 'ai';
+import { createDocumentStore } from '../persistence/factory';
+
+export const LlmProfile: BitProfile = {
+  name: 'llm',
+  install(bit: Bit): void {
+    const anyBit = bit as any;
+
+    // ... existing getModel, setModel, resolveProvider, getConfigKnobs ...
+
+    // NEW: Schema injection from PostgreSQL tool registry
+    let toolStore: any = null;  // Lazy-initialized on first use
+
+    const prepareToolsForLlm = async (
+      tools: Record<string, RegisteredTool>
+    ): Promise<Record<string, any>> => {
+      const logger = bit.getLogger();
+      const enrichedTools: Record<string, any> = {};
+
+      // Lazy-init tool store (only when needed)
+      if (!toolStore) {
+        try {
+          const documentStore = anyBit.getResource?.('documentStore');
+          if (documentStore) {
+            toolStore = documentStore; // Use existing PostgreSQL connection
+          } else {
+            logger.warn('bit.llm.prepareToolsForLlm.no_store', {
+              message: 'No documentStore available, schema injection disabled'
+            });
+          }
+        } catch (err) {
+          logger.error('bit.llm.prepareToolsForLlm.init_failed', {
+            error: err instanceof Error ? err.message : String(err)
+          });
+        }
+      }
+
+      // Process each tool
+      for (const [name, tool] of Object.entries(tools)) {
+        let inputSchema = tool.inputSchema;
+
+        // If tool missing schema, try to fetch from PostgreSQL
+        if (!inputSchema && toolStore) {
+          try {
+            // Map tool name to registry ID (handle sanitization reversal)
+            const toolId = mapToolNameToRegistryId(tool.id);
+
+            // Query PostgreSQL tool registry
+            const toolDoc = await toolStore.query('platform_tool_registry', {
+              where: [['id', '==', toolId]],
+              limit: 1
+            });
+
+            if (toolDoc?.[0]?.data?.inputSchema) {
+              const schema = toolDoc[0].data.inputSchema;
+              const schemaData = schema.jsonSchema || schema;
+
+              // Convert to AI SDK format using jsonSchema() helper
+              inputSchema = jsonSchema(schemaData);
+
+              logger.debug('bit.llm.prepareToolsForLlm.schema_injected', {
+                toolName: name,
+                toolId: tool.id,
+                registryId: toolId,
+                schemaFound: true
+              });
+            }
+          } catch (err) {
+            // Fail-open: Missing schemas should not block tool usage
+            logger.warn('bit.llm.prepareToolsForLlm.schema_fetch_failed', {
+              toolName: name,
+              toolId: tool.id,
+              error: err instanceof Error ? err.message : String(err)
+            });
+          }
+        }
+
+        // Return tool with schema (original or injected)
+        enrichedTools[name] = {
+          description: tool.description,
+          inputSchema,  // ✅ Now has schema (direct or injected)
+          execute: tool.execute,
+        };
+      }
+
+      logger.info('bit.llm.prepareToolsForLlm.complete', {
+        totalTools: Object.keys(tools).length,
+        withSchema: Object.values(enrichedTools).filter(t => t.inputSchema).length,
+        withoutSchema: Object.values(enrichedTools).filter(t => !t.inputSchema).length
+      });
+
+      return enrichedTools;
+    };
+
+    // Helper: Map sanitized MCP tool names back to registry IDs
+    function mapToolNameToRegistryId(toolId: string): string {
+      // Handle mcp:namespace/tool.name format
+      if (toolId.startsWith('mcp:')) {
+        return toolId;  // Already correct format
+      }
+
+      // Handle sanitized format: mcp_namespace_tool_name
+      // Need to restore: mcp:namespace/tool.name or mcp:tool-name
+
+      // Pattern 1: mcp_namespace_tool_name → mcp:namespace/tool.name
+      const withSlashMatch = toolId.match(/^mcp_([a-z0-9_]+?)_([a-z0-9_]+)$/);
+      if (withSlashMatch) {
+        const namespace = withSlashMatch[1].replace(/_/g, '-');
+        const toolName = withSlashMatch[2].replace(/_/g, '.');
+        return `mcp:${namespace}/${toolName}`;
+      }
+
+      // Pattern 2: mcp_tool_name → mcp:tool-name
+      const simpleMatch = toolId.match(/^mcp_([a-z0-9_]+)$/);
+      if (simpleMatch) {
+        const toolName = simpleMatch[1].replace(/_/g, '-');
+        return `mcp:${toolName}`;
+      }
+
+      // Fallback: Return as-is and log warning
+      bit.getLogger().warn('bit.llm.prepareToolsForLlm.name_mapping_fallback', {
+        toolId,
+        message: 'Could not map tool name to registry ID'
+      });
+      return toolId;
+    }
+
+    const capability: LlmCapability = {
+      getModel,
+      setModel,
+      resolveProvider,
+      getConfigKnobs,
+      toolFilter: { mode: 'off', list: [] },
+      prepareToolsForLlm,  // ✅ NEW: Schema injection method
+    };
+    anyBit.llm = capability;
+
+    // ... rest of install() (MCP admin tools) ...
+  },
+};
+```
+
+#### Updated Service Usage Pattern
+
+**Before (manual schema handling)**:
+
+```typescript
+// src/services/llm-bot/processor.ts (current)
+
+const allTools = deps?.registry?.getTools() || {};
+const filteredTools: Record<string, any> = {};
+
+for (const [name, tool] of Object.entries(allTools)) {
+  // ... filtering ...
+  filteredTools[name] = {
+    description: tool.description,
+    inputSchema: tool.inputSchema,  // ⚠️ Undefined for PostgreSQL tools
+    execute: tool.execute,
+  };
+}
+
+const result = await generateText({
+  model: provider,
+  messages: coreMessages,
+  tools: filteredTools,
+  stopWhen: stepCountIs(5),
+});
+```
+
+**After (seamless schema injection)**:
+
+```typescript
+// src/services/llm-bot/processor.ts (updated)
+
+const allTools = deps?.registry?.getTools() || {};
+
+// Apply RBAC/scope/behavioral filtering first
+const filteredTools: Record<string, any> = {};
+for (const [name, tool] of Object.entries(allTools)) {
+  // ... filtering logic (RBAC, scope, behavioral) ...
+  if (allowed && scopeAllowed && behavioralDecision.allowed) {
+    filteredTools[name] = tool;  // Keep tools in registry format
+  }
+}
+
+// ✅ NEW: Inject schemas from PostgreSQL (seamless!)
+const enrichedTools = await (server as any).llm.prepareToolsForLlm(filteredTools);
+
+// Wrap execute methods for error handling
+const wrappedTools: Record<string, any> = {};
+for (const [name, tool] of Object.entries(enrichedTools)) {
+  wrappedTools[name] = {
+    description: tool.description,
+    inputSchema: tool.inputSchema,  // ✅ Now has schema (direct or injected)!
+    execute: tool.execute ? async (args: any) => {
+      const startTime = Date.now();
+      try {
+        // ... existing execution wrapper ...
+      } catch (e) {
+        // ... existing error handling ...
+      }
+    } : undefined,
+  };
+}
+
+const result = await generateText({
+  model: provider,
+  messages: coreMessages,
+  tools: wrappedTools,  // ✅ All tools now have schemas!
+  stopWhen: stepCountIs(5),
+});
+```
+
+#### Benefits of Base Class Integration
+
+1. **✅ Seamless**: Services call one method, don't manage schema injection logic
+2. **✅ Consistent**: All LLM-using services get same behavior automatically
+3. **✅ Maintainable**: Schema injection logic lives in one place (LlmProfile)
+4. **✅ Discoverable**: IntelliSense shows `bit.llm.prepareToolsForLlm()` to developers
+5. **✅ Testable**: Profile can be tested independently
+6. **✅ Fail-open**: Missing schemas don't break tool execution
+7. **✅ Lazy-init**: PostgreSQL connection only created when needed
+8. **✅ Reusable**: Works for llm-bot, reflex, query-analyzer, future services
+
+#### Multi-Service Usage Example
+
+**llm-bot** (full tool catalog):
+```typescript
+const allTools = deps?.registry?.getTools() || {};
+const filteredTools = applyRbacScopeBehavioralFiltering(allTools, ...);
+const enrichedTools = await (this as any).llm.prepareToolsForLlm(filteredTools);
+// Use all 323 tools with schemas
+```
+
+**reflex** (filtered subset):
+```typescript
+const allTools = deps?.registry?.getTools() || {};
+const stateTools = Object.fromEntries(
+  Object.entries(allTools).filter(([_, t]) => t.id.startsWith('state.'))
+);
+const enrichedTools = await (this as any).llm.prepareToolsForLlm(stateTools);
+// Use only state-related tools with schemas
+```
+
+**query-analyzer** (analysis tools only):
+```typescript
+const allTools = deps?.registry?.getTools() || {};
+const analysisTools = Object.fromEntries(
+  Object.entries(allTools).filter(([_, t]) => t.scopes?.includes('analysis'))
+);
+const enrichedTools = await (this as any).llm.prepareToolsForLlm(analysisTools);
+// Use only analysis-scoped tools with schemas
+```
+
+#### Implementation Phases
+
+**Phase 1: Add capability to LlmProfile**
+- Extend LlmCapability interface
+- Implement prepareToolsForLlm() in install()
+- Add tool name mapping helper
+- Add logging and error handling
+
+**Phase 2: Update llm-bot to use capability**
+- Modify processor.ts to call bit.llm.prepareToolsForLlm()
+- Remove manual inputSchema handling
+- Verify schemas are injected correctly
+
+**Phase 3: Validate in staging**
+- Deploy llm-bot with new pattern
+- Verify PostgreSQL queries work
+- Confirm LLM receives schemas
+- Monitor performance impact
+
+**Phase 4: Document pattern**
+- Update CLAUDE.md with new pattern
+- Add code examples for future services
+- Document tool name mapping challenges
+
+---
+
+### Option 1: Manual Schema Injection Utility (Alternative)
+
+**Approach**: Create a reusable utility that services manually instantiate and use.
+
+**Note**: This option is LESS RECOMMENDED than Option 0 because it requires each service to manually manage schema injection instead of using the base class capability.
 
 #### Implementation
 
@@ -393,11 +741,42 @@ export class ServiceB extends Bit {
 
 ## Recommended Architecture
 
-### Primary: **Option 4 (Hybrid)**
+### ⭐ PRIMARY: **Option 0 (Base Class Integration via LlmProfile)**
+
+**Why This is Best**:
+- **Seamless**: Services just call `bit.llm.prepareToolsForLlm()` - no manual setup
+- **Consistent**: All LLM-using services automatically get schema injection
+- **Maintainable**: One place for schema injection logic (LlmProfile)
+- **Discoverable**: TypeScript IntelliSense shows the method
+- **Future-proof**: Works for all current and future LLM-using services
+
+**Core Implementation**:
+- Extend `LlmCapability` interface with `prepareToolsForLlm()` method
+- Implement in `LlmProfile.install()` function
+- Lazy-init PostgreSQL connection when first needed
+- Fail-open design (missing schemas don't break execution)
+
+**Service Usage**:
+```typescript
+// Step 1: Get and filter tools
+const allTools = deps?.registry?.getTools() || {};
+const filteredTools = applyFiltering(allTools);
+
+// Step 2: Inject schemas (ONE LINE!)
+const enrichedTools = await (this as any).llm.prepareToolsForLlm(filteredTools);
+
+// Step 3: Use with AI SDK
+const result = await generateText({ model, messages, tools: enrichedTools });
+```
+
+---
+
+### Alternative: **Option 1 (Manual Utility)**
+
+**Use Only If**: You need custom schema transformation logic beyond standard injection.
 
 **Core Component**: `McpSchemaInjector` utility class
-**Optional Profile**: `mcp-client-profile` enhancement
-**Service Choice**: Use profile for simple cases, utility for complex
+**Service Choice**: Manual instantiation and usage
 
 ### Design Principles
 
