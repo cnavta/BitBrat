@@ -1,0 +1,43 @@
+# ============================================================================
+# Reflex Service Configuration
+# ============================================================================
+# Purpose: Deterministic event-driven behaviors via pattern-matched reflexes
+# Required: Yes (core platform service)
+#
+# Prerequisites:
+#   - MCP_AUTH_TOKEN in .secure.local (required for tool execution)
+#   - tool-orchestrator or tool-gateway running
+# ============================================================================
+
+# === Essential Configuration ===
+
+# Cache Polling
+# How often to check for updated reflexes from Firestore
+REFLEX_CACHE_POLL_INTERVAL_MS: 60000  # 1 minute
+
+# Sprint 65: Tool Provider Selection
+# ENABLE_TOOL_ORCHESTRATOR: Use tool-orchestrator instead of tool-gateway for tool execution
+# When true: Connects to tool-orchestrator (new service with PostgreSQL-backed registry)
+# When false: Connects to tool-gateway (legacy service with in-memory registry)
+# Default: false (gradual migration strategy)
+# Note: Implemented in Sprint 61 T7.2 (tool-executor.ts lines 92-96)
+ENABLE_TOOL_ORCHESTRATOR: true
+
+# TOOL_ORCHESTRATOR_URL: HTTP endpoint for tool-orchestrator service
+# Only used when ENABLE_TOOL_ORCHESTRATOR=true
+# Default: http://tool-orchestrator:3000 (Docker Compose)
+# Format: http://host:port
+# Note: Reflex uses HTTP POST to /mcp/invoke, not SSE transport
+TOOL_ORCHESTRATOR_URL: http://tool-orchestrator:3030
+
+# MCP_GATEWAY_URL: HTTP endpoint for tool-gateway service (legacy)
+# Only used when ENABLE_TOOL_ORCHESTRATOR=false
+# Default: http://tool-gateway:3000 (Docker Compose)
+# Format: http://host:port
+MCP_GATEWAY_URL: http://tool-gateway:3000
+
+# === Notes ===
+# - Reflex executes tools via HTTP POST to /mcp/invoke endpoint
+# - Authentication via MCP_AUTH_TOKEN (from .secure.local)
+# - Model ID is hardcoded as 'reflex' for RBAC validation
+# - User roles are propagated from event.identity for per-user RBAC

@@ -181,6 +181,10 @@ export class DockerOrchestrator {
           const batch = buildServices.slice(i, i + maxConcurrent);
           console.log(`[brat] Building batch: ${batch.join(', ')}`);
           const buildArgs = [...composeArgs, 'build'];
+          // Sprint 65 FIX: Force pull base image to avoid stale cache after base rebuild
+          // Service images use `FROM bitbrat-base:latest`, which can be cached even after
+          // base image rebuild. --pull forces Docker to pull the latest base image.
+          buildArgs.push('--pull');
           if (this.options.noCache) {
             buildArgs.push('--no-cache');
           }
@@ -191,15 +195,17 @@ export class DockerOrchestrator {
         // If --force-recreate was specified, explicitly stop AND remove the services first to release ports
         // before attempting to recreate. This prevents "port already allocated" errors caused by Docker
         // daemon caching network state. Just 'stop' is not enough - we need 'rm' to fully release ports.
-        if (this.options.forceRecreate && this.options.service) {
-          console.log(`[brat] Stopping and removing ${services.join(', ')} before force-recreate...`);
+        // Sprint 65: Extended to support bulk deployments (servicesToStart), not just single-service deploys
+        if (this.options.forceRecreate && (this.options.service || this.options.servicesToStart)) {
+          const servicesToClean = this.options.servicesToStart || services;
+          console.log(`[brat] Stopping and removing ${servicesToClean.join(', ')} before force-recreate...`);
           const stopArgs = [...composeArgs, 'stop'];
-          stopArgs.push(...services);
+          stopArgs.push(...servicesToClean);
           await this.executeDockerCompose(targetConfig, stopArgs);
 
           // Remove containers to release port bindings
           const rmArgs = [...composeArgs, 'rm', '-f'];
-          rmArgs.push(...services);
+          rmArgs.push(...servicesToClean);
           await this.executeDockerCompose(targetConfig, rmArgs);
         }
 
@@ -225,22 +231,33 @@ export class DockerOrchestrator {
         await this.executeDockerCompose(targetConfig, upArgs);
       } else {
         // If --force-recreate was specified, explicitly stop AND remove the services first to release ports
-        if (this.options.forceRecreate && this.options.service) {
-          console.log(`[brat] Stopping and removing ${services.join(', ')} before force-recreate...`);
+        // Sprint 65: Extended to support bulk deployments (servicesToStart), not just single-service deploys
+        if (this.options.forceRecreate && (this.options.service || this.options.servicesToStart)) {
+          const servicesToClean = this.options.servicesToStart || services;
+          console.log(`[brat] Stopping and removing ${servicesToClean.join(', ')} before force-recreate...`);
           const stopArgs = [...composeArgs, 'stop'];
-          stopArgs.push(...services);
+          stopArgs.push(...servicesToClean);
           await this.executeDockerCompose(targetConfig, stopArgs);
 
           // Remove containers to release port bindings
           const rmArgs = [...composeArgs, 'rm', '-f'];
-          rmArgs.push(...services);
+          rmArgs.push(...servicesToClean);
           await this.executeDockerCompose(targetConfig, rmArgs);
         }
 
-        const upArgs = [...composeArgs, 'up', '-d', '--build'];
+        // Sprint 65 FIX: Build with --pull first to avoid stale base image cache
+        // Service images use `FROM bitbrat-base:latest`, which can be cached even after
+        // base image rebuild. We need to build explicitly with --pull before `up`.
+        const buildArgs = [...composeArgs, 'build', '--pull'];
         if (this.options.noCache) {
-          upArgs.push('--no-cache');
+          buildArgs.push('--no-cache');
         }
+        if (this.options.service) {
+          buildArgs.push(...services);
+        }
+        await this.executeDockerCompose(targetConfig, buildArgs);
+
+        const upArgs = [...composeArgs, 'up', '-d', '--no-build'];
         if (this.options.forceRecreate) {
           upArgs.push('--force-recreate');
         }

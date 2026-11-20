@@ -90,5 +90,19 @@ LLM_BOT_ENABLED: true
 # Default: true (useful for debugging this service)
 LLM_BOT_FF_LLM_PROMPT_LOGGING: true
 
+# Sprint 65: Tool Provider Selection
+# ENABLE_TOOL_ORCHESTRATOR: Use tool-orchestrator instead of tool-gateway for tool execution
+# When true: Connects to tool-orchestrator (new service with PostgreSQL-backed registry)
+# When false: Connects to tool-gateway (legacy service with in-memory registry)
+# Default: false (gradual migration strategy)
+# Note: Implemented in Sprint 61, documented in Sprint 65
+ENABLE_TOOL_ORCHESTRATOR: true
+
+# TOOL_ORCHESTRATOR_URL: MCP endpoint for tool-orchestrator service
+# Only used when ENABLE_TOOL_ORCHESTRATOR=true
+# Default: http://tool-orchestrator:3000/mcp (Docker Compose)
+# Format: http://host:port/mcp
+TOOL_ORCHESTRATOR_URL: http://tool-orchestrator:3030/mcp
+
 # Internal Prompt Engineering
 PROMPT_SUBHEADER_CONVERSATION_STATE: "Do not imitate prior assistant tone if it conflicts with current constraints."

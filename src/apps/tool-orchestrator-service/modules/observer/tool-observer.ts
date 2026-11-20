@@ -113,7 +113,8 @@ export class ToolObserver implements IToolObserver {
       const deniedCount = this.extractScalarValue(deniedResult);
 
       // Query 4: Latency percentiles
-      const latencyQuery = `{service="tool-orchestrator", eventType="tool.invocation", toolId="${toolId}"} | json | unwrap durationMs`;
+      // Sprint 65 FIX: unwrap requires range vector [duration] before it
+      const latencyQuery = `{service="tool-orchestrator", eventType="tool.invocation", toolId="${toolId}"}[${this.getLogQLDuration(timeRange)}] | json | unwrap durationMs`;
       const latencyResult = await this.client.queryRange({
         query: latencyQuery,
         start: timeRange.start,

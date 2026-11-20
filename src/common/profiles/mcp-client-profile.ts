@@ -59,12 +59,24 @@ export function McpClientProfile(opts: McpClientProfileOptions): BitProfile {
         const useToolOrchestrator = process.env.ENABLE_TOOL_ORCHESTRATOR === 'true';
         const toolProvider = useToolOrchestrator ? 'tool-orchestrator' : 'tool-gateway';
 
-        // Use the configured gateway URL, or construct based on tool provider selection
-        let gatewayUrl = bit.getConfig<string>(gatewayUrlEnv, { required: false });
+        // Sprint 65 FIX: Respect feature flag for URL selection
+        // When ENABLE_TOOL_ORCHESTRATOR=true, use TOOL_ORCHESTRATOR_URL
+        // When false, use MCP_GATEWAY_URL (legacy)
+        let gatewayUrl: string | undefined;
 
-        // If no URL configured and using tool-orchestrator, derive from TOOL_ORCHESTRATOR_URL
-        if (!gatewayUrl && useToolOrchestrator) {
-          gatewayUrl = process.env.TOOL_ORCHESTRATOR_URL || 'http://tool-orchestrator:3000/mcp';
+        if (useToolOrchestrator) {
+          // Try TOOL_ORCHESTRATOR_URL from env or config, with default fallback
+          gatewayUrl = process.env.TOOL_ORCHESTRATOR_URL ||
+                       bit.getConfig<string>('TOOL_ORCHESTRATOR_URL', { required: false }) ||
+                       'http://tool-orchestrator:3000/mcp';
+
+          // Sprint 65: Ensure /mcp path is present (reflex uses base URL, MCP clients need /mcp)
+          if (gatewayUrl && !gatewayUrl.endsWith('/mcp')) {
+            gatewayUrl = `${gatewayUrl}/mcp`;
+          }
+        } else {
+          // Legacy: Use MCP_GATEWAY_URL when feature flag is disabled
+          gatewayUrl = bit.getConfig<string>(gatewayUrlEnv, { required: false });
         }
 
         if (gatewayUrl) {
@@ -78,7 +90,8 @@ export function McpClientProfile(opts: McpClientProfileOptions): BitProfile {
             transport: 'sse',
             url: gatewayUrl,
             env: {
-              'x-mcp-token': process.env.MCP_AUTH_TOKEN || '',
+              // Sprint 65 FIX: tool-orchestrator expects standard Authorization header
+              'Authorization': `Bearer ${process.env.MCP_AUTH_TOKEN || ''}`,
               'x-agent-name': (bit as any).serviceName,
             },
           };

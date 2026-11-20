@@ -4,7 +4,7 @@ description: >-
   Node/TypeScript, Twurple, Firestore, OpenAI. Deployed on Cloud Run.
 project:
   name: BitBrat Platform
-  version: 0.48.1
+  version: 0.49.0
   status: experimental
   description: >
     A cloud-native microservices suite that listens to Twitch, Kick and other events and provides tools to react to
@@ -734,6 +734,9 @@ services:
       - LLM_BOT_INSTANCE_MEM_MAX_MSGS
       - LLM_BOT_INSTANCE_MEM_MAX_CHARS
       - LLM_BOT_INSTANCE_MEM_TTL_MS
+      - ENABLE_TOOL_ORCHESTRATOR  # Sprint 65: Feature flag for tool provider selection (tool-gateway vs tool-orchestrator)
+      - TOOL_ORCHESTRATOR_URL  # Sprint 65: URL for tool-orchestrator MCP endpoint (default: http://tool-orchestrator:3000/mcp)
+      - MCP_GATEWAY_URL  # Legacy: URL for tool-gateway MCP endpoint (used when ENABLE_TOOL_ORCHESTRATOR=false)
   persistence:
     category: platform
     profile: core
@@ -978,6 +981,11 @@ services:
         - caching
     env:
       - REFLEX_CACHE_POLL_INTERVAL_MS
+      - ENABLE_TOOL_ORCHESTRATOR  # Sprint 65: Feature flag for tool provider selection (tool-gateway vs tool-orchestrator)
+      - TOOL_ORCHESTRATOR_URL  # Sprint 65: URL for tool-orchestrator MCP endpoint (default: http://tool-orchestrator:3000/mcp)
+      - MCP_GATEWAY_URL  # Legacy: URL for tool-gateway MCP endpoint (used when ENABLE_TOOL_ORCHESTRATOR=false)
+    secrets:
+      - MCP_AUTH_TOKEN  # Sprint 65: Authentication token for MCP tool execution
   context-pack:
     profile: core
     mcp:

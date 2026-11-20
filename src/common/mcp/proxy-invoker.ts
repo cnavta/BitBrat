@@ -51,12 +51,48 @@ export class ProxyInvoker {
   async invoke(serverName: string, toolName: string, args: any, client: Client, context?: ToolExecutionContext, optionsOverride?: ProxyInvokerOptions): Promise<CallToolResult> {
     const start = Date.now();
     try {
-      const result = await this.wrapCall(serverName, `tool:${toolName}`, () => 
-        client.callTool({ 
-          name: toolName, 
-          arguments: args,
-          _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
-        } as any),
+      const result = await this.wrapCall(serverName, `tool:${toolName}`, () => {
+        // Sprint 65 FIX: Pass _meta BOTH ways:
+        // 1. As top-level field (for MCP protocol/transport)
+        // 2. Merged into arguments (for server-side access via args._meta)
+        // The MCP SDK may not automatically merge top-level _meta into the arguments object
+        // that the server receives, so we explicitly do both.
+
+        // HOTFIX 5: Build _meta conditionally - don't include undefined modelId
+        const meta: any = context ? {
+          userRoles: context.userRoles,
+          userId: context.userId,
+          correlationId: context.correlationId,
+          sessionId: context.sessionId,
+        } : undefined;
+
+        // Only include modelId if it exists (don't send undefined)
+        if (context?.modelId) {
+          meta.modelId = context.modelId;
+        }
+
+        // Sprint 65 DEBUG: Log what we're sending to the upstream MCP server
+        const logger = this.options.logger;
+        logger?.debug?.('mcp.proxy_invoker.sending_request', {
+          serverName,
+          toolName,
+          hasContext: !!context,
+          hasMeta: !!meta,
+          metaUserId: meta?.userId,
+          metaModelId: meta?.modelId,
+          metaRoles: meta?.userRoles,
+          metaCorrelationId: meta?.correlationId,
+        });
+
+        // Sprint 65 FIX: Pass _meta ONLY as top-level field, NOT in arguments
+        // The MCP SDK strips _meta from arguments when it's also at top-level.
+        // We need to access _meta from ctx in the tool handler instead.
+        return client.callTool({
+          name: toolName,
+          arguments: args,  // Do NOT include _meta in arguments
+          _meta: meta,      // ONLY pass as top-level field
+        } as any);
+      },
         optionsOverride,
         context
       );
@@ -74,11 +110,28 @@ export class ProxyInvoker {
   async invokeResource(serverName: string, uri: string, client: Client, context?: ToolExecutionContext, optionsOverride?: ProxyInvokerOptions): Promise<ReadResourceResult> {
     const start = Date.now();
     try {
-      const result = await this.wrapCall(serverName, `resource:${uri}`, () =>
-        client.readResource({ 
+      const result = await this.wrapCall(serverName, `resource:${uri}`, () => {
+        // Sprint 65 FIX: Include _meta in readResource call
+        // Note: Resources use uri parameter, not arguments, so _meta is passed separately
+
+        // HOTFIX 5: Build _meta conditionally - don't include undefined modelId
+        const meta: any = context ? {
+          userRoles: context.userRoles,
+          userId: context.userId,
+          correlationId: context.correlationId,
+          sessionId: context.sessionId,
+        } : undefined;
+
+        // Only include modelId if it exists (don't send undefined)
+        if (context?.modelId) {
+          meta.modelId = context.modelId;
+        }
+
+        return client.readResource({
           uri,
-          _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
-        } as any),
+          _meta: meta,
+        } as any);
+      },
         optionsOverride,
         context
       );
@@ -96,12 +149,28 @@ export class ProxyInvoker {
   async invokePrompt(serverName: string, promptName: string, args: Record<string, string>, client: Client, context?: ToolExecutionContext, optionsOverride?: ProxyInvokerOptions): Promise<GetPromptResult> {
     const start = Date.now();
     try {
-      const result = await this.wrapCall(serverName, `prompt:${promptName}`, () =>
-        client.getPrompt({ 
-          name: promptName, 
-          arguments: args,
-          _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
-        } as any),
+      const result = await this.wrapCall(serverName, `prompt:${promptName}`, () => {
+        // Sprint 65 FIX: Pass _meta both as top-level field and merged into arguments
+
+        // HOTFIX 5: Build _meta conditionally - don't include undefined modelId
+        const meta: any = context ? {
+          userRoles: context.userRoles,
+          userId: context.userId,
+          correlationId: context.correlationId,
+          sessionId: context.sessionId,
+        } : undefined;
+
+        // Only include modelId if it exists (don't send undefined)
+        if (context?.modelId) {
+          meta.modelId = context.modelId;
+        }
+
+        return client.getPrompt({
+          name: promptName,
+          arguments: { ...args, _meta: meta },
+          _meta: meta,  // Also pass as top-level field
+        } as any);
+      },
         optionsOverride,
         context
       );

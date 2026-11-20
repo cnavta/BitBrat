@@ -62,17 +62,25 @@ export class McpBridge {
         let error = false;
         let responseSize = 0;
         try {
+          // HOTFIX 4: Build _meta conditionally - don't include undefined modelId
+          const meta: any = context ? {
+            userRoles: context.userRoles,
+            userId: context.userId,
+            correlationId: context.correlationId,
+            sessionId: context.sessionId,
+          } : undefined;
+
+          // Only include modelId if it exists (don't send undefined)
+          if (context?.modelId) {
+            meta.modelId = context.modelId;
+          }
+
           const result = this.invoker
             ? await this.invoker.invoke(this.serverName, mcpTool.name, args, this.client, context, this.invokerOptions)
             : await this.client.callTool({
                 name: mcpTool.name,
                 arguments: args,
-                _meta: context ? {
-                  userRoles: context.userRoles,
-                  userId: context.userId,
-                  correlationId: context.correlationId,
-                  sessionId: context.sessionId,
-                } : undefined
+                _meta: meta
               } as any);
 
           if (result.isError) {
@@ -136,6 +144,7 @@ export class McpBridge {
             userId: context.userId,
             correlationId: context.correlationId,
             sessionId: context.sessionId,
+            modelId: context.modelId,
           } : undefined
         } as any);
       }
@@ -166,6 +175,7 @@ export class McpBridge {
             userId: context.userId,
             correlationId: context.correlationId,
             sessionId: context.sessionId,
+            modelId: context.modelId,
           } : undefined
         } as any);
       }

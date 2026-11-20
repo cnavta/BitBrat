@@ -7,7 +7,85 @@ import { ToolGateway } from './tool-orchestrator-service/modules/gateway/tool-ga
 import { createDocumentStore } from '../common/persistence/factory';
 import { ToolRegistryDocument } from './tool-orchestrator-service/modules/types';
 import { McpServer, ServerContext } from '@modelcontextprotocol/server';
+import { McpClientManager } from '../common/mcp/client-manager';
+import { CompositionRegistry } from '../common/composition/registry';
+import { CompositionExecutor } from '../common/composition/executor';
+import { PostgresCompositionStore } from '../common/composition/postgres-composition-store';
 import { z } from 'zod';
+// Sprint 65: MCP server automatic registration
+import { INTERNAL_MCP_REGISTRATION_V1, InternalEventV2 } from '../types/events';
+import { RegistryWatcher } from '../common/mcp/registry-watcher';
+import {
+  createMcpServerStore,
+  type IMcpServerStore,
+  type McpServerDocument
+} from '../common/mcp/mcp-server-store';
+
+/**
+ * Sprint 65 Task 1.3: Composition Admin Tool Schemas
+ * Ported from tool-gateway.ts for composition management
+ */
+
+// composition.register schema
+const CompositionRegisterSchema = z.object({
+  definition: z.object({
+    apiVersion: z.string().describe('API version (e.g., "mcp-compose/v1")'),
+    kind: z.literal('Composition').describe('Resource kind (must be "Composition")'),
+    metadata: z.object({
+      name: z.string().describe('Composition name (unique identifier)'),
+      description: z.string().optional().describe('Human-readable description'),
+      version: z.number().optional().describe('Version number (auto-assigned if omitted)'),
+    }).passthrough().describe('Composition metadata'),
+    spec: z.object({
+      inputSchema: z.any().describe('JSON Schema for composition inputs'),
+      steps: z.array(z.any()).optional().describe('Execution steps (call, ifValue, etc.)'),
+      return: z.any().describe('Return value definition'),
+    }).passthrough().describe('Composition specification'),
+  }).passthrough().describe('Composition definition (YAML/JSON)'),
+});
+
+type CompositionRegisterArgs = z.infer<typeof CompositionRegisterSchema>;
+
+// composition.list schema
+const CompositionListSchema = z.object({
+  filter: z.object({
+    name: z.string().optional().describe('Filter by composition name'),
+    status: z.enum(['active', 'draft', 'archived']).optional().describe('Filter by status'),
+  }).optional().describe('Optional filters for composition list'),
+  limit: z.number().optional().describe('Maximum number of results to return'),
+  offset: z.number().optional().describe('Number of results to skip (pagination)'),
+});
+
+type CompositionListArgs = z.infer<typeof CompositionListSchema>;
+
+// composition.get schema
+const CompositionGetSchema = z.object({
+  name: z.string().describe('Composition name to retrieve'),
+  version: z.number().optional().describe('Specific version to retrieve (omit for latest)'),
+});
+
+type CompositionGetArgs = z.infer<typeof CompositionGetSchema>;
+
+// composition.delete schema
+const CompositionDeleteSchema = z.object({
+  name: z.string().describe('Composition name to delete'),
+  version: z.number().describe('Specific version to delete'),
+});
+
+type CompositionDeleteArgs = z.infer<typeof CompositionDeleteSchema>;
+
+// composition.stats schema (no parameters)
+const CompositionStatsSchema = z.object({});
+
+type CompositionStatsArgs = z.infer<typeof CompositionStatsSchema>;
+
+// composition.list_tools schema - Helper for discovering canonical tool IDs (Sprint 41 remediation)
+const CompositionListToolsSchema = z.object({
+  filter: z.string().optional().describe('Optional filter pattern (e.g., "state", "image") to search tool names'),
+  limit: z.number().optional().describe('Maximum number of tools to return (default: 100)'),
+});
+
+type CompositionListToolsArgs = z.infer<typeof CompositionListToolsSchema>;
 
 /**
  * ToolOrchestratorServer
@@ -24,10 +102,19 @@ export class ToolOrchestratorServer extends Bit {
   private toolObserver?: ToolObserver;
   private healthUpdater?: HealthUpdater;
   private toolGateway?: ToolGateway;
+  private mcpClientManager?: McpClientManager;
+  private compositionRegistry?: CompositionRegistry;
+  private compositionExecutor?: CompositionExecutor;
+  private compositionsEnabled: boolean = false;
 
   // Sprint 62: In-memory tool cache for MCP aggregation
   // Loaded from PostgreSQL during startup to serve tools via MCP endpoint
   private toolCache: ToolRegistryDocument[] = [];
+
+  // Sprint 65: MCP server automatic registration infrastructure
+  private mcpServerStore!: IMcpServerStore;
+  private registryWatcher?: RegistryWatcher;
+  private registrationSignatures: Map<string, string> = new Map();
 
   constructor() {
     super({ mcpExposure: 'platform-only' });
@@ -49,6 +136,10 @@ export class ToolOrchestratorServer extends Bit {
       const store = await createDocumentStore();
       this.getLogger().info('tool_orchestrator.document_store_initialized');
 
+      // Sprint 65: Initialize MCP Server Store for registration discovery
+      this.mcpServerStore = createMcpServerStore(store);
+      this.getLogger().info('tool_orchestrator.mcp_server_store_initialized');
+
       // Initialize ToolRegistry module
       this.toolRegistry = new ToolRegistry(store, this.getLogger() as any);
       this.getLogger().info('tool_orchestrator.tool_registry_initialized');
@@ -57,7 +148,201 @@ export class ToolOrchestratorServer extends Bit {
       this.modelRegistry = new ModelRegistry(store, this.getLogger() as any);
       this.getLogger().info('tool_orchestrator.model_registry_initialized');
 
+      // Sprint 65 Task 1.2: Initialize MCP Client Manager
+      // Create an adapter for ToolRegistry to match McpClientManager's expected interface
+      const toolRegistryAdapter = {
+        registerTool: async (tool: any) => {
+          // Sprint 65 FIX: Transform BitBratTool (from McpClientManager) into ToolRegistryDocument
+          // McpClientManager passes tools in in-memory format (BitBratTool), but ToolRegistry
+          // expects persistent format (ToolRegistryDocument) with canonicalName and other required fields.
+
+          // Sprint 65 FIX: Strip redundant mcp: or mcp_ prefixes from tool IDs
+          // This prevents accumulation of duplicate prefixes during re-import cycles
+          // Example: mcp:mcp_mcp_tool_name → mcp:tool_name
+          let cleanToolId = tool.id;
+          // Remove all duplicate mcp: or mcp_ prefixes, keeping only the first one
+          cleanToolId = cleanToolId.replace(/^(mcp[_:])(mcp[_:])+/g, '$1');
+
+          const now = new Date();
+          const registryDoc: ToolRegistryDocument = {
+            id: cleanToolId,
+            canonicalName: tool.displayName || tool.id, // CRITICAL: BitBratTool.displayName → ToolRegistryDocument.canonicalName
+            description: tool.description || '',
+            source: tool.source || 'mcp',
+            sourceMetadata: {
+              mcpServer: {
+                name: tool.originServer || 'unknown',
+                version: undefined,
+              },
+            },
+            inputSchema: tool.inputSchema || { type: 'object', properties: {} },
+            outputSchema: undefined,
+            rbac: {
+              userRoles: {
+                required: tool.requiredRoles || [],
+                denied: [],
+              },
+              modelRoles: {
+                required: [],
+                denied: [],
+              },
+              modelTiers: {
+                allowed: [],
+                denied: [],
+              },
+            },
+            config: {
+              timeoutMs: 30000,
+              retryPolicy: {
+                maxAttempts: 3,
+                backoffMs: 1000,
+              },
+            },
+            health: {
+              status: 'healthy',
+              lastError: undefined,
+              lastErrorAt: undefined,
+              lastInvocationAt: undefined,
+              lastSuccessAt: undefined,
+              consecutiveFailures: 0,
+            },
+            status: 'active',
+            tags: [],
+            category: undefined,
+            relatedTools: [],
+            importedAt: now,
+            lastHealthCheckAt: undefined,
+            lastUpdatedAt: now,
+          };
+
+          // Sprint 65 FIX: Handle duplicates gracefully
+          // Multiple Bits expose the same bit.* tools (bit.info, bit.health, etc.)
+          // Check if tool exists before registering, update if it does
+          try {
+            const existing = await this.toolRegistry!.getTool(registryDoc.id);
+            if (existing) {
+              // Tool already exists, update instead of register
+              this.getLogger().debug('tool_orchestrator.tool_already_exists', {
+                id: registryDoc.id,
+                canonicalName: registryDoc.canonicalName,
+                existingServer: existing.sourceMetadata?.mcpServer?.name,
+                newServer: registryDoc.sourceMetadata?.mcpServer?.name,
+              });
+              // Update lastUpdatedAt to reflect this re-discovery
+              await this.toolRegistry!.updateTool(registryDoc.id, {
+                lastUpdatedAt: now,
+              });
+              return;
+            }
+
+            // New tool, register it
+            return await this.toolRegistry!.registerTool(registryDoc);
+          } catch (err) {
+            // If duplicate error still occurs (race condition), log and continue
+            if (err instanceof Error && err.message.includes('already exists')) {
+              this.getLogger().warn('tool_orchestrator.duplicate_tool_skipped', {
+                id: registryDoc.id,
+                canonicalName: registryDoc.canonicalName,
+                error: err.message,
+              });
+              return;
+            }
+            // Re-throw other errors
+            throw err;
+          }
+        },
+        getTool: (toolId: string) => {
+          // McpClientManager needs to look up tools by ID
+          return this.toolRegistry!.getTool(toolId);
+        },
+        getTools: () => {
+          // McpClientManager may need to list all tools
+          // Return a promise that resolves to the tools map
+          return this.toolRegistry!.queryTools({}).then((tools) => {
+            const toolsMap: Record<string, any> = {};
+            tools.forEach((tool) => {
+              toolsMap[tool.id] = tool;
+            });
+            return toolsMap;
+          });
+        },
+        setLogger: (logger: any) => {
+          // Pass-through to ToolRegistry
+          // Note: ToolRegistry module may not have setLogger, this is for compatibility
+        },
+      };
+
+      this.mcpClientManager = new McpClientManager(this as any, toolRegistryAdapter as any);
+      this.getLogger().info('tool_orchestrator.mcp_client_manager_initialized', {
+        service: 'tool-orchestrator',
+      });
+
+      // Sprint 65 Task 1.3: Initialize Composition Subsystem
+      // Feature flag: ENABLE_COMPOSITIONS (default: true)
+      this.compositionsEnabled = process.env.ENABLE_COMPOSITIONS !== 'false';
+
+      if (this.compositionsEnabled) {
+        try {
+          const connectionString = process.env.DATABASE_URL;
+          if (!connectionString) {
+            throw new Error('DATABASE_URL required for composition subsystem');
+          }
+
+          const { Pool } = require('pg');
+          const pool = new Pool({
+            connectionString,
+            max: parseInt(process.env.POSTGRES_POOL_SIZE || '10', 10),
+            ssl: process.env.POSTGRES_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+          });
+
+          const compositionStore = new PostgresCompositionStore(pool);
+
+          // Create adapter for ToolRegistry to match CompositionRegistry's expected interface
+          const toolRegistryAdapterForCompositions = {
+            getTool: async (toolId: string) => {
+              const tool = await this.toolRegistry!.getTool(toolId);
+              if (!tool) return null;
+              return {
+                id: tool.id,
+                inputSchema: tool.inputSchema,
+                source: tool.source,
+                execute: async (args: any, context: any) => {
+                  // Composition executor needs to execute tools
+                  // This will route through ToolGateway
+                  if (!this.toolGateway) {
+                    throw new Error('ToolGateway not initialized');
+                  }
+                  return await this.toolGateway.execute(tool.id, args, context);
+                },
+              };
+            },
+          };
+
+          this.compositionRegistry = new CompositionRegistry(
+            compositionStore as any,
+            toolRegistryAdapterForCompositions as any,
+            this.getLogger()
+          );
+
+          this.compositionExecutor = new CompositionExecutor(
+            toolRegistryAdapterForCompositions as any,
+            this.getLogger()
+          );
+
+          this.getLogger().info('tool_orchestrator.composition_subsystem_initialized', {
+            storeType: 'PostgresCompositionStore',
+            connectionString: connectionString.replace(/:[^:@]+@/, ':***@'), // Mask password
+          });
+        } catch (err) {
+          this.getLogger().warn('tool_orchestrator.composition.init_failed', {
+            error: err instanceof Error ? err.message : String(err),
+          });
+          this.compositionsEnabled = false;
+        }
+      }
+
       // Initialize ToolGateway module (Sprint 62)
+      // Sprint 65 Task 1.2: Pass mcpClientManager instead of undefined
       this.toolGateway = new ToolGateway(
         this.toolRegistry,
         this.modelRegistry,
@@ -67,7 +352,7 @@ export class ToolOrchestratorServer extends Bit {
           cacheTtlMs: 300000,
           enableLogging: true
         },
-        undefined, // MCP client manager will be added later
+        this.mcpClientManager, // ✅ FIX: Pass initialized McpClientManager
         this.getLogger() as any
       );
       this.getLogger().info('tool_orchestrator.tool_gateway_initialized');
@@ -123,6 +408,44 @@ export class ToolOrchestratorServer extends Bit {
         staleThresholdMs: healthStaleThresholdMs,
       });
 
+      // Sprint 65: Initialize RegistryWatcher for automatic MCP server discovery
+      this.registryWatcher = new RegistryWatcher(this as any, {
+        store: this.mcpServerStore,
+        onServerActive: async (config) => {
+          this.getLogger().info('tool_orchestrator.server_discovered', {
+            name: config.name,
+            url: config.url,
+          });
+
+          // Connect to discovered MCP server
+          await this.mcpClientManager!.connectServer(config);
+
+          // Tools are automatically registered via McpClientManager → ToolRegistry adapter
+          // After connection, reload tool cache to include newly discovered tools
+          await this.loadToolsFromRegistry();
+        },
+        onServerInactive: async (name) => {
+          this.getLogger().info('tool_orchestrator.server_inactive', { name });
+          await this.mcpClientManager!.disconnectServer(name);
+
+          // Reload tool cache to remove tools from disconnected server
+          await this.loadToolsFromRegistry();
+        },
+      });
+
+      this.registryWatcher.start();
+      this.getLogger().info('tool_orchestrator.registry_watcher_started');
+
+      // Sprint 65: Subscribe to MCP registration events
+      await this.onMessage({
+        destination: INTERNAL_MCP_REGISTRATION_V1,
+        queue: 'tool-orchestrator' // Dedicated queue to avoid competing with tool-gateway
+      }, async (event: InternalEventV2) => {
+        await this.handleMcpRegistration(event);
+      });
+
+      this.getLogger().info('tool_orchestrator.registration_listener_started');
+
       // Register MCP tools
       this.registerMcpTools();
       this.getLogger().info('tool_orchestrator.mcp_tools_registered');
@@ -131,6 +454,9 @@ export class ToolOrchestratorServer extends Bit {
       // CRITICAL: This must happen before MCP server initialization so aggregated tools
       // are available when getMcpServer() is called
       await this.loadToolsFromRegistry();
+
+      // Sprint 65 Task 1.3: Load compositions from PostgreSQL and register as tools
+      await this.loadCompositions();
 
       // Sprint 62: Task 3.1 - Periodic cache refresh (every 60 seconds)
       // Keeps tool registry changes synchronized without requiring service restart
@@ -146,6 +472,14 @@ export class ToolOrchestratorServer extends Bit {
 
       this.getLogger().info('tool_orchestrator.periodic_cache_refresh_enabled', {
         intervalMs: 60000,
+      });
+
+      // Sprint 65 Task 3.3: REST API endpoint for HTTP-based tool execution (reflex pattern)
+      // Implements POST /v1/tools/:tool endpoint to support reflex's HTTP POST pattern
+      this.setupRestApiEndpoint();
+      this.getLogger().info('tool_orchestrator.rest_api_endpoint_registered', {
+        endpoint: '/v1/tools/:tool',
+        method: 'POST',
       });
 
       // TODO: Seed model registry (Task 3.1) - run scripts/seed-model-registry.ts
@@ -172,7 +506,178 @@ export class ToolOrchestratorServer extends Bit {
       this.getLogger().info('tool_orchestrator.health_updater_stopped');
     }
 
+    // Sprint 65: Stop RegistryWatcher
+    if (this.registryWatcher) {
+      this.registryWatcher.stop();
+      this.getLogger().info('tool_orchestrator.registry_watcher_stopped');
+    }
+
+    // Sprint 65 Task 1.2: Disconnect MCP client connections gracefully
+    if (this.mcpClientManager) {
+      try {
+        // McpClientManager handles disconnection of all connected MCP servers
+        // This is handled internally when the manager is garbage collected
+        // but we log for observability
+        this.getLogger().info('tool_orchestrator.mcp_client_manager_shutdown', {
+          reason,
+        });
+      } catch (err) {
+        this.getLogger().warn('tool_orchestrator.mcp_client_manager_shutdown_error', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
     await super.close(reason);
+  }
+
+  /**
+   * Setup REST API endpoint for HTTP-based tool execution.
+   * Sprint 65 Task 3.3: Implements POST /v1/tools/:tool for reflex pattern.
+   *
+   * This endpoint enables reflex service to execute tools via HTTP POST instead of MCP SDK.
+   * Reflex uses: POST /v1/tools/{tool} with arguments in request body.
+   *
+   * Request format:
+   *   POST /v1/tools/:tool
+   *   Headers: Authorization (Bearer token), X-Roles, X-Model-ID, X-User-ID
+   *   Body: { arguments: {...} }
+   *
+   * Response format (MCP-compatible):
+   *   { content: [{type: 'text', text: '...'}], isError: false }
+   *
+   * Reference: src/apps/tool-gateway.ts lines 2083-2133
+   * Reflex pattern: src/services/reflex/tool-executor.ts line 131
+   */
+  private setupRestApiEndpoint(): void {
+    const logger = this.getLogger();
+
+    // POST /v1/tools/:tool endpoint
+    this.onHTTPRequest({ path: '/v1/tools/:tool', method: 'POST' }, async (req, res) => {
+      const toolName = req.params.tool;
+      const startTime = Date.now();
+
+      try {
+        // Extract arguments from request body
+        // Reflex sends: { arguments: {...} }
+        // Also support: { args: {...} } or direct body for compatibility
+        const args = req.body?.arguments || req.body?.args || req.body || {};
+
+        // Extract RBAC context from headers
+        const authHeader = (req.headers['authorization'] || '').toString();
+        const userRoles = this.parseRolesFromHeader(req.headers['x-roles']);
+        const modelId = (req.headers['x-model-id'] as string) || 'unknown';
+        const userId = (req.headers['x-user-id'] as string) || 'anonymous';
+
+        logger.info('rest_api.tool_execution.request', {
+          tool: toolName,
+          userId,
+          userRoles,
+          modelId,
+          hasAuth: !!authHeader,
+        });
+
+        // Validate authentication
+        if (!authHeader.startsWith('Bearer ')) {
+          logger.warn('rest_api.tool_execution.unauthorized', { tool: toolName, userId });
+          return res.status(401).json({
+            content: [{
+              type: 'text',
+              text: JSON.stringify({ error: 'Unauthorized: Missing or invalid Bearer token' })
+            }],
+            isError: true
+          });
+        }
+
+        // Create session context for RBAC validation
+        const sessionContext = {
+          sessionId: `rest-api:${userId}:${Date.now()}`,
+          userRoles,
+          modelId,
+          userId,
+        };
+
+        // Execute tool via ToolGateway (includes RBAC validation)
+        if (!this.toolGateway) {
+          throw new Error('ToolGateway not initialized');
+        }
+
+        const result = await this.toolGateway.execute(
+          toolName,
+          args,
+          sessionContext
+        );
+
+        const duration = Date.now() - startTime;
+        logger.info('rest_api.tool_execution.success', {
+          tool: toolName,
+          userId,
+          duration,
+          isError: result.isError || false,
+        });
+
+        // Return MCP-compatible response format
+        return res.status(200).json(result);
+
+      } catch (error: any) {
+        const duration = Date.now() - startTime;
+        logger.error('rest_api.tool_execution.error', {
+          tool: toolName,
+          error: error.message,
+          stack: error.stack,
+          duration,
+        });
+
+        // Check if error is RBAC-related (403) or not found (404)
+        const isRbacError = error.message && (
+          error.message.toLowerCase().includes('denied') ||
+          error.message.toLowerCase().includes('forbidden') ||
+          error.message.toLowerCase().includes('permission')
+        );
+        const isNotFoundError = error.message && error.message.toLowerCase().includes('not found');
+
+        const statusCode = isRbacError ? 403 : isNotFoundError ? 404 : 500;
+
+        // Return error in MCP format
+        return res.status(statusCode).json({
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              error: error.message || 'Internal server error',
+              tool: toolName,
+            })
+          }],
+          isError: true
+        });
+      }
+    });
+
+    logger.info('rest_api.endpoint_registered', {
+      endpoint: '/v1/tools/:tool',
+      method: 'POST',
+      pattern: 'reflex HTTP POST pattern',
+    });
+  }
+
+  /**
+   * Parse roles from X-Roles header.
+   * Sprint 65 Task 3.3: Helper method for REST API RBAC context extraction.
+   *
+   * @param rolesHeader - X-Roles header value (comma-separated string or array)
+   * @returns Array of role strings
+   */
+  private parseRolesFromHeader(rolesHeader: any): string[] {
+    if (!rolesHeader) {
+      return [];
+    }
+
+    // Handle array (Express may parse as array if multiple headers)
+    if (Array.isArray(rolesHeader)) {
+      return rolesHeader.flatMap((r: any) => r.toString().split(',').map((s: string) => s.trim())).filter(Boolean);
+    }
+
+    // Handle comma-separated string
+    return rolesHeader.toString().split(',').map((s: string) => s.trim()).filter(Boolean);
   }
 
   /**
@@ -650,7 +1155,70 @@ export class ToolOrchestratorServer extends Bit {
       }
     );
 
-    this.getLogger().info('tool_orchestrator.mcp_tools_registration_complete', { toolsRegistered: 12 });
+    // Sprint 65 Task 1.3: Composition Admin Tools
+    // Ported from tool-gateway.ts for composition management via MCP
+
+    // composition.register
+    this.registerTool(
+      'composition.register',
+      `Register a new composition from YAML/JSON definition.
+
+IMPORTANT: Tool IDs in composition steps MUST use CANONICAL names (e.g., 'get_state', 'generate_image'), NOT the MCP-prefixed names you see in the tools list (e.g., 'mcp_get_state', 'mcp_generate_image').
+
+Use 'composition.list_tools' to discover canonical tool IDs for composition authoring.
+
+Example:
+  steps:
+    - call: get_state              # ✅ CORRECT (canonical ID)
+      with: { key: "example" }
+    - call: mcp_get_state          # ❌ WRONG (MCP-prefixed)
+
+Returns composition metadata (id, name, version, contentHash).`,
+      CompositionRegisterSchema,
+      this.handleCompositionRegister.bind(this)
+    );
+
+    // composition.list
+    this.registerTool(
+      'composition.list',
+      'List all registered compositions with optional filtering and pagination. Returns array of composition metadata.',
+      CompositionListSchema,
+      this.handleCompositionList.bind(this)
+    );
+
+    // composition.get
+    this.registerTool(
+      'composition.get',
+      'Retrieve a specific composition by name and optional version (latest if omitted). Returns full composition definition.',
+      CompositionGetSchema,
+      this.handleCompositionGet.bind(this)
+    );
+
+    // composition.delete
+    this.registerTool(
+      'composition.delete',
+      'Delete a specific composition version by name and version number. Returns deletion confirmation.',
+      CompositionDeleteSchema,
+      this.handleCompositionDelete.bind(this)
+    );
+
+    // composition.stats
+    this.registerTool(
+      'composition.stats',
+      'Get composition registry statistics including total compositions, total versions, and compositions by name. Returns statistics object.',
+      CompositionStatsSchema,
+      this.handleCompositionStats.bind(this)
+    );
+
+    // composition.list_tools
+    this.registerTool(
+      'composition.list_tools',
+      'List all available tools with CANONICAL IDs for use in compositions. Returns tools with their canonical IDs (without mcp_ prefix), descriptions, and input schemas. Use this to discover correct tool IDs when authoring compositions.',
+      CompositionListToolsSchema,
+      this.handleCompositionListTools.bind(this)
+    );
+
+    this.getLogger().info('tool_orchestrator.mcp_tools_registration_complete', { toolsRegistered: 18 });
   }
 
   /**
@@ -683,6 +1251,110 @@ export class ToolOrchestratorServer extends Bit {
       });
       // Fail-open: Continue with empty cache
       this.toolCache = [];
+    }
+  }
+
+  /**
+   * Load all compositions from PostgreSQL and register them as MCP tools.
+   * Sprint 65 Task 1.3: Composition loading on startup
+   */
+  private async loadCompositions(): Promise<void> {
+    if (!this.compositionRegistry) {
+      this.getLogger().debug('tool_orchestrator.compositions.skipped', {
+        reason: 'Composition subsystem not enabled',
+      });
+      return;
+    }
+
+    try {
+      const compositions = await this.compositionRegistry.list();
+      this.getLogger().info('tool_orchestrator.compositions.loaded', {
+        count: compositions.length,
+        names: compositions.map((c) => c.name),
+      });
+
+      // Register each composition as an MCP tool
+      for (const record of compositions) {
+        await this.registerCompositionTool(record.compiled);
+      }
+
+      this.getLogger().info('tool_orchestrator.compositions.registered', {
+        count: compositions.length,
+      });
+    } catch (err) {
+      this.getLogger().error('tool_orchestrator.compositions.load_failed', {
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+      });
+      // Graceful degradation: Don't fail startup if compositions can't be loaded
+    }
+  }
+
+  /**
+   * Register a composition as an MCP tool in the ToolRegistry.
+   * Sprint 65 Task 1.3: Composition tool registration
+   */
+  private async registerCompositionTool(composition: any): Promise<void> {
+    const toolId = composition.metadata.name;
+    const description = composition.metadata.description || `Composition: ${toolId}`;
+    const jsonSchema = composition.spec.inputSchema;
+
+    try {
+      // Register in ToolRegistry (PostgreSQL-backed)
+      const now = new Date().toISOString();
+      await this.toolRegistry!.registerTool({
+        id: toolId,
+        canonicalName: toolId,
+        description,
+        inputSchema: jsonSchema,
+        source: 'composition',
+        status: 'active',
+        sourceMetadata: {
+          composition: {
+            toolIds: composition.spec.steps?.map((s: any) => s.call).filter(Boolean) || [],
+            strategy: composition.spec.strategy || 'sequential',
+          },
+        },
+        config: {
+          timeoutMs: composition.metadata.timeoutMs || 60000, // 1 minute default
+          retryPolicy: {
+            maxAttempts: 3,
+            backoffMs: 1000,
+          },
+        },
+        rbac: {
+          userRoles: {
+            required: composition.metadata.rbac?.userRoles?.required || [],
+            denied: composition.metadata.rbac?.userRoles?.denied || [],
+          },
+          modelRoles: {
+            required: composition.metadata.rbac?.modelRoles?.required || [],
+            denied: composition.metadata.rbac?.modelRoles?.denied || [],
+          },
+          modelTiers: {
+            allowed: composition.metadata.rbac?.modelTiers?.allowed || [],
+            denied: composition.metadata.rbac?.modelTiers?.denied || [],
+          },
+        },
+        health: {
+          status: 'healthy',
+        },
+        tags: composition.metadata.tags || [],
+        relatedTools: [],
+        importedAt: composition.createdAt || now,
+        lastUpdatedAt: composition.updatedAt || now,
+      });
+
+      this.getLogger().debug('tool_orchestrator.composition.registered', {
+        toolId,
+        version: composition.metadata.version,
+        hasInputSchema: !!jsonSchema,
+      });
+    } catch (err) {
+      this.getLogger().error('tool_orchestrator.composition.registration_failed', {
+        toolId,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
@@ -770,6 +1442,10 @@ export class ToolOrchestratorServer extends Bit {
         { capabilities: { tools: allTools.length > 0 ? {} : undefined } }
       );
 
+      // Sprint 65 FIX: Track sanitized tool names to prevent duplicate registrations
+      // Different original names may sanitize to the same name (e.g., "mcp:auth/bit.info" and "mcp:auth_bit.info")
+      const registeredSanitizedNames = new Set<string>();
+
       // Register aggregated tools from PostgreSQL registry (NOT this.registeredTools)
       for (const tool of allTools) {
         try {
@@ -785,22 +1461,76 @@ export class ToolOrchestratorServer extends Bit {
           //
           // Note: cleanInputSchema() method is now unused but kept for potential future use.
 
-          server.registerTool(tool.id, {
+          // Sprint 65 FIX: Sanitize tool name to comply with MCP naming standard
+          // MCP allows: A-Z, a-z, 0-9, _, -, .
+          // Replace invalid characters (like :) with underscore
+          const sanitizedToolName = tool.id.replace(/[^A-Za-z0-9_.\-]/g, '_');
+
+          // Sprint 65 FIX: Skip if sanitized name already registered (prevents duplicates)
+          if (registeredSanitizedNames.has(sanitizedToolName)) {
+            logger.debug('mcp_server.duplicate_sanitized_name_skipped', {
+              originalName: tool.id,
+              sanitizedName: sanitizedToolName,
+            });
+            continue;
+          }
+
+          if (sanitizedToolName !== tool.id) {
+            logger.debug('mcp_server.tool_name_sanitized', {
+              originalName: tool.id,
+              sanitizedName: sanitizedToolName,
+            });
+          }
+
+          // Track this sanitized name
+          registeredSanitizedNames.add(sanitizedToolName);
+
+          server.registerTool(sanitizedToolName, {
             description: tool.description || `Tool: ${tool.id}`,
-            // inputSchema omitted - PostgreSQL stores JSON Schema, SDK requires Zod
+            // inputSchema omitted - MCP SDK v2 requires Zod schemas, PostgreSQL stores JSON Schema
+            // TODO: Convert JSON Schema to Zod, or use schema-less registration
           }, async (args: any, ctx: any) => {
-            // Extract execution context from MCP request
-            const combinedExtra = {
-              userId: (args as any)._meta?.userId || (ctx as any)?.http?.req?.headers?.['x-user-id'] || 'anonymous',
-              userRoles: (args as any)._meta?.userRoles || (ctx as any)?.http?.req?.headers?.['x-roles']?.split(',') || [],
-              modelId: (args as any)._meta?.modelId || 'tool-orchestrator',
-              sessionId: (args as any)._meta?.sessionId,
+            // HOTFIX 7: MCP SDK v2 RUNTIME passes ServerContext as first parameter (args), not second (ctx)!
+            // The diagnostic logs showed: argsKeys: ["sessionId", "mcpReq", "http"], ctxKeys: []
+            // TypeScript signature shows (args, ctx) but runtime passes (ServerContext, undefined)
+            const serverContext = args; // args IS ServerContext at runtime
+
+            // Extract _meta from ServerContext (was incorrectly looking in empty ctx)
+            const meta = serverContext?.mcpReq?._meta;
+
+            // Extract tool arguments from MCP request params
+            const toolArgs = serverContext?.mcpReq?.params?.arguments || {};
+
+            // Sprint 65 DEBUG: Log what we're receiving
+            logger.debug('mcp_server.tool_call.raw_params', {
+              toolId: tool.id,
+              hasServerContext: !!serverContext,
+              serverContextKeys: serverContext ? Object.keys(serverContext) : [],
+              hasMcpReq: !!serverContext?.mcpReq,
+              mcpReqKeys: serverContext?.mcpReq ? Object.keys(serverContext.mcpReq) : [],
+              hasMeta: !!meta,
+              metaKeys: meta ? Object.keys(meta) : [],
+              toolArgsKeys: Object.keys(toolArgs),
+            });
+
+            const combinedExtra: any = {
+              userId: meta?.userId || serverContext?.http?.req?.headers.get('x-user-id') || 'anonymous',
+              userRoles: meta?.userRoles || serverContext?.http?.req?.headers.get('x-roles')?.split(',') || [],
+              sessionId: meta?.sessionId,
+              correlationId: meta?.correlationId,
             };
+
+            // Only include modelId if present in _meta (don't use invalid fallback)
+            if (meta?.modelId) {
+              combinedExtra.modelId = meta.modelId;
+            }
 
             logger.debug('mcp_server.tool_call', {
               toolId: tool.id,
+              sanitizedName: sanitizedToolName,
               userId: combinedExtra.userId,
               modelId: combinedExtra.modelId,
+              metaSource: meta ? 'mcpReq._meta' : 'http.headers',
             });
 
             // Execute tool through ToolGateway
@@ -811,7 +1541,7 @@ export class ToolOrchestratorServer extends Bit {
             return await this.traceMcpOperation(
               `tool:${tool.id}`,
               async () => {
-                const result = await this.toolGateway!.execute(tool.id, args, combinedExtra as any);
+                const result = await this.toolGateway!.execute(tool.id, toolArgs, combinedExtra as any);
                 // ToolResult is compatible with CallToolResult structure
                 return result as any;
               },
@@ -849,31 +1579,56 @@ export class ToolOrchestratorServer extends Bit {
       });
 
       for (const [name, tool] of baseThis.registeredTools.entries()) {
-        // Skip if already registered from PostgreSQL cache
-        if (aggregatedToolIds.has(name)) {
-          logger.debug('mcp_server.skipping_duplicate_tool', { name });
+        // Sprint 65 FIX: Sanitize tool name to comply with MCP naming standard
+        const sanitizedName = name.replace(/[^A-Za-z0-9_.\-]/g, '_');
+
+        // Skip if already registered from PostgreSQL cache OR from first loop
+        if (aggregatedToolIds.has(sanitizedName) || registeredSanitizedNames.has(sanitizedName)) {
+          logger.debug('mcp_server.skipping_duplicate_tool', { name, sanitizedName });
           continue;
         }
         try {
+          if (sanitizedName !== name) {
+            logger.debug('mcp_server.direct_tool_name_sanitized', {
+              originalName: name,
+              sanitizedName: sanitizedName,
+            });
+          }
+
           logger.debug('mcp_server.registering_tool', {
-            name,
+            name: sanitizedName,
+            originalName: name,
             hasHandler: !!tool.handler,
             hasSchema: !!tool.schema,
           });
-          server.registerTool(name, {
+
+          // Track this sanitized name before registration
+          registeredSanitizedNames.add(sanitizedName);
+
+          server.registerTool(sanitizedName, {
             description: tool.description,
             inputSchema: tool.schema, // These are Zod schemas - safe to pass
           }, async (args: any, ctx: any) => {
-            logger.debug('mcp_server.tool_handler_invoked', { toolName: name, args });
-            const meta = (args as any)._meta;
-            const combinedExtra = {
-              ...ctx,
-              userId: meta?.userId || (ctx as any)?.http?.req?.headers?.['x-user-id'],
-              userRoles: meta?.userRoles || (ctx as any)?.http?.req?.headers?.['x-roles'],
-              correlationId: meta?.correlationId || (ctx as any)?.http?.req?.headers?.['x-correlation-id'],
-              sessionId: meta?.sessionId || (ctx as any)?.http?.req?.headers?.['x-session-id'],
+            // HOTFIX 7: MCP SDK v2 RUNTIME passes ServerContext as first parameter
+            const serverContext = args; // args IS ServerContext at runtime
+            const meta = serverContext?.mcpReq?._meta;
+            const toolArgs = serverContext?.mcpReq?.params?.arguments || {};
+
+            logger.debug('mcp_server.tool_handler_invoked', { toolName: name, hasMeta: !!meta, hasArgs: Object.keys(toolArgs).length > 0 });
+
+            const combinedExtra: any = {
+              userId: meta?.userId || serverContext?.http?.req?.headers.get('x-user-id'),
+              userRoles: meta?.userRoles || serverContext?.http?.req?.headers.get('x-roles'),
+              correlationId: meta?.correlationId || serverContext?.http?.req?.headers.get('x-correlation-id'),
+              sessionId: meta?.sessionId || serverContext?.http?.req?.headers.get('x-session-id'),
             };
-            return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(args, combinedExtra), combinedExtra);
+
+            // Only include modelId if present in _meta (don't use invalid fallback or undefined)
+            if (meta?.modelId) {
+              combinedExtra.modelId = meta.modelId;
+            }
+
+            return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(toolArgs, combinedExtra), combinedExtra);
           });
           logger.debug('mcp_server.tool_registered_successfully', { name });
         } catch (toolErr: any) {
@@ -918,6 +1673,543 @@ export class ToolOrchestratorServer extends Bit {
         stack: err.stack,
       });
       throw err;
+    }
+  }
+
+  /**
+   * Sprint 65 Task 1.3 Phase 2: Composition Admin Tool Handlers
+   * Ported from tool-gateway.ts for composition management
+   */
+
+  /**
+   * Handle composition.register tool invocation.
+   * Registers a new composition from YAML/JSON definition.
+   */
+  private async handleCompositionRegister(
+    args: CompositionRegisterArgs,
+    extra?: { sessionId?: string; userRoles?: string[] }
+  ): Promise<any> {
+    const logger = this.getLogger();
+
+    if (!this.compositionsEnabled || !this.compositionRegistry) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: Composition subsystem not enabled (PostgreSQL not available)',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    logger.debug('composition_admin.register.start', {
+      name: args.definition.metadata.name,
+      sessionId: extra?.sessionId,
+    });
+
+    try {
+      // Register composition (same logic as REST POST /v1/compositions)
+      // Cast to any because Zod schema uses z.string() for apiVersion but type requires literal "mcp-compose/v1"
+      const compiled = await this.compositionRegistry.register(args.definition as any);
+
+      // Register as MCP tool in ToolRegistry
+      await this.registerCompositionTool(compiled);
+
+      logger.info('composition_admin.register.success', {
+        name: compiled.metadata.name,
+        version: compiled.metadata.version,
+        id: compiled.id,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                id: compiled.id,
+                name: compiled.metadata.name,
+                version: compiled.metadata.version,
+                contentHash: compiled.contentHash,
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    } catch (err) {
+      logger.error('composition_admin.register.error', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error: ${err instanceof Error ? err.message : 'Failed to register composition'}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  /**
+   * Handle composition.list tool invocation.
+   * Lists all registered compositions with optional filtering.
+   */
+  private async handleCompositionList(
+    args: CompositionListArgs,
+    extra?: { sessionId?: string; userRoles?: string[] }
+  ): Promise<any> {
+    const logger = this.getLogger();
+
+    if (!this.compositionsEnabled || !this.compositionRegistry) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: Composition subsystem not enabled (PostgreSQL not available)',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    logger.debug('composition_admin.list.start', {
+      filter: args.filter,
+      sessionId: extra?.sessionId,
+    });
+
+    try {
+      // List compositions (same logic as REST GET /v1/compositions)
+      const compositions = await this.compositionRegistry.list();
+
+      // Apply optional filters
+      let filtered = compositions;
+
+      if (args.filter?.name) {
+        filtered = filtered.filter((c) => c.name === args.filter!.name);
+      }
+
+      // Apply pagination
+      const offset = args.offset || 0;
+      const limit = args.limit || filtered.length;
+      const paginated = filtered.slice(offset, offset + limit);
+
+      const result = {
+        compositions: paginated.map((c) => ({
+          id: c.id,
+          name: c.name,
+          version: c.version,
+          contentHash: c.contentHash,
+          createdAt: c.createdAt,
+          updatedAt: c.updatedAt,
+        })),
+        total: filtered.length,
+      };
+
+      logger.debug('composition_admin.list.success', {
+        total: result.total,
+        returned: result.compositions.length,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (err) {
+      logger.error('composition_admin.list.error', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error: ${err instanceof Error ? err.message : 'Failed to list compositions'}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  /**
+   * Handle composition.get tool invocation.
+   * Retrieves a specific composition by name and optional version.
+   */
+  private async handleCompositionGet(
+    args: CompositionGetArgs,
+    extra?: { sessionId?: string; userRoles?: string[] }
+  ): Promise<any> {
+    const logger = this.getLogger();
+
+    if (!this.compositionsEnabled || !this.compositionRegistry) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: Composition subsystem not enabled (PostgreSQL not available)',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    logger.debug('composition_admin.get.start', {
+      name: args.name,
+      version: args.version,
+      sessionId: extra?.sessionId,
+    });
+
+    try {
+      // Get composition (same logic as REST GET /v1/compositions/:name/:version or /:name)
+      const composition = await this.compositionRegistry.get(args.name, args.version);
+
+      if (!composition) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Error: Composition not found: ${args.name}${args.version ? ` (version ${args.version})` : ''}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      logger.debug('composition_admin.get.success', {
+        name: args.name,
+        version: composition.metadata.version,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(composition, null, 2),
+          },
+        ],
+      };
+    } catch (err) {
+      logger.error('composition_admin.get.error', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error: ${err instanceof Error ? err.message : 'Failed to retrieve composition'}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  /**
+   * Handle composition.delete tool invocation.
+   * Deletes a specific composition version by name and version.
+   */
+  private async handleCompositionDelete(
+    args: CompositionDeleteArgs,
+    extra?: { sessionId?: string; userRoles?: string[] }
+  ): Promise<any> {
+    const logger = this.getLogger();
+
+    if (!this.compositionsEnabled || !this.compositionRegistry) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: Composition subsystem not enabled (PostgreSQL not available)',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    logger.debug('composition_admin.delete.start', {
+      name: args.name,
+      version: args.version,
+      sessionId: extra?.sessionId,
+    });
+
+    try {
+      // Delete composition (same logic as REST DELETE /v1/compositions/:name/:version)
+      await this.compositionRegistry.delete(args.name, args.version);
+
+      // Delete from ToolRegistry
+      if (this.toolRegistry) {
+        await this.toolRegistry.deleteTool(args.name);
+      }
+
+      logger.info('composition_admin.delete.success', {
+        name: args.name,
+        version: args.version,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: true,
+                message: `Composition deleted: ${args.name} (version ${args.version})`,
+                deleted: {
+                  name: args.name,
+                  version: args.version,
+                },
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    } catch (err) {
+      logger.error('composition_admin.delete.error', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error: ${err instanceof Error ? err.message : 'Failed to delete composition'}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  /**
+   * Handle composition.stats tool invocation.
+   * Returns composition registry statistics.
+   */
+  private async handleCompositionStats(
+    args: CompositionStatsArgs,
+    extra?: { sessionId?: string; userRoles?: string[] }
+  ): Promise<any> {
+    const logger = this.getLogger();
+
+    if (!this.compositionsEnabled || !this.compositionRegistry) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: Composition subsystem not enabled (PostgreSQL not available)',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    logger.debug('composition_admin.stats.start', {
+      sessionId: extra?.sessionId,
+    });
+
+    try {
+      // Get stats (same logic as REST GET /v1/compositions/stats)
+      const stats = await this.compositionRegistry.getStats();
+
+      logger.debug('composition_admin.stats.success', {
+        totalCompositions: stats.totalCompositions,
+        totalVersions: stats.totalVersions,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(stats, null, 2),
+          },
+        ],
+      };
+    } catch (err) {
+      logger.error('composition_admin.stats.error', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error: ${err instanceof Error ? err.message : 'Failed to get composition statistics'}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  /**
+   * Handle composition.list_tools tool invocation.
+   * Returns all available tools with CANONICAL IDs for use in compositions.
+   */
+  private async handleCompositionListTools(
+    args: CompositionListToolsArgs,
+    extra?: { sessionId?: string; userRoles?: string[] }
+  ): Promise<any> {
+    const logger = this.getLogger();
+
+    logger.debug('composition_admin.list_tools.start', {
+      filter: args.filter,
+      limit: args.limit,
+      sessionId: extra?.sessionId,
+    });
+
+    try {
+      // Get all tools from in-memory cache
+      const allTools = this.getAllToolsFromRegistry();
+
+      // Filter tools if pattern provided
+      let filtered = allTools;
+      if (args.filter) {
+        const pattern = args.filter.toLowerCase();
+        filtered = allTools.filter(t =>
+          t.id.toLowerCase().includes(pattern) ||
+          (t.description && t.description.toLowerCase().includes(pattern))
+        );
+      }
+
+      // Apply limit (default 100)
+      const limit = args.limit || 100;
+      const limited = filtered.slice(0, limit);
+
+      // Format output - normalize tool IDs to canonical form
+      const tools = limited.map(t => {
+        // Strip MCP prefixes to get canonical ID
+        let canonicalId = t.id;
+
+        // Remove 'mcp_' prefix (e.g., 'mcp_get_state' -> 'get_state')
+        if (canonicalId.startsWith('mcp_')) {
+          canonicalId = canonicalId.slice(4);
+        }
+
+        // Remove 'mcp:' prefix and server name (e.g., 'mcp:generate_image' -> 'generate_image')
+        // Also handles 'mcp:server-name/tool-name' -> 'tool-name'
+        if (canonicalId.startsWith('mcp:')) {
+          const withoutPrefix = canonicalId.slice(4); // Remove 'mcp:'
+          const parts = withoutPrefix.split('/');
+          canonicalId = parts[parts.length - 1]; // Get last part (tool name)
+        }
+
+        return {
+          id: canonicalId,  // Canonical ID (no mcp_ or mcp: prefix)
+          description: t.description || '',
+          source: t.source || 'unknown',
+          // Include simplified schema if available
+          hasInputSchema: !!t.inputSchema,
+        };
+      });
+
+      logger.debug('composition_admin.list_tools.success', {
+        totalTools: allTools.length,
+        filteredCount: filtered.length,
+        returnedCount: tools.length,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              totalAvailable: allTools.length,
+              filtered: filtered.length,
+              returned: tools.length,
+              tools,
+              hint: 'Use these canonical tool IDs in composition steps (e.g., steps[].call)',
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (err) {
+      logger.error('composition_admin.list_tools.error', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error: ${err instanceof Error ? err.message : 'Failed to list tools'}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  /**
+   * Sprint 65: Handle incoming MCP registration events by upserting the server configuration
+   * into PostgreSQL. The RegistryWatcher will then automatically pick up the change
+   * and establish/update the connection.
+   */
+  private async handleMcpRegistration(event: InternalEventV2) {
+    const payload = event.payload;
+    if (!payload || !payload.name || !payload.url) {
+      this.getLogger().warn('tool_orchestrator.registration.invalid_payload', {
+        payload,
+        correlationId: event.correlationId
+      });
+      return;
+    }
+
+    // Deduplication signature to prevent redundant writes
+    const signature = JSON.stringify({
+      url: payload.url,
+      transport: payload.transport,
+      requiredRoles: payload.requiredRoles,
+      context: payload.context,
+    });
+
+    if (this.registrationSignatures.get(payload.name) === signature) {
+      this.getLogger().debug('tool_orchestrator.registration.unchanged', {
+        name: payload.name
+      });
+      return;
+    }
+
+    try {
+      const doc: McpServerDocument = {
+        name: payload.name,
+        transport: payload.transport || 'sse',
+        url: payload.url,
+        status: payload.status || 'active',
+        env: payload.env || {},
+        requiredRoles: payload.requiredRoles || [],
+        contextPacks: payload.context?.packs || [],
+        contextBindings: payload.context?.bindings || [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        discoverySource: 'internal.mcp.registration.v1',
+        correlationId: event.correlationId || `reg-${payload.name}-${Date.now()}`,
+      };
+
+      await this.mcpServerStore.upsert(payload.name, doc);
+      this.registrationSignatures.set(payload.name, signature);
+
+      this.getLogger().info('tool_orchestrator.registration.stored', {
+        name: payload.name,
+        url: payload.url,
+        correlationId: event.correlationId,
+      });
+    } catch (err) {
+      this.getLogger().error('tool_orchestrator.registration.store_failed', {
+        name: payload.name,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
