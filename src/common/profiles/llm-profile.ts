@@ -239,8 +239,8 @@ export const LlmProfile: BitProfile = {
                 limit: 1,
               });
 
-              if (toolDoc?.[0]?.data?.inputSchema) {
-                const schema = toolDoc[0].data.inputSchema;
+              if (toolDoc?.[0]?.inputSchema) {
+                const schema = toolDoc[0].inputSchema;
                 const schemaData = schema.jsonSchema || schema;
 
                 // Convert to AI SDK format using jsonSchema() helper
