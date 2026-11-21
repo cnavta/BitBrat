@@ -235,7 +235,7 @@ export const LlmProfile: BitProfile = {
 
               // Query PostgreSQL tool registry
               const toolDoc = await toolStore.query('platform_tool_registry', {
-                where: [['id', '==', toolId]],
+                filters: [{ field: 'id', operator: '==', value: toolId }],
                 limit: 1,
               });
 
