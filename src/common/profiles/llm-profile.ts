@@ -136,6 +136,13 @@ export const LlmProfile: BitProfile = {
      * @since Sprint 66
      */
     const mapToolNameToRegistryId = (toolId: string): string => {
+      // Pattern 0a: mcp:mcp_* tools (double mcp prefix with colon separator)
+      // Example: mcp:mcp_generate_image → mcp:generate_image
+      // CRITICAL: This check must come BEFORE the general mcp: early return
+      if (toolId.startsWith('mcp:mcp_')) {
+        return toolId.replace(/^mcp:mcp_/, 'mcp:');
+      }
+
       // Handle mcp:namespace/tool.name format (already correct)
       if (toolId.startsWith('mcp:')) {
         return toolId; // Already correct format
@@ -144,7 +151,7 @@ export const LlmProfile: BitProfile = {
       // Handle sanitized format: mcp_namespace_tool_name
       // Need to restore: mcp:namespace/tool.name or mcp:tool-name
 
-      // Pattern 0: mcp_mcp_* tools (double mcp prefix from tool-orchestrator)
+      // Pattern 0b: mcp_mcp_* tools (double mcp prefix with underscore separator)
       // Example: mcp_mcp_generate_image → mcp:generate_image
       // Keep underscores as-is (don't convert to dashes/dots)
       if (toolId.startsWith('mcp_mcp_')) {
