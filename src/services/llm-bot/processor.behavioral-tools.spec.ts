@@ -14,7 +14,13 @@ import { processEvent } from './processor';
 import { Bit } from '../../common/base-server';
 import { InternalEventV2 } from '../../types/events';
 
-class TestServer extends Bit { constructor() { super({ serviceName: 'test-llm-bot' }); } }
+class TestServer extends Bit {
+  // Sprint 66: Mock LlmProfile capability for schema injection
+  public llm = {
+    prepareToolsForLlm: jest.fn(async (tools: any) => tools), // Passthrough for tests
+  };
+  constructor() { super({ serviceName: 'test-llm-bot' }); }
+}
 
 function baseEvt(): InternalEventV2 {
   return {

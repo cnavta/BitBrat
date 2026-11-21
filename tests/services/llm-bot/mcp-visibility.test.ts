@@ -44,6 +44,10 @@ describe('llm-bot processor — MCP Visibility', () => {
       USER_CONTEXT_ENABLED: 'false',
     };
     private _documentStore: any;
+    // Sprint 66: Mock LlmProfile capability for schema injection
+    public llm = {
+      prepareToolsForLlm: jest.fn(async (tools: any) => tools), // Passthrough for tests
+    };
 
     constructor(documentStore?: any) {
       this._documentStore = documentStore;
