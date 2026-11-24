@@ -493,6 +493,57 @@ missing_timeout: 110 (22%)
 - Remaining missing config: 0 tools
 - All tool execution now working correctly
 
+### Tool-Orchestrator SSE Write Buffer Overflow
+**Problem**: Tool-orchestrator crashed when LLM called `mcp_list` (reflex.list) with error:
+```
+Error: write EINVAL
+  errno: -22,
+  code: 'EINVAL',
+  syscall: 'write'
+Correlation ID: 4a440ab9-f52c-470d-b88e-e76358d2ae7b
+```
+
+**Root Cause**:
+- tool-orchestrator's `getMcpServer()` registered ALL 504 tools from PostgreSQL
+- When MCP client called `tools/list`, MCP SDK tried to serialize all 504 tools into single SSE response
+- Payload exceeded socket write buffer size → EINVAL error
+- Service crashed and didn't recover
+- LLM calls timed out after 60 seconds
+
+**Timeline**:
+```
+23:13:23 - LLM calls mcp_list (first attempt)
+23:14:23 - Timeout after 60 seconds
+23:14:44 - LLM retries mcp_list (second attempt)
+23:15:44 - Timeout after 60 seconds
+23:17:43 - Tool-orchestrator crashes with EINVAL
+```
+
+**Investigation Results**:
+- Health checks (`reflex/bit.health`, `reflex/bit.readiness`) succeeded (~12 seconds)
+- List operation failed both times with 60-second timeouts
+- Service crashed when trying to write 504-tool response to SSE socket
+- MCP protocol has no built-in pagination for `tools/list`
+
+**Solution**: Limit tools/list response to prevent SSE write buffer overflow
+- Added `MCP_MAX_TOOLS_LIST` environment variable (default: 200)
+- Prioritize tool categories:
+  1. Admin tools (tool.*, model.*, composition.*) - always included
+  2. Platform tools (bit.*) - monitoring essentials
+  3. Domain tools - up to remaining limit
+- Only register filtered tools with MCP server
+
+**Code Changes**:
+1. `src/apps/tool-orchestrator-service.ts:1445-1501` - Filter and prioritize tools before registration
+2. `architecture.yaml:1084` - Add MCP_MAX_TOOLS_LIST env var
+
+**Expected Results** (after deployment):
+- Tool-orchestrator exposes ~200 tools via MCP (admin + platform + domain subset)
+- MCP `tools/list` responses fit within SSE write buffer
+- Service remains stable under load
+- LLM can still access essential tools (admin + platform)
+- Domain tool access requires direct tool ID (not list discovery)
+
 ---
 
 ## Related Sprints
