@@ -40,7 +40,20 @@ import { DocumentStore } from './registry';
  * ```
  */
 export class PostgresDocumentStore implements DocumentStore {
-  constructor(private pool: Pool) {}
+  constructor(private pool: Pool) {
+    // Sprint 66 FIX: Handle pool errors gracefully to prevent crash-loops
+    // https://node-postgres.com/apis/pool#events
+    // Without this handler, idle client errors crash the process
+    // Note: Safe to add multiple listeners - they're additive
+    this.pool.on('error', (err, client) => {
+      // Log error but don't crash - pool will recover by removing bad connection
+      console.error('[PostgresDocumentStore] Pool idle client error:', {
+        error: err.message,
+        stack: err.stack,
+        hasClient: !!client,
+      });
+    });
+  }
 
   /**
    * Initialize the document store

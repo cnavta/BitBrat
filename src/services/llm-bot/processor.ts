@@ -752,6 +752,8 @@ export async function processEvent(
         { role: 'user', content: payload.messages[1].content },
       ];
 
+      // Sprint 66: Three-step tool preparation flow
+      // Step 1: Get all tools from registry
       const allTools = deps?.registry?.getTools() || {};
       const userRoles = evt.identity?.user?.roles || evt.identity?.external?.roles || [];
       const userId = evt.identity?.user?.id || evt.identity?.external?.id;
@@ -763,6 +765,7 @@ export async function processEvent(
         signal
       };
 
+      // Step 2: Apply RBAC/scope/behavioral filtering (keep tools in registry format)
       const requestedScope = evt.metadata?.scope;
       const filteredTools: Record<string, any> = {};
       const behavioralToolSuppressions: Array<{ tool: string; reason: string }> = [];
@@ -792,50 +795,8 @@ export async function processEvent(
           : { allowed: true, reason: 'behavioral tool filtering disabled' };
 
         if (allowed && scopeAllowed && behavioralDecision.allowed) {
-          // Wrap tool to capture errors in InternalEventV2
-          filteredTools[name] = {
-            description: tool.description,
-            inputSchema: tool.inputSchema,
-            execute: tool.execute ? async (args: any) => {
-              const startTime = Date.now();
-              try {
-                logger.debug(`llm_bot.tool_call.${name}`, {
-                  tool: tool.id,
-                  correlationId: toolContext.correlationId,
-                  userId: toolContext.userId,
-                  modelId: toolContext.modelId, // Sprint 58: Log model ID for RBAC tracing
-                });
-                const resp = await tool.execute!(args, toolContext);
-                const duration = Date.now() - startTime;
-                logger?.debug(`llm_bot.tool_call.${name}.success`, {
-                  tool: tool.id,
-                  correlationId: toolContext.correlationId,
-                  userId: toolContext.userId,
-                  modelId: toolContext.modelId, // Sprint 58: Log model ID for RBAC tracing
-                  duration,
-                });
-                return resp;
-              } catch (e: any) {
-                const duration = Date.now() - startTime;
-                logger.error('llm_bot.tool_error', {
-                  tool: tool.id,
-                  correlationId: toolContext.correlationId,
-                  userId: toolContext.userId,
-                  modelId: toolContext.modelId, // Sprint 58: Log model ID for RBAC tracing
-                  duration,
-                  error: e.message,
-                  stack: e.stack,
-                });
-                if (!Array.isArray(evt.errors)) evt.errors = [];
-                evt.errors.push({
-                  source: tool.source === 'mcp' ? `mcp:${tool.id}` : tool.source,
-                  message: e.message || String(e),
-                  at: new Date().toISOString()
-                });
-                throw e;
-              }
-            } : undefined
-          };
+          // Keep tool in registry format (schema injection happens next)
+          filteredTools[name] = tool;
         } else if (!allowed) {
           logger.debug('llm_bot.tool_filtered_rbac', { tool: tool.id, userRoles });
         } else if (!scopeAllowed) {
@@ -852,21 +813,101 @@ export async function processEvent(
           });
         }
       }
+
+      // Step 3: Inject schemas from PostgreSQL tool registry (Sprint 66)
+      // CRITICAL: Defensive check - if llm capability not available, skip schema injection
+      let enrichedTools = filteredTools;
+      if ((server as any).llm?.prepareToolsForLlm) {
+        try {
+          enrichedTools = await (server as any).llm.prepareToolsForLlm(filteredTools);
+        } catch (err) {
+          // Fail-open: Schema injection failure should not block tool execution
+          logger.warn('llm_bot.schema_injection_failed', {
+            correlationId: corr,
+            error: err instanceof Error ? err.message : String(err),
+            message: 'Continuing with original tools without schema injection',
+          });
+          enrichedTools = filteredTools; // Fallback to unmodified tools
+        }
+      } else {
+        logger.debug('llm_bot.schema_injection_unavailable', {
+          correlationId: corr,
+          message: 'LlmProfile not available, skipping schema injection',
+        });
+      }
+
+      // Step 4: Wrap execute methods for error handling and logging
+      const wrappedTools: Record<string, any> = {};
+      for (const [name, tool] of Object.entries(enrichedTools)) {
+        const typedTool = tool as any;
+        wrappedTools[name] = {
+          description: typedTool.description,
+          inputSchema: typedTool.inputSchema, // ✅ Now has schema (direct or injected)!
+          execute: typedTool.execute ? async (args: any) => {
+            const startTime = Date.now();
+            try {
+              // Note: tool.id may not be available on enriched tools, use name instead
+              logger.debug(`llm_bot.tool_call.${name}`, {
+                tool: name,
+                correlationId: toolContext.correlationId,
+                userId: toolContext.userId,
+                modelId: toolContext.modelId, // Sprint 58: Log model ID for RBAC tracing
+              });
+              const resp = await typedTool.execute!(args, toolContext);
+              const duration = Date.now() - startTime;
+              logger?.debug(`llm_bot.tool_call.${name}.success`, {
+                tool: name,
+                correlationId: toolContext.correlationId,
+                userId: toolContext.userId,
+                modelId: toolContext.modelId, // Sprint 58: Log model ID for RBAC tracing
+                duration,
+              });
+              return resp;
+            } catch (e: any) {
+              const duration = Date.now() - startTime;
+              logger.error('llm_bot.tool_error', {
+                tool: name,
+                correlationId: toolContext.correlationId,
+                userId: toolContext.userId,
+                modelId: toolContext.modelId, // Sprint 58: Log model ID for RBAC tracing
+                duration,
+                error: e.message,
+                stack: e.stack,
+              });
+              if (!Array.isArray(evt.errors)) evt.errors = [];
+              evt.errors.push({
+                source: 'mcp:' + name,
+                message: e.message || String(e),
+                at: new Date().toISOString()
+              });
+              throw e;
+            }
+          } : undefined
+        };
+      }
+
+      // Log tool preparation stats (Sprint 66)
+      logger.debug('llm_bot.tools_prepared', {
+        correlationId: corr,
+        totalTools: Object.keys(wrappedTools).length,
+        withSchema: Object.values(wrappedTools).filter((t: any) => t.inputSchema).length,
+        withoutSchema: Object.values(wrappedTools).filter((t: any) => !t.inputSchema).length,
+      });
       appendRuntimeAnnotation(evt, 'response-strategy', behaviorProfile.responseMode, {
         ...behaviorProfileSummary,
         toolUse: {
           enabled: behavioralFlags.toolFilterEnabled,
-          allowedCount: Object.keys(filteredTools).length,
+          allowedCount: Object.keys(wrappedTools).length,
           suppressed: behavioralToolSuppressions,
           scopeSuppressed: scopeSuppressions,
         },
       });
 
-      logger.debug('llm_bot.generate_text.start', { 
-        model: modelName, 
+      logger.debug('llm_bot.generate_text.start', {
+        model: modelName,
         allToolCount: Object.keys(allTools).length,
-        filteredToolCount: Object.keys(filteredTools).length,
-        tools: Object.keys(filteredTools)
+        filteredToolCount: Object.keys(wrappedTools).length,
+        tools: Object.keys(wrappedTools)
       });
 
       const provider = getLlmProvider({
@@ -879,7 +920,7 @@ export async function processEvent(
       const result = await generateText({
         model: provider,
         messages: coreMessages,
-        tools: filteredTools,
+        tools: wrappedTools, // Sprint 66: Use schema-injected + wrapped tools
         stopWhen: stepCountIs(5),
         abortSignal: signal,
       });

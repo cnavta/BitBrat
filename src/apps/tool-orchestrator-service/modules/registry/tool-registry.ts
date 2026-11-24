@@ -301,10 +301,11 @@ export class ToolRegistry implements IToolRegistry {
         // Check if tool already exists
         const existing = await this.getTool(toolDoc.id);
         if (existing) {
-          // Update existing tool
+          // Update existing tool (Sprint 66: Include RBAC to fix NULL rbac issue)
           await this.updateTool(toolDoc.id, {
             description: toolDoc.description,
             inputSchema: toolDoc.inputSchema,
+            rbac: toolDoc.rbac, // FIX: Include RBAC in update to prevent NULL persistence
             lastUpdatedAt: new Date(),
           });
           this.logger.debug({
@@ -384,12 +385,13 @@ export class ToolRegistry implements IToolRegistry {
         // Check if tool already exists
         const existing = await this.getTool(toolDoc.id);
         if (existing) {
-          // Update existing tool, preserve RBAC metadata
+          // Update existing tool (Sprint 66: Include RBAC to fix NULL rbac issue)
           await this.updateTool(toolDoc.id, {
             description: toolDoc.description,
             source: toolDoc.source,
             sourceMetadata: toolDoc.sourceMetadata,
             inputSchema: toolDoc.inputSchema,
+            rbac: toolDoc.rbac, // FIX: Include RBAC in update to prevent NULL persistence
             category: toolDoc.category,
             tags: toolDoc.tags,
             lastUpdatedAt: new Date(),

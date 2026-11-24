@@ -291,8 +291,24 @@ export class ToolOrchestratorServer extends Bit {
           const { Pool } = require('pg');
           const pool = new Pool({
             connectionString,
-            max: parseInt(process.env.POSTGRES_POOL_SIZE || '10', 10),
+            // Sprint 66: Increased pool size from 10 to 30 for batched tool registration
+            // Tool registration now batched (20 per batch) instead of all 505 firing concurrently
+            max: parseInt(process.env.POSTGRES_POOL_SIZE || '30', 10),
             ssl: process.env.POSTGRES_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+            // Sprint 66: Add connection timeouts to prevent hanging connections
+            idleTimeoutMillis: 30000,        // Close idle clients after 30s
+            connectionTimeoutMillis: 60000,  // Timeout on connection acquisition (60s for heavy tool registration load)
+            allowExitOnIdle: false,          // Don't exit if pool is idle
+          });
+
+          // Sprint 66 FIX: Handle pool errors gracefully to prevent crash-loops
+          pool.on('error', (err: Error, client: any) => {
+            this.getLogger().error('composition_pool.idle_client_error', {
+              error: err.message,
+              stack: err.stack,
+              hasClient: !!client,
+            });
+            // Don't crash - pool will recover by removing bad connection
           });
 
           const compositionStore = new PostgresCompositionStore(pool);
@@ -1430,16 +1446,50 @@ Returns composition metadata (id, name, version, contentHash).`,
       // CRITICAL: This must include tools from all registered MCP servers and Bits
       const allTools = this.getAllToolsFromRegistry();
 
+      // Sprint 66 FIX: Limit tools/list response to prevent SSE write buffer overflow
+      // Problem: Returning all 504 tools causes EINVAL (write buffer exceeded) and service crash
+      // Solution: Limit to MCP_MAX_TOOLS_LIST (default: 200), prioritizing admin/platform tools
+      const maxToolsLimit = parseInt(process.env.MCP_MAX_TOOLS_LIST || '200', 10);
+
+      // Prioritize tools by category:
+      // 1. Admin tools (tool.*, model.*, composition.*) - always include
+      // 2. Platform tools (bit.*) - important for monitoring
+      // 3. Domain tools (everything else) - up to limit
+      const adminTools = allTools.filter(t =>
+        t.canonicalName?.startsWith('tool.') ||
+        t.canonicalName?.startsWith('model.') ||
+        t.canonicalName?.startsWith('composition.')
+      );
+      const platformTools = allTools.filter(t =>
+        t.canonicalName === 'bit' || t.canonicalName?.startsWith('bit.')
+      );
+      const domainTools = allTools.filter(t =>
+        !adminTools.includes(t) && !platformTools.includes(t)
+      );
+
+      // Build prioritized list up to maxToolsLimit
+      const toolsToRegister = [
+        ...adminTools,
+        ...platformTools,
+        ...domainTools.slice(0, Math.max(0, maxToolsLimit - adminTools.length - platformTools.length))
+      ];
+
       logger.debug('mcp_server.initializing', {
         service: 'tool-orchestrator',
-        aggregatedTools: allTools.length,
+        totalTools: allTools.length,
+        adminTools: adminTools.length,
+        platformTools: platformTools.length,
+        domainTools: domainTools.length,
+        toolsToRegister: toolsToRegister.length,
+        maxToolsLimit,
+        toolsExcluded: allTools.length - toolsToRegister.length,
         ownTools: baseThis.registeredTools.size,
       });
 
       // Create MCP server
       const server = new McpServer(
         { name: 'tool-orchestrator', version: '1.0.0' },
-        { capabilities: { tools: allTools.length > 0 ? {} : undefined } }
+        { capabilities: { tools: toolsToRegister.length > 0 ? {} : undefined } }
       );
 
       // Sprint 65 FIX: Track sanitized tool names to prevent duplicate registrations
@@ -1447,7 +1497,8 @@ Returns composition metadata (id, name, version, contentHash).`,
       const registeredSanitizedNames = new Set<string>();
 
       // Register aggregated tools from PostgreSQL registry (NOT this.registeredTools)
-      for (const tool of allTools) {
+      // Sprint 66 FIX: Only register tools up to maxToolsLimit to prevent SSE write buffer overflow
+      for (const tool of toolsToRegister) {
         try {
           // Sprint 63: CRITICAL FIX - Omit inputSchema for aggregated tools
           //
@@ -1461,31 +1512,73 @@ Returns composition metadata (id, name, version, contentHash).`,
           //
           // Note: cleanInputSchema() method is now unused but kept for potential future use.
 
-          // Sprint 65 FIX: Sanitize tool name to comply with MCP naming standard
-          // MCP allows: A-Z, a-z, 0-9, _, -, .
-          // Replace invalid characters (like :) with underscore
-          const sanitizedToolName = tool.id.replace(/[^A-Za-z0-9_.\-]/g, '_');
+          // Sprint 66 FIX: Preserve namespace when exposing tools via MCP
+          // Problem: Sanitizing tool.id (mcp:reflex.list → mcp_reflex.list) causes double-prefixing
+          // when downstream McpBridge re-qualifies the tool name (mcp_reflex.list → mcp:mcp_reflex.list).
+          //
+          // Solution: Expose tools with namespace-preserving names:
+          // - Platform tools (bit.*): Expose as "{originServer}/{canonicalName}" (e.g., "reflex/bit.health")
+          //   This preserves the origin server attribution when llm-bot re-qualifies them.
+          // - Domain tools: Expose as "{canonicalName}" (e.g., "reflex.list")
+          //   McpBridge will correctly qualify these as "mcp:reflex.list".
+          //
+          // This approach ensures:
+          // 1. No double mcp: prefixing
+          // 2. Platform tools retain their origin server (reflex/bit.health, not tool-orchestrator/bit.health)
+          // 3. Domain tools are correctly namespaced (mcp:reflex.list)
 
-          // Sprint 65 FIX: Skip if sanitized name already registered (prevents duplicates)
-          if (registeredSanitizedNames.has(sanitizedToolName)) {
-            logger.debug('mcp_server.duplicate_sanitized_name_skipped', {
-              originalName: tool.id,
-              sanitizedName: sanitizedToolName,
+          // Sprint 66 FIX: Defensive check for missing canonicalName
+          // Some tools in PostgreSQL may have undefined canonicalName due to migration issues
+          if (!tool.canonicalName) {
+            logger.warn('mcp_server.tool_missing_canonical_name', {
+              toolId: tool.id,
+              description: tool.description,
+            });
+            continue; // Skip tools without canonical names
+          }
+
+          // Determine if this is a platform tool (bit.*)
+          const isPlatformTool = tool.canonicalName === 'bit' || tool.canonicalName.startsWith('bit.');
+
+          // Extract origin server from tool.id (e.g., "mcp:reflex/bit.health" → "reflex")
+          // For platform tools: tool.id = "mcp:reflex/bit.health"
+          // For domain tools: tool.id = "mcp:reflex.list"
+          const originServer = tool.id.startsWith('mcp:')
+            ? tool.id.substring(4).split('/')[0].split('.')[0]  // Remove "mcp:" prefix, extract server name
+            : 'unknown';
+
+          // Build tool name that preserves namespace
+          const toolName = isPlatformTool && originServer !== 'unknown'
+            ? `${originServer}/${tool.canonicalName}`  // Platform tool with origin attribution
+            : tool.canonicalName;                       // Domain tool without modification
+
+          // Sprint 66 FIX: Skip if tool name already registered (prevents duplicates)
+          if (registeredSanitizedNames.has(toolName)) {
+            logger.debug('mcp_server.duplicate_tool_name_skipped', {
+              toolId: tool.id,
+              canonicalName: tool.canonicalName,
+              exposedAs: toolName,
+              isPlatformTool,
+              originServer,
             });
             continue;
           }
 
-          if (sanitizedToolName !== tool.id) {
-            logger.debug('mcp_server.tool_name_sanitized', {
-              originalName: tool.id,
-              sanitizedName: sanitizedToolName,
+          // Log tool name transformation for debugging
+          if (toolName !== tool.canonicalName) {
+            logger.debug('mcp_server.tool_name_transformed', {
+              toolId: tool.id,
+              canonicalName: tool.canonicalName,
+              exposedAs: toolName,
+              isPlatformTool,
+              originServer,
             });
           }
 
-          // Track this sanitized name
-          registeredSanitizedNames.add(sanitizedToolName);
+          // Track this tool name to prevent duplicates
+          registeredSanitizedNames.add(toolName);
 
-          server.registerTool(sanitizedToolName, {
+          server.registerTool(toolName, {
             description: tool.description || `Tool: ${tool.id}`,
             // inputSchema omitted - MCP SDK v2 requires Zod schemas, PostgreSQL stores JSON Schema
             // TODO: Convert JSON Schema to Zod, or use schema-less registration
@@ -1527,7 +1620,7 @@ Returns composition metadata (id, name, version, contentHash).`,
 
             logger.debug('mcp_server.tool_call', {
               toolId: tool.id,
-              sanitizedName: sanitizedToolName,
+              exposedToolName: toolName,
               userId: combinedExtra.userId,
               modelId: combinedExtra.modelId,
               metaSource: meta ? 'mcpReq._meta' : 'http.headers',

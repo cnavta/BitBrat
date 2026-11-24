@@ -37,6 +37,10 @@ describe('Processor', () => {
         warn: jest.fn(),
         error: jest.fn(),
       }),
+      // Sprint 66: Mock LlmProfile capability for schema injection
+      llm: {
+        prepareToolsForLlm: jest.fn(async (tools) => tools), // Passthrough for tests
+      },
     };
 
     (resolvePersonalityParts as jest.Mock).mockResolvedValue([]);

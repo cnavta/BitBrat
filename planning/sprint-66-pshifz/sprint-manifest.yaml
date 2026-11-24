@@ -1,0 +1,12 @@
+id: sprint-66-pshifz
+title: Schema Injection via LlmProfile Integration
+goal: "Implement Option 0 from schema-injection-architecture.md: Extend
+  LlmProfile with prepareToolsForLlm() capability for seamless schema injection
+  from PostgreSQL tool registry, migrate llm-bot to use new pattern, validate in
+  agent-dev, and document pattern for future services"
+owner: christophernavta
+createdAt: 2026-11-21T00:01:01.392Z
+status: planning
+links:
+  branch: feature/sprint-66-pshifz-schema-injection-via-llmprofil
+notes: Sprint initialized via MCP start-sprint tool

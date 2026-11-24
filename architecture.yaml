@@ -4,7 +4,7 @@ description: >-
   Node/TypeScript, Twurple, Firestore, OpenAI. Deployed on Cloud Run.
 project:
   name: BitBrat Platform
-  version: 0.49.0
+  version: 0.50.0
   status: experimental
   description: >
     A cloud-native microservices suite that listens to Twitch, Kick and other events and provides tools to react to
@@ -897,8 +897,12 @@ services:
     profile: gateway
     mcp:
       exposure: platform+domain
-    active: true
-    description: MCP Proxy for centralized MCP tool management and security
+    active: false  # Sprint 66: Deprecated - replaced by tool-orchestrator
+    deprecated: true
+    deprecatedAt: "2026-11-24"
+    deprecationReason: "Replaced by tool-orchestrator (Sprint 61). Causing canonicalName pollution in tool registry."
+    replacementService: "tool-orchestrator"
+    description: "[DEPRECATED] MCP Proxy for centralized MCP tool management and security. Use tool-orchestrator instead."
     kind: gateway
     entry: src/apps/tool-gateway.ts
     dependencies:
@@ -1076,6 +1080,8 @@ services:
       - HEALTH_UPDATE_INTERVAL_MS
       - HEALTH_STALE_THRESHOLD_MS
       - DATABASE_URL
+      - POSTGRES_POOL_SIZE  # Sprint 66: Increased pool size needed for concurrent tool registration (505 tools)
+      - MCP_MAX_TOOLS_LIST  # Sprint 66: Max tools to expose via MCP tools/list (default: 200, prevents SSE write buffer overflow)
 executionContexts:
   local:
     description: Local Docker development environment

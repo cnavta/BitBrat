@@ -1,0 +1,958 @@
+# Sprint 66 Backlog: Schema Injection via LlmProfile Integration
+# Sprint ID: sprint-66-pshifz
+# Owner: christophernavta
+# Created: 2026-11-20
+# Version: 1.1
+# Last Updated: 2026-11-20
+
+metadata:
+  sprint: sprint-66-pshifz
+  version: "1.1"
+  title: "Schema Injection via LlmProfile Integration"
+  goal: "Implement Option 0 from schema-injection-architecture.md: Extend LlmProfile with prepareToolsForLlm() capability for seamless schema injection"
+  estimatedEffort: "7-12 hours"
+  estimatedDuration: "1.75-2 days"
+  changelog:
+    - version: "1.1"
+      date: "2026-11-20"
+      changes:
+        - "Task 1.2: Added explicit placement requirement (inside install() before prepareToolsForLlm())"
+        - "Task 1.3: CRITICAL FIX - Changed from sequential to parallel execution using Promise.all()"
+        - "Task 1.3: Added performance acceptance criteria (<100ms for typical workloads)"
+        - "Task 1.3: Added parallelExecution code example in implementation section"
+        - "Consistency improvements to match execution-plan.md v1.1"
+    - version: "1.0"
+      date: "2026-11-20"
+      changes:
+        - "Initial backlog creation with 36 tasks across 5 phases"
+
+tasks:
+  # ============================================================================
+  # PHASE 1: Extend LlmProfile with Schema Injection
+  # ============================================================================
+
+  - id: "1.1"
+    title: "Extend LlmCapability interface with prepareToolsForLlm method"
+    phase: 1
+    priority: "P0"
+    status: "completed"
+    effort: "15 minutes"
+    dependencies: []
+    description: |
+      Add prepareToolsForLlm() method signature to LlmCapability interface.
+      This method will accept tools with potentially missing schemas and return
+      tools with schemas injected from PostgreSQL.
+    files:
+      - "src/common/profiles/llm-profile.ts"
+    acceptanceCriteria:
+      - "Method signature added to LlmCapability interface (line ~32)"
+      - "TypeScript compilation succeeds"
+      - "JSDoc comment explains purpose and usage"
+      - "Method signature: prepareToolsForLlm(tools: Record<string, RegisteredTool>): Promise<Record<string, AiSdkTool>>"
+    verification:
+      - "npm run build (must succeed)"
+      - "No TypeScript errors"
+      - "Interface visible in IDE autocomplete"
+
+  - id: "1.2"
+    title: "Implement mapToolNameToRegistryId helper function"
+    phase: 1
+    priority: "P0"
+    status: "completed"
+    effort: "30 minutes"
+    dependencies: ["1.1"]
+    description: |
+      Create helper function to reverse tool name sanitization and map sanitized
+      MCP tool names back to PostgreSQL registry IDs. Handles patterns like:
+      - mcp_namespace_tool_name → mcp:namespace/tool.name
+      - mcp_tool_name → mcp:tool-name
+      - mcp:existing → mcp:existing (passthrough)
+
+      CRITICAL: This function must be defined INSIDE LlmProfile.install() closure,
+      BEFORE the prepareToolsForLlm() method definition. This ensures access to
+      the bit instance and proper scoping.
+    files:
+      - "src/common/profiles/llm-profile.ts"
+    acceptanceCriteria:
+      - "Function handles mcp: prefix correctly (passthrough)"
+      - "Reverses underscore → dash transformation"
+      - "Reverses underscore → dot transformation"
+      - "Handles qualified tools (namespace/tool)"
+      - "Logs warning for unmappable names"
+      - "Returns fallback value (original toolId) on failure"
+      - "Function placed INSIDE install() closure, BEFORE prepareToolsForLlm()"
+    verification:
+      - "npm run build (must succeed)"
+      - "Helper function placed before prepareToolsForLlm implementation"
+      - "Logging uses bit.getLogger()"
+    testCases:
+      - input: "mcp:generate_image"
+        expected: "mcp:generate_image"
+      - input: "mcp_generate_image"
+        expected: "mcp:generate-image"
+      - input: "mcp_story_engine_mcp_bit_info"
+        expected: "mcp:story-engine-mcp/bit.info"
+      - input: "mcp_bit_info"
+        expected: "mcp:bit.info"
+
+  - id: "1.3"
+    title: "Implement prepareToolsForLlm method in LlmProfile.install()"
+    phase: 1
+    priority: "P0"
+    status: "completed"
+    effort: "90 minutes"
+    dependencies: ["1.1", "1.2"]
+    description: |
+      Implement the core schema injection logic in LlmProfile.install().
+      This method queries PostgreSQL for missing schemas, injects them into
+      tools, and returns enriched tools ready for AI SDK.
+
+      CRITICAL PERFORMANCE OPTIMIZATION: Use Promise.all() to process all tools
+      in parallel, NOT a sequential for loop. This reduces latency from ~1-2s
+      (sequential) to ~50-100ms (parallel) for typical workloads with 300+ tools.
+    files:
+      - "src/common/profiles/llm-profile.ts"
+    implementation:
+      location: "After line ~112 (after getConfigKnobs)"
+      features:
+        - "Lazy initialization of toolStore (documentStore from resources)"
+        - "PARALLEL processing: Use Promise.all() with Object.entries(tools).map()"
+        - "Query PostgreSQL: toolStore.query('platform_tool_registry', {where: [['id', '==', toolId]], limit: 1})"
+        - "Extract schema: toolDoc[0].data.inputSchema"
+        - "Convert to AI SDK format: jsonSchema(schemaData)"
+        - "Fail-open error handling (try/catch with warn logging)"
+        - "Summary logging: total tools, with schema, without schema"
+      parallelExecution: |
+        const enrichedToolEntries = await Promise.all(
+          Object.entries(tools).map(async ([name, tool]) => {
+            // Schema lookup logic here
+            return [name, enrichedTool];
+          })
+        );
+        const enrichedTools = Object.fromEntries(enrichedToolEntries);
+    acceptanceCriteria:
+      - "CRITICAL: Method uses Promise.all() for parallel execution (NOT sequential loop)"
+      - "Method queries PostgreSQL for each tool with missing schema"
+      - "Uses mapToolNameToRegistryId() to map names"
+      - "Wraps schemas with AI SDK jsonSchema() helper"
+      - "Fail-open behavior: errors logged, execution continues"
+      - "Lazy initialization: toolStore only created on first use"
+      - "Logs success: bit.llm.prepareToolsForLlm.schema_injected"
+      - "Logs failures: bit.llm.prepareToolsForLlm.schema_fetch_failed"
+      - "Logs summary: bit.llm.prepareToolsForLlm.complete (includes latency measurement)"
+      - "Performance: Schema injection completes in <100ms for typical workloads"
+    verification:
+      - "npm run build (must succeed)"
+      - "No TypeScript errors"
+      - "Method accessible via bit.llm.prepareToolsForLlm()"
+      - "Implementation uses Promise.all() (verify in code review)"
+
+  - id: "1.4"
+    title: "Register prepareToolsForLlm in LlmCapability object"
+    phase: 1
+    priority: "P0"
+    status: "completed"
+    effort: "5 minutes"
+    dependencies: ["1.3"]
+    description: |
+      Add prepareToolsForLlm to the capability object so it's exposed via
+      bit.llm. This makes the method accessible to any service with LlmProfile.
+    files:
+      - "src/common/profiles/llm-profile.ts"
+    acceptanceCriteria:
+      - "prepareToolsForLlm added to capability object (line ~114)"
+      - "Method accessible via (bit as any).llm.prepareToolsForLlm()"
+      - "TypeScript type checking passes"
+    verification:
+      - "npm run build (must succeed)"
+      - "No new TypeScript errors"
+
+  - id: "1.5"
+    title: "Add imports for schema injection dependencies"
+    phase: 1
+    priority: "P0"
+    status: "completed"
+    effort: "5 minutes"
+    dependencies: ["1.1"]
+    description: |
+      Add necessary imports for schema injection functionality:
+      - jsonSchema from 'ai' package
+      - RegisteredTool type (if not already imported)
+    files:
+      - "src/common/profiles/llm-profile.ts"
+    acceptanceCriteria:
+      - "import { jsonSchema } from 'ai' added at top of file"
+      - "All types available for implementation"
+      - "No unused import warnings"
+    verification:
+      - "npm run build (must succeed)"
+      - "npm run lint (no new warnings)"
+
+  - id: "1.6"
+    title: "Verify Phase 1 implementation with build and lint"
+    phase: 1
+    priority: "P0"
+    status: "completed"
+    effort: "10 minutes"
+    dependencies: ["1.1", "1.2", "1.3", "1.4", "1.5"]
+    description: |
+      Run build and lint to verify Phase 1 implementation is complete and
+      correct. Ensure no breaking changes introduced.
+    verification:
+      - "npm run build (must succeed)"
+      - "npm run lint (no new errors)"
+      - "No TypeScript compilation errors"
+      - "No breaking changes to existing services"
+
+  # ============================================================================
+  # PHASE 2: Migrate llm-bot to Use New Capability
+  # ============================================================================
+
+  - id: "2.1"
+    title: "Refactor llm-bot tool filtering to separate concerns"
+    phase: 2
+    priority: "P0"
+    status: "completed"
+    effort: "30 minutes"
+    dependencies: ["1.6"]
+    description: |
+      Refactor the tool filtering section in processor.ts to separate:
+      1. RBAC/scope/behavioral filtering (keep tools in registry format)
+      2. Schema injection (new step)
+      3. Execute method wrapping (error handling, logging)
+    files:
+      - "src/services/llm-bot/processor.ts"
+    location: "Around lines 755-838"
+    acceptanceCriteria:
+      - "Filtering logic unchanged (RBAC, scope, behavioral)"
+      - "filteredTools keeps tools in registry format (not AI SDK format)"
+      - "Clear separation between filtering, injection, and wrapping"
+      - "Existing filtering tests still pass"
+    verification:
+      - "npm run build (must succeed)"
+      - "npm test -- processor.test.ts (must pass)"
+
+  - id: "2.2"
+    title: "Add schema injection call to llm-bot processor"
+    phase: 2
+    priority: "P0"
+    status: "completed"
+    effort: "20 minutes"
+    dependencies: ["2.1"]
+    description: |
+      Add call to bit.llm.prepareToolsForLlm() after filtering, before execute
+      wrapping. This is the core integration point.
+    files:
+      - "src/services/llm-bot/processor.ts"
+    implementation:
+      code: |
+        // After filtering, before execute wrapping:
+        const enrichedTools = await (server as any).llm.prepareToolsForLlm(filteredTools);
+    acceptanceCriteria:
+      - "Schema injection called after filtering"
+      - "Schema injection called before execute wrapping"
+      - "Method called with await (async operation)"
+      - "Uses (server as any) to access llm capability"
+    verification:
+      - "npm run build (must succeed)"
+      - "No TypeScript errors"
+
+  - id: "2.3"
+    title: "Update execute wrapping to use enriched tools"
+    phase: 2
+    priority: "P0"
+    status: "completed"
+    effort: "15 minutes"
+    dependencies: ["2.2"]
+    description: |
+      Update the execute method wrapping loop to use enrichedTools instead of
+      filteredTools. The wrapping should now wrap tools that already have
+      schemas injected.
+    files:
+      - "src/services/llm-bot/processor.ts"
+    acceptanceCriteria:
+      - "Execute wrapping loop uses enrichedTools"
+      - "inputSchema field preserved from enrichedTools"
+      - "Existing error handling unchanged"
+      - "Existing logging unchanged"
+    verification:
+      - "npm run build (must succeed)"
+      - "npm test -- processor.test.ts (must pass)"
+
+  - id: "2.4"
+    title: "Add debug logging for schema injection in llm-bot"
+    phase: 2
+    priority: "P1"
+    status: "completed"
+    effort: "15 minutes"
+    dependencies: ["2.3"]
+    description: |
+      Add debug logging after schema injection to show statistics:
+      - Total tools count
+      - Tools with schema count
+      - Tools without schema count
+    files:
+      - "src/services/llm-bot/processor.ts"
+    implementation:
+      code: |
+        logger.debug('llm_bot.tools_prepared', {
+          correlationId: corr,
+          totalTools: Object.keys(wrappedTools).length,
+          withSchema: Object.values(wrappedTools).filter(t => t.inputSchema).length,
+          withoutSchema: Object.values(wrappedTools).filter(t => !t.inputSchema).length,
+        });
+    acceptanceCriteria:
+      - "Debug log added after schema injection"
+      - "Log includes correlationId for tracing"
+      - "Log shows counts: total, with schema, without schema"
+    verification:
+      - "npm run build (must succeed)"
+      - "Log statement uses existing logger instance"
+
+  - id: "2.5"
+    title: "Update comments in llm-bot processor to reflect new flow"
+    phase: 2
+    priority: "P2"
+    status: "completed"
+    effort: "10 minutes"
+    dependencies: ["2.4"]
+    description: |
+      Update code comments to explain the new three-step flow:
+      1. Apply filtering (RBAC, scope, behavioral)
+      2. Inject schemas (Sprint 66)
+      3. Wrap execute methods (error handling)
+    files:
+      - "src/services/llm-bot/processor.ts"
+    acceptanceCriteria:
+      - "Comments explain new flow clearly"
+      - "Sprint number referenced (Sprint 66)"
+      - "Clear separation of concerns documented"
+    verification:
+      - "Comments accurate and helpful"
+      - "No misleading or outdated comments"
+
+  - id: "2.6"
+    title: "Verify Phase 2 implementation with tests"
+    phase: 2
+    priority: "P0"
+    status: "completed"
+    effort: "15 minutes"
+    dependencies: ["2.1", "2.2", "2.3", "2.4", "2.5"]
+    description: |
+      Run tests to verify Phase 2 implementation doesn't break existing
+      functionality. All existing tests must pass.
+    verification:
+      - "npm run build (must succeed)"
+      - "npm test -- processor.test.ts (must pass)"
+      - "npm test -- llm-bot-service.test.ts (must pass)"
+      - "No new test failures"
+
+  - id: "2.7"
+    title: "HOTFIX: Add defensive checks for llm capability availability"
+    phase: 2
+    priority: "P0"
+    status: "completed"
+    effort: "20 minutes"
+    dependencies: ["2.6"]
+    description: |
+      Add defensive checks in processor.ts to handle cases where llm capability
+      is not available (missing environment variables, profile not installed).
+      Implements fail-open pattern: schema injection failures don't block execution.
+    files:
+      - "src/services/llm-bot/processor.ts"
+    implementation:
+      location: "Line 817-837"
+      pattern: "Optional chaining + try-catch with fallback"
+    acceptanceCriteria:
+      - "Check if (server as any).llm?.prepareToolsForLlm exists before calling"
+      - "Wrap call in try-catch for error handling"
+      - "Fall back to unmodified tools on error"
+      - "Log warning on schema injection failure"
+      - "Log debug message if llm capability unavailable"
+      - "Never throw exception on schema injection failure"
+    verification:
+      - "npm run build (must succeed)"
+      - "npm test (all tests pass)"
+      - "Staging deployment succeeds with/without env vars"
+
+  - id: "2.8"
+    title: "Verify schema injection in staging environment"
+    phase: 2
+    priority: "P0"
+    status: "completed"
+    effort: "15 minutes"
+    dependencies: ["2.7"]
+    description: |
+      Verify that schema injection is working correctly in staging after
+      environment variable configuration fix and redeployment.
+    verification:
+      - "Staging deployment successful"
+      - "llm-bot starts without crashes"
+      - "bit.llm.prepareToolsForLlm.complete log present"
+      - "llm_bot.tools_prepared log present"
+      - "LLM generates tool calls with arguments"
+    evidence:
+      - "Trace ID: 02d1047e-553d-4d4d-b7af-bfc19c276c67"
+      - "Schema injection completed: 02:04:20.591Z"
+      - "Tools prepared successfully"
+      - "LLM generated tool calls: mcp_mcp_generate_image, mcp_grockle"
+
+  # ============================================================================
+  # PHASE 3: Validate in Agent-Dev Context
+  # ============================================================================
+
+  - id: "3.1"
+    title: "Provision agent-dev context for validation"
+    phase: 3
+    priority: "P0"
+    status: "pending"
+    effort: "10 minutes"
+    dependencies: ["2.6"]
+    description: |
+      Create isolated agent-dev execution context for end-to-end validation
+      of schema injection feature.
+    command: |
+      agent_dev.provision({
+        name: "agent-dev-schema-injection-test",
+        profile: "dev"
+      })
+    acceptanceCriteria:
+      - "Context provisioned successfully"
+      - "PostgreSQL database available"
+      - "NATS message bus running"
+      - "Docker containers healthy"
+    verification:
+      - "agent_dev.provision returns success"
+      - "Docker ps shows containers running"
+
+  - id: "3.2"
+    title: "Deploy tool-orchestrator to agent-dev"
+    phase: 3
+    priority: "P0"
+    status: "pending"
+    effort: "10 minutes"
+    dependencies: ["3.1"]
+    description: |
+      Deploy tool-orchestrator service to agent-dev context. This provides
+      the PostgreSQL-registered tools that need schema injection.
+    command: |
+      bit deploy tool-orchestrator --context agent-dev-schema-injection-test
+    acceptanceCriteria:
+      - "tool-orchestrator container starts successfully"
+      - "Service connects to PostgreSQL"
+      - "Service connects to NATS"
+      - "Service registers tools in PostgreSQL"
+      - "MCP endpoint accessible"
+    verification:
+      - "fleet.info({ bit: 'tool-orchestrator', context: 'agent-dev-schema-injection-test' })"
+      - "fleet.logs({ bit: 'tool-orchestrator' }) shows successful startup"
+
+  - id: "3.3"
+    title: "Deploy llm-bot to agent-dev with new schema injection code"
+    phase: 3
+    priority: "P0"
+    status: "pending"
+    effort: "10 minutes"
+    dependencies: ["3.2"]
+    description: |
+      Deploy llm-bot service with schema injection implementation to agent-dev
+      context. This is the service under test.
+    command: |
+      bit deploy llm-bot --context agent-dev-schema-injection-test
+    acceptanceCriteria:
+      - "llm-bot container starts successfully"
+      - "Service has LlmProfile installed"
+      - "Service connects to PostgreSQL"
+      - "Service connects to NATS"
+      - "Service connects to tool-orchestrator MCP"
+    verification:
+      - "fleet.info({ bit: 'llm-bot', context: 'agent-dev-schema-injection-test' })"
+      - "fleet.logs({ bit: 'llm-bot' }) shows successful startup"
+      - "fleet.logs shows MCP connection to tool-orchestrator"
+
+  - id: "3.4"
+    title: "Verify PostgreSQL tool registry contains tools with schemas"
+    phase: 3
+    priority: "P0"
+    status: "pending"
+    effort: "15 minutes"
+    dependencies: ["3.3"]
+    description: |
+      Verify that tool-orchestrator has successfully registered tools in
+      PostgreSQL with schemas. This is the data source for schema injection.
+    verification:
+      - "fleet.logs({ bit: 'tool-orchestrator', level: ['info', 'debug'] })"
+      - "Look for: tool_registry.tool_registered log entries"
+      - "Verify: Tools include inputSchema field"
+      - "Verify: Schema format is valid JSON Schema"
+
+  - id: "3.5"
+    title: "Test schema injection with real tool execution"
+    phase: 3
+    priority: "P0"
+    status: "pending"
+    effort: "20 minutes"
+    dependencies: ["3.4"]
+    description: |
+      Send test message to llm-bot that triggers tool execution. Verify that
+      schema injection works end-to-end and tool receives correct arguments.
+    command: |
+      message.send({
+        context: "agent-dev-schema-injection-test",
+        text: "Generate an image of a sunset",
+        platform: "api",
+        userId: "test-user",
+        waitForResponse: true,
+        timeoutMs: 30000
+      })
+    acceptanceCriteria:
+      - "Message processed successfully"
+      - "LLM calls generate_image tool (or appropriate tool)"
+      - "Tool receives correct arguments (not empty)"
+      - "Tool execution succeeds"
+      - "Response contains expected result"
+    verification:
+      - "message.send returns success response"
+      - "Response contains tool execution result"
+
+  - id: "3.6"
+    title: "Verify schema injection logs in llm-bot"
+    phase: 3
+    priority: "P0"
+    status: "pending"
+    effort: "15 minutes"
+    dependencies: ["3.5"]
+    description: |
+      Check llm-bot logs to verify schema injection is working correctly.
+      Look for successful schema fetches and no fetch failures.
+    command: |
+      fleet.logs({
+        bit: "llm-bot",
+        context: "agent-dev-schema-injection-test",
+        level: ["debug", "info"]
+      })
+    acceptanceCriteria:
+      - "Logs contain: bit.llm.prepareToolsForLlm.schema_injected"
+      - "Logs contain: llm_bot.tools_prepared with schema counts"
+      - "No logs: bit.llm.prepareToolsForLlm.schema_fetch_failed"
+      - "Tool call logs show successful execution"
+      - "Schema injection adds <100ms overhead"
+    verification:
+      - "Grep logs for schema injection keywords"
+      - "Count success vs failure entries"
+      - "Check timestamps for latency"
+
+  - id: "3.7"
+    title: "Test fail-open behavior: tool not in PostgreSQL"
+    phase: 3
+    priority: "P1"
+    status: "pending"
+    effort: "20 minutes"
+    dependencies: ["3.6"]
+    description: |
+      Test that schema injection fails gracefully when a tool is not found
+      in PostgreSQL. The tool should still be usable (fail-open).
+    testScenario: |
+      1. Create mock tool in memory (not in PostgreSQL)
+      2. Send message that triggers this tool
+      3. Verify tool executes despite missing schema
+      4. Verify warning logged (schema_fetch_failed)
+    acceptanceCriteria:
+      - "Tool executes successfully despite missing schema"
+      - "Warning logged: bit.llm.prepareToolsForLlm.schema_fetch_failed"
+      - "No exceptions thrown"
+      - "System remains functional"
+    verification:
+      - "Check logs for schema_fetch_failed warning"
+      - "Verify tool execution succeeded"
+
+  - id: "3.8"
+    title: "Test fail-open behavior: PostgreSQL unavailable"
+    phase: 3
+    priority: "P1"
+    status: "pending"
+    effort: "20 minutes"
+    dependencies: ["3.6"]
+    description: |
+      Test that schema injection fails gracefully when PostgreSQL is
+      unavailable. Tools should still be usable without schemas.
+    testScenario: |
+      1. Stop PostgreSQL container temporarily
+      2. Send message
+      3. Verify system continues to function
+      4. Verify error logged (init_failed or schema_fetch_failed)
+      5. Restart PostgreSQL
+    acceptanceCriteria:
+      - "System continues to function with PostgreSQL down"
+      - "Error logged at appropriate level"
+      - "Tools usable without schemas (best effort)"
+      - "No cascading failures"
+    verification:
+      - "Check logs for error messages"
+      - "Verify system remains responsive"
+      - "Verify recovery after PostgreSQL restart"
+
+  - id: "3.9"
+    title: "Measure schema injection performance overhead"
+    phase: 3
+    priority: "P1"
+    status: "pending"
+    effort: "30 minutes"
+    dependencies: ["3.6"]
+    description: |
+      Measure the performance overhead of schema injection by sending
+      multiple messages and comparing latencies.
+    testScenario: |
+      1. Send 10 messages in sequence
+      2. Measure: Time to first response
+      3. Measure: PostgreSQL query latency (from logs)
+      4. Measure: Overall message processing latency
+      5. Compare with baseline (without schema injection)
+    acceptanceCriteria:
+      - "Schema injection adds <100ms overhead per message"
+      - "PostgreSQL queries complete in <50ms"
+      - "No performance regression for existing tools"
+      - "Latency acceptable for production use"
+    verification:
+      - "Extract timestamps from logs"
+      - "Calculate latencies"
+      - "Document measurements in validation report"
+
+  - id: "3.10"
+    title: "Create validation report documenting test results"
+    phase: 3
+    priority: "P1"
+    status: "pending"
+    effort: "30 minutes"
+    dependencies: ["3.5", "3.6", "3.7", "3.8", "3.9"]
+    description: |
+      Document all validation test results in a comprehensive report.
+      Include logs, screenshots, performance metrics, and pass/fail status.
+    files:
+      - "planning/sprint-66-pshifz/validation-report.md"
+    acceptanceCriteria:
+      - "Report documents all test scenarios"
+      - "Includes logs showing schema injection"
+      - "Includes performance metrics"
+      - "Includes error case validation"
+      - "Clear pass/fail for each test"
+    verification:
+      - "Report complete and readable"
+      - "All acceptance criteria documented"
+
+  - id: "3.11"
+    title: "Cleanup agent-dev context after validation"
+    phase: 3
+    priority: "P2"
+    status: "pending"
+    effort: "5 minutes"
+    dependencies: ["3.10"]
+    description: |
+      Destroy the agent-dev context to free resources after validation
+      is complete.
+    command: |
+      agent_dev.destroy({
+        name: "agent-dev-schema-injection-test",
+        confirm: true
+      })
+    acceptanceCriteria:
+      - "Context destroyed successfully"
+      - "Docker containers removed"
+      - "Resources freed"
+    verification:
+      - "agent_dev.destroy returns success"
+      - "Docker ps shows no remaining containers"
+
+  # ============================================================================
+  # PHASE 4: Documentation and Knowledge Transfer
+  # ============================================================================
+
+  - id: "4.1"
+    title: "Add new pattern to CLAUDE.md"
+    phase: 4
+    priority: "P0"
+    status: "pending"
+    effort: "45 minutes"
+    dependencies: ["3.10"]
+    description: |
+      Add comprehensive documentation of the schema injection pattern to
+      CLAUDE.md Common Development Patterns section. This becomes the
+      canonical reference for future developers.
+    files:
+      - "CLAUDE.md"
+    location: "After Pattern 2 (Long-Running Operations)"
+    sections:
+      - "Overview and problem statement"
+      - "Code example (complete working example)"
+      - "Critical rules (what to do/not do)"
+      - "When to use (use cases)"
+      - "Examples (file references)"
+      - "Documentation (cross-references)"
+    acceptanceCriteria:
+      - "New section added to Common Development Patterns"
+      - "Code examples accurate and complete"
+      - "Cross-references to relevant files"
+      - "Clear explanation of when/why to use"
+      - "Critical rules highlighted"
+    verification:
+      - "CLAUDE.md renders correctly"
+      - "Code examples valid TypeScript"
+      - "Links point to correct files"
+
+  - id: "4.2"
+    title: "Create comprehensive integration guide"
+    phase: 4
+    priority: "P1"
+    status: "pending"
+    effort: "60 minutes"
+    dependencies: ["3.10"]
+    description: |
+      Create detailed integration guide for schema injection pattern.
+      This provides deep technical reference beyond CLAUDE.md.
+    files:
+      - "documentation/guides/llm-tool-schema-injection.md"
+    sections:
+      - "1. Overview (problem statement, solution)"
+      - "2. Architecture (LlmProfile integration)"
+      - "3. Usage Pattern (code examples)"
+      - "4. Tool Name Mapping (sanitization reversal)"
+      - "5. Error Handling (fail-open behavior)"
+      - "6. Performance Considerations"
+      - "7. Troubleshooting"
+      - "8. Future Enhancements (caching, batch queries)"
+    acceptanceCriteria:
+      - "Comprehensive guide created"
+      - "All sections complete"
+      - "Real-world examples included"
+      - "Troubleshooting section helpful"
+      - "Future enhancements identified"
+    verification:
+      - "Document renders correctly"
+      - "Examples valid and tested"
+      - "Cross-references accurate"
+
+  - id: "4.3"
+    title: "Enhance JSDoc comments in llm-profile.ts"
+    phase: 4
+    priority: "P1"
+    status: "pending"
+    effort: "20 minutes"
+    dependencies: ["4.1"]
+    description: |
+      Add comprehensive JSDoc comments to prepareToolsForLlm method.
+      This provides inline documentation for developers.
+    files:
+      - "src/common/profiles/llm-profile.ts"
+    acceptanceCriteria:
+      - "JSDoc includes description"
+      - "JSDoc includes behavior notes (fail-open)"
+      - "JSDoc includes performance notes"
+      - "JSDoc includes example code"
+      - "JSDoc includes @see references"
+      - "JSDoc includes @since Sprint 66"
+    verification:
+      - "JSDoc renders correctly in IDE"
+      - "Example code valid"
+      - "Links work"
+
+  - id: "4.4"
+    title: "Update Sprint 65 architecture document with implementation status"
+    phase: 4
+    priority: "P2"
+    status: "pending"
+    effort: "15 minutes"
+    dependencies: ["3.10"]
+    description: |
+      Add completion note to schema-injection-architecture.md documenting
+      that Option 0 has been implemented in Sprint 66.
+    files:
+      - "planning/sprint-65-yt9tbb/schema-injection-architecture.md"
+    location: "End of document"
+    acceptanceCriteria:
+      - "Implementation status section added"
+      - "Sprint 66 referenced"
+      - "Key files documented"
+      - "Next steps identified"
+    verification:
+      - "Document updated correctly"
+      - "Cross-references accurate"
+
+  - id: "4.5"
+    title: "Create sprint completion summary"
+    phase: 4
+    priority: "P1"
+    status: "pending"
+    effort: "30 minutes"
+    dependencies: ["4.1", "4.2", "4.3", "4.4"]
+    description: |
+      Create summary document for sprint completion. This provides
+      executive summary of what was accomplished.
+    files:
+      - "planning/sprint-66-pshifz/completion-summary.md"
+    sections:
+      - "Objectives achieved"
+      - "Implementation summary"
+      - "Validation results"
+      - "Documentation created"
+      - "Lessons learned"
+      - "Future enhancements"
+    acceptanceCriteria:
+      - "Summary complete and accurate"
+      - "All objectives documented"
+      - "Validation results included"
+      - "Documentation links provided"
+    verification:
+      - "Document accurate and complete"
+
+  # ============================================================================
+  # PHASE 5: Sprint Completion
+  # ============================================================================
+
+  - id: "5.1"
+    title: "Run final verification checks"
+    phase: 5
+    priority: "P0"
+    status: "pending"
+    effort: "20 minutes"
+    dependencies: ["4.5"]
+    description: |
+      Run all verification checks to ensure sprint is ready for completion.
+      This is the final gate before marking sprint complete.
+    checks:
+      - "npm run build (must succeed)"
+      - "npm run lint (no new errors)"
+      - "npm test (all tests pass)"
+      - "All Phase 3 validation tests pass"
+      - "All documentation complete"
+    acceptanceCriteria:
+      - "Build succeeds"
+      - "No new lint errors"
+      - "All tests pass"
+      - "Validation complete"
+      - "Documentation complete"
+    verification:
+      - "All checks pass"
+      - "No blocking issues"
+
+  - id: "5.2"
+    title: "Create sprint retrospective"
+    phase: 5
+    priority: "P1"
+    status: "pending"
+    effort: "30 minutes"
+    dependencies: ["5.1"]
+    description: |
+      Document sprint retrospective: what went well, what could be improved,
+      action items for future sprints.
+    files:
+      - "planning/sprint-66-pshifz/retro.md"
+    sections:
+      - "What went well"
+      - "What could be improved"
+      - "Action items"
+      - "Lessons learned"
+      - "Sprint metrics (effort, duration)"
+    acceptanceCriteria:
+      - "Honest reflection on sprint"
+      - "Action items identified"
+      - "Lessons documented"
+    verification:
+      - "Retro complete"
+
+  - id: "5.3"
+    title: "Update sprint status to complete"
+    phase: 5
+    priority: "P0"
+    status: "pending"
+    effort: "5 minutes"
+    dependencies: ["5.1", "5.2"]
+    description: |
+      Mark sprint as complete using sprint MCP tools. This triggers
+      completion workflow and updates sprint index.
+    command: |
+      mcp__sprint-mcp-local__complete-sprint({
+        sprintId: "sprint-66-pshifz",
+        completionMode: "normal",
+        pr: "<pr-url-if-available>"
+      })
+    acceptanceCriteria:
+      - "Sprint status updated to 'complete'"
+      - "Completion timestamp set"
+      - "Sprint index updated"
+      - "Artifacts validated"
+    verification:
+      - "Sprint marked complete"
+      - "All artifacts present"
+
+  - id: "5.4"
+    title: "Create pull request to main"
+    phase: 5
+    priority: "P0"
+    status: "pending"
+    effort: "20 minutes"
+    dependencies: ["5.3"]
+    description: |
+      Create pull request from feature branch to main. Include comprehensive
+      description referencing sprint artifacts.
+    acceptanceCriteria:
+      - "PR created from feature branch"
+      - "PR title: 'Sprint 66: Schema Injection via LlmProfile Integration'"
+      - "PR description includes: objectives, implementation summary, validation results"
+      - "PR includes links to: execution plan, validation report, documentation"
+      - "All commits included"
+      - "CI checks pass"
+    verification:
+      - "PR created successfully"
+      - "CI green"
+      - "Ready for review"
+
+# ============================================================================
+# SUMMARY STATISTICS
+# ============================================================================
+
+summary:
+  totalTasks: 38  # Updated: Added 2 hotfix tasks (2.7, 2.8)
+  tasksByPhase:
+    phase1: 6   # Extend LlmProfile
+    phase2: 8   # Migrate llm-bot (includes 2 hotfix tasks)
+    phase3: 7   # Agent-dev validation
+    phase4: 5   # Documentation
+    phase5: 4   # Sprint completion
+  tasksByPriority:
+    P0: 20  # Must have
+    P1: 13  # Should have
+    P2: 3   # Nice to have
+  estimatedEffort: "7-12 hours"
+  estimatedDuration: "1.75-2 days"
+  criticalPath:
+    - "1.1 → 1.2 → 1.3 → 1.4 → 1.6"  # Phase 1
+    - "2.1 → 2.2 → 2.3 → 2.6"        # Phase 2
+    - "3.1 → 3.2 → 3.3 → 3.5 → 3.6"  # Phase 3
+    - "4.1 → 5.1 → 5.3 → 5.4"        # Phase 4+5
+
+# ============================================================================
+# ACCEPTANCE CRITERIA (SPRINT LEVEL)
+# ============================================================================
+
+sprintAcceptanceCriteria:
+  implementation:
+    - "LlmProfile has prepareToolsForLlm() method"
+    - "llm-bot uses new pattern"
+    - "TypeScript compilation succeeds"
+    - "No breaking changes to existing services"
+  validation:
+    - "Agent-dev deployment successful"
+    - "Schema injection logs confirm behavior"
+    - "Tool calls succeed with correct arguments"
+    - "Fail-open behavior verified"
+    - "Performance overhead <100ms"
+  documentation:
+    - "CLAUDE.md updated with new pattern"
+    - "Integration guide created"
+    - "Code comments enhanced"
+    - "Sprint artifacts complete"
+  quality:
+    - "All existing tests pass"
+    - "No new lint errors"
+    - "Logs show detailed activity"
+    - "Error cases handled gracefully"
