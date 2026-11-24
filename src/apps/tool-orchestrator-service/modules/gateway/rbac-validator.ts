@@ -35,13 +35,26 @@ export class RbacValidator {
     userRoles: string[],
     model: ModelRegistryDocument
   ): RBACValidationResult {
+    // DEFENSIVE: If tool has no RBAC config, allow by default (fail-open)
+    if (!tool.rbac) {
+      return { allowed: true };
+    }
+
+    // DEFENSIVE: Initialize missing RBAC sub-properties with safe defaults
+    const rbac = {
+      userRoles: tool.rbac.userRoles || { required: [], denied: [] },
+      modelRoles: tool.rbac.modelRoles || { required: [], denied: [] },
+      modelTiers: tool.rbac.modelTiers || { allowed: [], denied: [] },
+      minTrustThresholds: tool.rbac.minTrustThresholds,
+    };
+
     // Step 1: User required roles
-    if (tool.rbac.userRoles.required.length > 0) {
-      const hasAllRequiredRoles = tool.rbac.userRoles.required.every((role) =>
+    if (rbac.userRoles.required.length > 0) {
+      const hasAllRequiredRoles = rbac.userRoles.required.every((role) =>
         userRoles.includes(role)
       );
       if (!hasAllRequiredRoles) {
-        const missingRoles = tool.rbac.userRoles.required.filter(
+        const missingRoles = rbac.userRoles.required.filter(
           (role) => !userRoles.includes(role)
         );
         return {
@@ -53,12 +66,12 @@ export class RbacValidator {
     }
 
     // Step 2: User denied roles
-    if (tool.rbac.userRoles.denied.length > 0) {
-      const hasDeniedRole = tool.rbac.userRoles.denied.some((role) =>
+    if (rbac.userRoles.denied.length > 0) {
+      const hasDeniedRole = rbac.userRoles.denied.some((role) =>
         userRoles.includes(role)
       );
       if (hasDeniedRole) {
-        const deniedRoles = tool.rbac.userRoles.denied.filter((role) =>
+        const deniedRoles = rbac.userRoles.denied.filter((role) =>
           userRoles.includes(role)
         );
         return {
@@ -70,12 +83,12 @@ export class RbacValidator {
     }
 
     // Step 3: Model required roles
-    if (tool.rbac.modelRoles.required.length > 0) {
-      const hasAllRequiredRoles = tool.rbac.modelRoles.required.every((role) =>
+    if (rbac.modelRoles.required.length > 0) {
+      const hasAllRequiredRoles = rbac.modelRoles.required.every((role) =>
         model.roles.includes(role)
       );
       if (!hasAllRequiredRoles) {
-        const missingRoles = tool.rbac.modelRoles.required.filter(
+        const missingRoles = rbac.modelRoles.required.filter(
           (role) => !model.roles.includes(role)
         );
         return {
@@ -87,12 +100,12 @@ export class RbacValidator {
     }
 
     // Step 4: Model denied roles
-    if (tool.rbac.modelRoles.denied.length > 0) {
-      const hasDeniedRole = tool.rbac.modelRoles.denied.some((role) =>
+    if (rbac.modelRoles.denied.length > 0) {
+      const hasDeniedRole = rbac.modelRoles.denied.some((role) =>
         model.roles.includes(role)
       );
       if (hasDeniedRole) {
-        const deniedRoles = tool.rbac.modelRoles.denied.filter((role) =>
+        const deniedRoles = rbac.modelRoles.denied.filter((role) =>
           model.roles.includes(role)
         );
         return {
@@ -105,18 +118,18 @@ export class RbacValidator {
 
     // Step 5: Model tier restrictions
     // Check allowed tiers (whitelist)
-    if (tool.rbac.modelTiers.allowed.length > 0) {
-      if (!tool.rbac.modelTiers.allowed.includes(model.tier)) {
+    if (rbac.modelTiers.allowed.length > 0) {
+      if (!rbac.modelTiers.allowed.includes(model.tier)) {
         return {
           allowed: false,
           reason: 'model_tier_not_allowed',
-          details: `Tool requires model tier: ${tool.rbac.modelTiers.allowed.join(' or ')}, but ${model.id} is tier ${model.tier}`,
+          details: `Tool requires model tier: ${rbac.modelTiers.allowed.join(' or ')}, but ${model.id} is tier ${model.tier}`,
         };
       }
     }
 
     // Check denied tiers (blacklist)
-    if (tool.rbac.modelTiers.denied.includes(model.tier)) {
+    if (rbac.modelTiers.denied.includes(model.tier)) {
       return {
         allowed: false,
         reason: 'model_tier_denied',
@@ -148,8 +161,8 @@ export class RbacValidator {
     }
 
     // Step 7: Model trust thresholds (multi-dimensional)
-    if (tool.rbac.minTrustThresholds) {
-      const scope = tool.rbac.minTrustThresholds.scope || 'tool-use';
+    if (rbac.minTrustThresholds) {
+      const scope = rbac.minTrustThresholds.scope || 'tool-use';
 
       // Find matching trust scope
       let modelTrust = model.trust.find((t) => t.scope === scope);
@@ -169,7 +182,7 @@ export class RbacValidator {
       }
 
       // Check each trust dimension
-      const thresholds = tool.rbac.minTrustThresholds;
+      const thresholds = rbac.minTrustThresholds;
 
       if (
         thresholds.reliability !== undefined &&
@@ -217,6 +230,70 @@ export class RbacValidator {
     }
 
     // All validation steps passed
+    return { allowed: true };
+  }
+
+  /**
+   * Validate tool access for a user only (user-layer RBAC, no model validation)
+   * Sprint 66: Added for cases where modelId is not available in execution context
+   *
+   * This validates only steps 1-2 of the dual-layer RBAC:
+   * 1. User required roles (must have ALL)
+   * 2. User denied roles (must have NONE)
+   *
+   * Model-based validations (steps 3-7) are skipped when model info is unavailable.
+   *
+   * @param tool Tool to validate access for
+   * @param userRoles Roles associated with the requesting user
+   * @returns Validation result with allowed flag and optional reason/details
+   */
+  validateToolAccessUserOnly(
+    tool: ToolRegistryDocument,
+    userRoles: string[]
+  ): RBACValidationResult {
+    // DEFENSIVE: If tool has no RBAC config, allow by default (fail-open)
+    if (!tool.rbac) {
+      return { allowed: true };
+    }
+
+    // DEFENSIVE: Initialize missing RBAC sub-properties with safe defaults
+    const userRbac = tool.rbac.userRoles || { required: [], denied: [] };
+
+    // Step 1: User required roles
+    if (userRbac.required.length > 0) {
+      const hasAllRequiredRoles = userRbac.required.every((role) =>
+        userRoles.includes(role)
+      );
+      if (!hasAllRequiredRoles) {
+        const missingRoles = userRbac.required.filter(
+          (role) => !userRoles.includes(role)
+        );
+        return {
+          allowed: false,
+          reason: 'user_missing_required_roles',
+          details: `User missing required roles: ${missingRoles.join(', ')}`,
+        };
+      }
+    }
+
+    // Step 2: User denied roles
+    if (userRbac.denied.length > 0) {
+      const hasDeniedRole = userRbac.denied.some((role) =>
+        userRoles.includes(role)
+      );
+      if (hasDeniedRole) {
+        const deniedRoles = userRbac.denied.filter((role) =>
+          userRoles.includes(role)
+        );
+        return {
+          allowed: false,
+          reason: 'user_has_denied_role',
+          details: `User has denied role(s): ${deniedRoles.join(', ')}`,
+        };
+      }
+    }
+
+    // User validation passed (model validation skipped)
     return { allowed: true };
   }
 }

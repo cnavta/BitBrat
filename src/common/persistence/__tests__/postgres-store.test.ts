@@ -13,6 +13,7 @@ jest.mock('pg', () => {
   const mockConnect = jest.fn();
   const mockRelease = jest.fn();
   const mockEnd = jest.fn();
+  const mockOn = jest.fn();
 
   return {
     Pool: jest.fn().mockImplementation(() => ({
@@ -22,12 +23,14 @@ jest.mock('pg', () => {
         release: mockRelease,
       }),
       end: mockEnd,
+      on: mockOn,
     })),
     __mocks: {
       query: mockQuery,
       connect: mockConnect,
       release: mockRelease,
       end: mockEnd,
+      on: mockOn,
     },
   };
 });

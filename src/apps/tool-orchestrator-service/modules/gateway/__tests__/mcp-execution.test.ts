@@ -167,6 +167,7 @@ describe('ToolGateway - MCP Execution', () => {
         _meta: {
           userRoles: context.userRoles,
           userId: context.userId,
+          modelId: context.modelId,  // Sprint 66: Now included (metadata loss fix)
           correlationId: context.correlationId,
           sessionId: context.sessionId,
         },

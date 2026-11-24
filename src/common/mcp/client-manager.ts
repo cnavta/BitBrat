@@ -442,13 +442,23 @@ export class McpClientManager {
         willRemoveExisting: existingTools.length > 0
       });
 
-      for (const tool of result.tools) {
-        // Sprint 27: Don't copy server-level requiredRoles to individual tools
-        // RBAC evaluator already checks server-level roles separately
-        const translated = bridge.translateTool(tool);
-        this.registry.registerTool(translated);
-        toolIds.push(translated.id);
-        logger.debug('mcp.client_manager.tool_registered', { server: serverName, tool: tool.name });
+      // Sprint 66 FIX: Batch tool registration to prevent PostgreSQL pool exhaustion
+      // Previously, all tools registered concurrently (no await), causing 500+ database
+      // queries to fire simultaneously and exhaust connection pool.
+      // Now registering in batches of 20 to balance speed with resource usage.
+      const BATCH_SIZE = 20;
+      for (let i = 0; i < result.tools.length; i += BATCH_SIZE) {
+        const batch = result.tools.slice(i, i + BATCH_SIZE);
+        await Promise.all(
+          batch.map(async (tool) => {
+            // Sprint 27: Don't copy server-level requiredRoles to individual tools
+            // RBAC evaluator already checks server-level roles separately
+            const translated = bridge.translateTool(tool);
+            await this.registry.registerTool(translated);
+            toolIds.push(translated.id);
+            logger.debug('mcp.client_manager.tool_registered', { server: serverName, tool: tool.name });
+          })
+        );
       }
       this.serverTools.set(serverName, toolIds);
       this.stats.updateServerTools(serverName, toolIds);

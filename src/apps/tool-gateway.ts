@@ -212,6 +212,20 @@ export class ToolGatewayServer extends Bit {
           connectionString,
           max: parseInt(process.env.POSTGRES_POOL_SIZE || '10', 10),
           ssl: process.env.POSTGRES_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+          // Sprint 66: Add connection timeouts to prevent hanging connections
+          idleTimeoutMillis: 30000,        // Close idle clients after 30s
+          connectionTimeoutMillis: 60000,  // Timeout on connection acquisition (60s for heavy concurrent load)
+          allowExitOnIdle: false,          // Don't exit if pool is idle
+        });
+
+        // Sprint 66 FIX: Handle pool errors gracefully to prevent crash-loops
+        pool.on('error', (err: Error, client: any) => {
+          this.getLogger().error('composition_pool.idle_client_error', {
+            error: err.message,
+            stack: err.stack,
+            hasClient: !!client,
+          });
+          // Don't crash - pool will recover by removing bad connection
         });
 
         const compositionStore = new PostgresCompositionStore(pool);

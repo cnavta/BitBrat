@@ -148,6 +148,18 @@ export const LlmProfile: BitProfile = {
         return toolId; // Already correct format
       }
 
+      // Sprint 66 FIX: Handle internal: prefix (internal tools)
+      // Example: internal:get_bot_status → internal:get_bot_status (already correct)
+      if (toolId.startsWith('internal:')) {
+        return toolId; // Already correct format
+      }
+
+      // Sprint 66 FIX: Handle sanitized internal_ format
+      // Example: internal_get_bot_status → internal:get_bot_status
+      if (toolId.startsWith('internal_')) {
+        return toolId.replace(/^internal_/, 'internal:');
+      }
+
       // Handle sanitized format: mcp_namespace_tool_name
       // Need to restore: mcp:namespace/tool.name or mcp:tool-name
 
@@ -159,20 +171,36 @@ export const LlmProfile: BitProfile = {
         return `mcp:${withoutDoublePrefix}`;
       }
 
-      // Pattern 1: mcp_namespace_tool_name → mcp:namespace/tool.name
-      // Example: mcp_story_engine_mcp_bit_info → mcp:story-engine-mcp/bit.info
+      // Sprint 66 FIX: Handle both platform and domain tool formats
+      // After Sprint 66 fix to tool-orchestrator, tools are exposed with canonical names:
+      // - Domain tools: "reflex.list" → sanitized to "mcp_reflex_list"
+      // - Platform tools: "reflex/bit.health" → sanitized to "mcp_reflex_bit_health"
+      //
+      // The challenge: Both "mcp:reflex/list" and "mcp:reflex.list" sanitize to "mcp_reflex_list"
+      // Solution: Pattern 1 tries BOTH formats (checked in prepareToolsForLlm via registry query)
+
+      // Pattern 1a: mcp_namespace_tool_name → mcp:namespace/tool.name (platform tool format)
+      // Example: mcp_reflex_bit_health → mcp:reflex/bit.health
       const withSlashMatch = toolId.match(/^mcp_([a-z0-9_]+?)_([a-z0-9_]+)$/);
       if (withSlashMatch) {
         const namespace = withSlashMatch[1].replace(/_/g, '-');
         const toolName = withSlashMatch[2].replace(/_/g, '.');
+        // Note: This returns the platform tool format with slash
+        // If this doesn't exist in registry, Pattern 1b will be tried
         return `mcp:${namespace}/${toolName}`;
       }
 
-      // Pattern 2: mcp_tool_name → mcp:tool-name
-      // Example: mcp_generate_image → mcp:generate-image
+      // Pattern 1b: mcp_namespace_tool_name → mcp:namespace.tool.name (domain tool format)
+      // Example: mcp_reflex_list → mcp:reflex.list
+      // This pattern is a fallback when Pattern 1a doesn't find a match
+      // It's handled in prepareToolsForLlm by trying dot format if slash format fails
+
+      // Pattern 2: mcp_tool_name → mcp:tool.name (simple domain tool)
+      // Example: mcp_generate_image → mcp:generate.image
+      // Sprint 66: Changed from dash to dot separator (tool names use dots, not dashes)
       const simpleMatch = toolId.match(/^mcp_([a-z0-9_]+)$/);
       if (simpleMatch) {
-        const toolName = simpleMatch[1].replace(/_/g, '-');
+        const toolName = simpleMatch[1].replace(/_/g, '.');
         return `mcp:${toolName}`;
       }
 
@@ -234,10 +262,30 @@ export const LlmProfile: BitProfile = {
               const toolId = mapToolNameToRegistryId(tool.id);
 
               // Query PostgreSQL tool registry
-              const toolDoc = await toolStore.query('platform_tool_registry', {
+              let toolDoc = await toolStore.query('platform_tool_registry', {
                 filters: [{ field: 'id', operator: '==', value: toolId }],
                 limit: 1,
               });
+
+              // Sprint 66 FIX: If toolId has slash format and not found, try dot format
+              // Example: If "mcp:reflex/list" not found, try "mcp:reflex.list"
+              // This handles ambiguous sanitization where both "mcp:reflex/list" and "mcp:reflex.list"
+              // sanitize to "mcp_reflex_list"
+              if (!toolDoc?.[0] && toolId.includes('/')) {
+                const dotFormatId = toolId.replace(/\/([^/]+)$/, '.$1');  // Replace last slash with dot
+                toolDoc = await toolStore.query('platform_tool_registry', {
+                  filters: [{ field: 'id', operator: '==', value: dotFormatId }],
+                  limit: 1,
+                });
+
+                if (toolDoc?.[0]) {
+                  logger.debug('bit.llm.prepareToolsForLlm.fallback_to_dot_format', {
+                    toolName: name,
+                    originalRegistryId: toolId,
+                    fallbackRegistryId: dotFormatId,
+                  });
+                }
+              }
 
               if (toolDoc?.[0]?.inputSchema) {
                 const schema = toolDoc[0].inputSchema;

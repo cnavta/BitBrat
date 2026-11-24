@@ -186,7 +186,8 @@ export class ToolGateway implements IToolGateway {
   }
 
   /**
-   * Execute a tool with dual-layer RBAC enforcement
+   * Execute a tool with dual-layer RBAC enforcement (or user-only if model unavailable)
+   * Sprint 66: Made modelId optional - falls back to user-only RBAC when model info unavailable
    */
   async execute(
     toolId: string,
@@ -203,19 +204,21 @@ export class ToolGateway implements IToolGateway {
         throw new Error(`Tool not found: ${toolId}`);
       }
 
-      // Step 2: Get model from registry (with cache)
-      const model = await this.getModelCached(context.modelId);
-      if (!model) {
-        this.logEvent('model_not_found', { toolId, modelId: context.modelId }, true);
-        throw new Error(`Model not found: ${context.modelId}`);
+      // Step 2: Get model from registry (with cache) - Sprint 66: Optional
+      let model: ModelRegistryDocument | null | undefined;
+      if (context.modelId) {
+        model = await this.getModelCached(context.modelId);
+        // Only error if modelId was explicitly provided but not found in registry
+        if (!model) {
+          this.logEvent('model_not_found', { toolId, modelId: context.modelId }, true);
+          throw new Error(`Model not found: ${context.modelId}`);
+        }
       }
 
-      // Step 3: RBAC validation (dual-layer)
-      const rbacResult = this.rbacValidator.validateToolAccess(
-        tool,
-        context.userRoles,
-        model
-      );
+      // Step 3: RBAC validation (dual-layer if model available, user-only otherwise)
+      const rbacResult = model
+        ? this.rbacValidator.validateToolAccess(tool, context.userRoles, model)
+        : this.rbacValidator.validateToolAccessUserOnly(tool, context.userRoles);
 
       if (!rbacResult.allowed) {
         const duration = Date.now() - startTime;
@@ -223,7 +226,7 @@ export class ToolGateway implements IToolGateway {
         // Log structured invocation event (status: denied)
         this.logToolInvocationEvent({
           tool,
-          model,
+          model: model || undefined,  // Sprint 66: Convert null to undefined
           status: 'denied',
           durationMs: duration,
           context,
@@ -269,7 +272,7 @@ export class ToolGateway implements IToolGateway {
       // Log structured invocation event (status: success)
       this.logToolInvocationEvent({
         tool,
-        model,
+        model: model || undefined,  // Sprint 66: Convert null to undefined
         status: 'success',
         durationMs: duration,
         context,
@@ -292,11 +295,14 @@ export class ToolGateway implements IToolGateway {
       const duration = Date.now() - startTime;
 
       // Try to get tool/model for structured logging (may not be available if error occurred early)
+      // Sprint 66: Model is optional
       const tool = await this.getToolCached(toolId).catch(() => undefined);
-      const model = await this.getModelCached(context.modelId).catch(() => undefined);
+      const model = context.modelId
+        ? await this.getModelCached(context.modelId).catch(() => undefined)
+        : undefined;
 
-      // Log structured invocation event (status: error) if we have tool/model
-      if (tool && model) {
+      // Log structured invocation event (status: error) if we have tool (model optional)
+      if (tool) {
         // Create a simple RBAC result (error case - validation not reached or failed)
         const rbacResult: RBACValidationResult = {
           allowed: false,
@@ -306,7 +312,7 @@ export class ToolGateway implements IToolGateway {
 
         this.logToolInvocationEvent({
           tool,
-          model,
+          model: model || undefined,  // Sprint 66: Convert null to undefined
           status: 'error',
           durationMs: duration,
           context,
@@ -330,13 +336,14 @@ export class ToolGateway implements IToolGateway {
   }
 
   /**
-   * Validate tool access for a user and model
+   * Validate tool access for a user and model (or user-only if model unavailable)
+   * Sprint 66: Made modelId optional - falls back to user-only RBAC when model info unavailable
    */
   async validateToolAccess(
     toolId: string,
     userId: string,
-    modelId: string,
-    userRoles: string[]
+    modelId?: string,  // Sprint 66: Optional
+    userRoles: string[] = []
   ): Promise<RBACValidationResult> {
     // Get tool and model from cache/registry
     const tool = await this.getToolCached(toolId);
@@ -348,17 +355,23 @@ export class ToolGateway implements IToolGateway {
       };
     }
 
-    const model = await this.getModelCached(modelId);
-    if (!model) {
-      return {
-        allowed: false,
-        reason: 'model_not_found',
-        details: `Model not found: ${modelId}`,
-      };
+    // Sprint 66: Get model only if modelId provided
+    let model: ModelRegistryDocument | null | undefined;
+    if (modelId) {
+      model = await this.getModelCached(modelId);
+      if (!model) {
+        return {
+          allowed: false,
+          reason: 'model_not_found',
+          details: `Model not found: ${modelId}`,
+        };
+      }
     }
 
-    // Validate with RbacValidator
-    return this.rbacValidator.validateToolAccess(tool, userRoles, model);
+    // Validate with RbacValidator (dual-layer if model available, user-only otherwise)
+    return model
+      ? this.rbacValidator.validateToolAccess(tool, userRoles, model)
+      : this.rbacValidator.validateToolAccessUserOnly(tool, userRoles);
   }
 
   /**
@@ -776,12 +789,14 @@ export class ToolGateway implements IToolGateway {
           }
 
           // Call MCP tool with context metadata
+          // Sprint 66: Include modelId to prevent metadata loss
           return await client.callTool({
             name: tool.canonicalName,
             arguments: args,
             _meta: {
               userRoles: context.userRoles,
               userId: context.userId,
+              modelId: context.modelId,  // Sprint 66: Forward modelId to downstream
               correlationId: context.correlationId,
               sessionId: context.sessionId,
             }
@@ -1191,7 +1206,7 @@ export class ToolGateway implements IToolGateway {
    */
   private logToolInvocationEvent(params: {
     tool: ToolRegistryDocument;
-    model: ModelRegistryDocument;
+    model?: ModelRegistryDocument;  // Sprint 66: Optional for user-only RBAC
     status: 'success' | 'error' | 'denied';
     durationMs: number;
     context: ToolExecutionContext;
@@ -1212,9 +1227,9 @@ export class ToolGateway implements IToolGateway {
         ? truncatePreview(JSON.stringify(params.result), 500)
         : undefined;
 
-      // Estimate cost (if available from model metadata)
+      // Estimate cost (if available from model metadata) - Sprint 66: Skip if no model
       let estimatedCost: ToolInvocationEvent['estimatedCost'] | undefined;
-      if (params.model.cost && params.result) {
+      if (params.model?.cost && params.result) {
         // Simple token estimation based on input/output length
         const inputTokens = inputPreview ? Math.ceil(inputPreview.length / 4) : 0;
         const outputTokens = outputPreview ? Math.ceil(outputPreview.length / 4) : 0;
@@ -1230,12 +1245,12 @@ export class ToolGateway implements IToolGateway {
         };
       }
 
-      // Create the event
+      // Create the event - Sprint 66: Handle optional model
       const event = createToolInvocationEvent({
         toolId: params.tool.id,
         toolName: params.tool.canonicalName, // Use canonicalName
-        modelId: params.model.id,
-        modelName: params.model.displayName, // Use displayName
+        modelId: params.model?.id || params.context.modelId || 'unknown',
+        modelName: params.model?.displayName || params.context.modelId || 'unknown',
         status: params.status,
         correlationId: params.context.correlationId || 'unknown',
         durationMs: params.durationMs,
@@ -1243,7 +1258,7 @@ export class ToolGateway implements IToolGateway {
           allowed: params.rbacResult.allowed,
           reason: params.rbacResult.reason,
           userRoles: params.context.userRoles,
-          modelTier: params.model.tier,
+          modelTier: params.model?.tier,
           requiredRoles: params.tool.rbac?.userRoles?.required,
           deniedRoles: params.tool.rbac?.userRoles?.denied,
         },

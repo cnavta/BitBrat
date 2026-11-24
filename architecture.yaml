@@ -897,8 +897,12 @@ services:
     profile: gateway
     mcp:
       exposure: platform+domain
-    active: true
-    description: MCP Proxy for centralized MCP tool management and security
+    active: false  # Sprint 66: Deprecated - replaced by tool-orchestrator
+    deprecated: true
+    deprecatedAt: "2026-11-24"
+    deprecationReason: "Replaced by tool-orchestrator (Sprint 61). Causing canonicalName pollution in tool registry."
+    replacementService: "tool-orchestrator"
+    description: "[DEPRECATED] MCP Proxy for centralized MCP tool management and security. Use tool-orchestrator instead."
     kind: gateway
     entry: src/apps/tool-gateway.ts
     dependencies:
@@ -1076,6 +1080,7 @@ services:
       - HEALTH_UPDATE_INTERVAL_MS
       - HEALTH_STALE_THRESHOLD_MS
       - DATABASE_URL
+      - POSTGRES_POOL_SIZE  # Sprint 66: Increased pool size needed for concurrent tool registration (505 tools)
 executionContexts:
   local:
     description: Local Docker development environment

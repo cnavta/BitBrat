@@ -36,6 +36,22 @@ export class PostgresDocumentStore implements IDocumentStore {
       connectionString: config.connectionString,
       max: config.poolSize || 10,
       ssl: config.ssl ? { rejectUnauthorized: false } : undefined,
+      // Sprint 66: Add connection timeouts to prevent hanging connections
+      idleTimeoutMillis: 30000,        // Close idle clients after 30s
+      connectionTimeoutMillis: 60000,  // Timeout on connection acquisition (60s for heavy concurrent load)
+      allowExitOnIdle: false,          // Don't exit if pool is idle
+    });
+
+    // Sprint 66 FIX: Handle pool errors gracefully to prevent crash-loops
+    // https://node-postgres.com/apis/pool#events
+    // Without this handler, idle client errors crash the process
+    this.pool.on('error', (err, client) => {
+      // Log error but don't crash - pool will recover by removing bad connection
+      this.logger.error?.('[PostgresDocumentStore] Pool idle client error:', {
+        error: err.message,
+        stack: err.stack,
+        hasClient: !!client,
+      });
     });
 
     // Initialize with no-op logger to avoid console spam
