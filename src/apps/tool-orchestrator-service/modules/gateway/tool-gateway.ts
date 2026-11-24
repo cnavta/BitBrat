@@ -627,7 +627,8 @@ export class ToolGateway implements IToolGateway {
     this.logger?.debug('tool_gateway.execute_internal', { toolId: tool.id });
 
     // Timeout enforcement
-    const timeout = tool.config.timeoutMs || this.config.defaultTimeoutMs;
+    // Sprint 66: Use optional chaining on config (defensive fix)
+    const timeout = tool.config?.timeoutMs || this.config.defaultTimeoutMs;
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error(`Tool execution timeout: ${timeout}ms`)), timeout);
     });
@@ -762,10 +763,12 @@ export class ToolGateway implements IToolGateway {
     }
 
     // Get timeout from tool config or use default
-    const timeout = tool.config.timeoutMs || this.config.defaultTimeoutMs;
+    // Sprint 66: Use optional chaining on config (defensive fix)
+    const timeout = tool.config?.timeoutMs || this.config.defaultTimeoutMs;
 
     // Sprint 60: T5.2 - Wrap MCP call with retry logic
-    const retryPolicy = tool.config.retryPolicy || { maxAttempts: 3, backoffMs: 1000 };
+    // Sprint 66: Use optional chaining on config (defensive fix)
+    const retryPolicy = tool.config?.retryPolicy || { maxAttempts: 3, backoffMs: 1000 };
 
     // Create AbortController for timeout enforcement
     const controller = new AbortController();
