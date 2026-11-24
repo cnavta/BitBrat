@@ -96,12 +96,43 @@
 **Files Created**:
 - `migrations/030-migrate-tool-gateway-source-to-orchestrator.sql` (executed)
 
+#### Issue 4: Missing sourceMetadata (Migration 031)
+**Problem**: 110 tools had NULL sourceMetadata causing tool execution crashes: `"Cannot read properties of undefined (reading 'mcpServer')"`
+
+**Root Cause**:
+- Tool-gateway.ts line 758 used `tool.sourceMetadata.mcpServer?.name` without optional chaining on `sourceMetadata` itself
+- When sourceMetadata was NULL/undefined, code crashed trying to access nested property
+- Same batch of 110 tools from migration 029 (missing canonicalName)
+
+**Examples**:
+```
+❌ mcp:reflex.bit_config_get → sourceMetadata: null
+✅ mcp:reflex.bit_config_get → sourceMetadata: { mcpServer: { name: "reflex", transport: "stdio" } }
+
+❌ mcp:api-gateway/bit.info → sourceMetadata: null
+✅ mcp:api-gateway/bit.info → sourceMetadata: { mcpServer: { name: "api-gateway", transport: "stdio" } }
+```
+
+**Solution**:
+1. **Code Fix**: Added optional chaining to tool-gateway.ts: `tool.sourceMetadata?.mcpServer?.name`
+2. **Data Fix**: Created migration 031 to backfill sourceMetadata by extracting server name from tool IDs
+
+**Results**:
+- Fixed: 110 tools (100%)
+- Remaining missing sourceMetadata: 0 tools
+- Backup: `platform_tool_registry_backup_031`
+
+**Files Created**:
+- `migrations/031-backfill-missing-source-metadata.sql` (executed)
+
 **Final Data Quality**:
 ```
 Total MCP tools:            504
 Valid canonicalName:        504 (100%)
+Valid sourceMetadata:       504 (100%)
 Polluted canonicalName:     0 (0%)
 Missing canonicalName:      0 (0%)
+Missing sourceMetadata:     0 (0%)
 ```
 
 ---
@@ -188,27 +219,30 @@ Created comprehensive lifecycle documentation for platform_tool_registry:
 ### Before Sprint 66:
 - ❌ 247 tools (49%) with polluted canonicalName
 - ❌ 110 tools with missing canonicalName
-- ❌ Tool-orchestrator crashes on missing canonicalName
+- ❌ 110 tools with missing sourceMetadata
+- ❌ Tool-orchestrator crashes on missing canonicalName/sourceMetadata
 - ❌ Tool-gateway causing data pollution
 - ❌ No lifecycle management for tool registry
 - ❌ Schema injection using cached/stale schemas
 
 ### After Sprint 66:
 - ✅ 504 tools (100%) with valid canonicalName
-- ✅ Tool-orchestrator gracefully handles edge cases
+- ✅ 504 tools (100%) with valid sourceMetadata
+- ✅ Tool-orchestrator gracefully handles edge cases (defensive checks)
 - ✅ Tool-gateway deprecated and removed
 - ✅ Lifecycle gaps documented with remediation plan
 - ✅ Schema injection queries PostgreSQL dynamically
-- ✅ 3 rollback-capable migrations with backup tables
+- ✅ 4 rollback-capable migrations with backup tables
 
 ---
 
 ## Files Modified
 
 ### Source Code:
-- `src/apps/tool-orchestrator-service/modules/gateway/rbac-validator.ts`
-- `src/apps/tool-orchestrator-service/modules/registry/tool-registry.ts`
-- `src/common/profiles/llm-profile.ts`
+- `src/apps/tool-orchestrator-service/modules/gateway/rbac-validator.ts` (defensive RBAC checks)
+- `src/apps/tool-orchestrator-service/modules/registry/tool-registry.ts` (include RBAC in updates)
+- `src/apps/tool-orchestrator-service/modules/gateway/tool-gateway.ts` (optional chaining fix)
+- `src/common/profiles/llm-profile.ts` (dynamic schema query)
 
 ### Configuration:
 - `architecture.yaml` (tool-gateway deprecated)
@@ -220,6 +254,7 @@ Created comprehensive lifecycle documentation for platform_tool_registry:
 - `migrations/028-fix-canonical-name-pollution.sql` (executed, 247 tools fixed)
 - `migrations/029-backfill-missing-canonical-name.sql` (executed, 110 tools fixed)
 - `migrations/030-migrate-tool-gateway-source-to-orchestrator.sql` (executed, 371 tools fixed)
+- `migrations/031-backfill-missing-source-metadata.sql` (executed, 110 tools fixed)
 
 ### Documentation:
 - `HANDOFF-schema-injection-fixes.md` (schema injection documentation)
@@ -242,8 +277,8 @@ Created comprehensive lifecycle documentation for platform_tool_registry:
 - ✅ All 26 services: Running and healthy (1 unhealthy: context-pack, unrelated)
 
 ### Stability:
-- ✅ Defensive checks prevent crashes on missing canonicalName
-- ✅ 3 rollback-capable migrations with backup tables
+- ✅ Defensive checks prevent crashes on missing canonicalName/sourceMetadata
+- ✅ 4 rollback-capable migrations with backup tables
 - ✅ Zero service disruption from tool-gateway removal
 
 ---
@@ -276,6 +311,16 @@ BEGIN;
 UPDATE platform_tool_registry r
 SET data = b.data, updated_at = b.updated_at
 FROM platform_tool_registry_backup_030 b
+WHERE r.id = b.id;
+COMMIT;
+```
+
+### Migration 031 Rollback:
+```sql
+BEGIN;
+UPDATE platform_tool_registry r
+SET data = b.data, updated_at = b.updated_at
+FROM platform_tool_registry_backup_031 b
 WHERE r.id = b.id;
 COMMIT;
 ```
@@ -320,6 +365,45 @@ Received:    0.18098168999998962
 - `> 1ms`: 1.5x tolerance (50%) - low environmental noise
 
 **Result**: Test now resilient to system noise while still catching real performance regressions.
+
+### Missing sourceMetadata Crashes
+**Problem**: Tool execution failing in staging with error:
+```
+"Cannot read properties of undefined (reading 'mcpServer')"
+Tool: mcp_reflex_bit_config_get
+Trace ID: 91d7cf3d-a42e-4c69-8f3e-4dac239d0a4f
+```
+
+**Root Cause**:
+- 110 tools (22%) had NULL sourceMetadata in database
+- tool-gateway.ts line 758 used `tool.sourceMetadata.mcpServer?.name` without optional chaining on `sourceMetadata` itself
+- Code assumed sourceMetadata exists, used optional chaining only on nested property
+- Same batch of tools from migration 029 (missing canonicalName issue)
+
+**Investigation Results**:
+```sql
+-- Query revealed:
+total_mcp_tools: 504
+missing_source_metadata: 110 (22%)
+missing_mcp_server: 110 (22%)
+```
+
+**Solution**:
+1. **Code Fix**: Added defensive optional chaining in tool-gateway.ts:
+   ```typescript
+   // BEFORE: tool.sourceMetadata.mcpServer?.name  ❌ Crashes if sourceMetadata is NULL
+   // AFTER:  tool.sourceMetadata?.mcpServer?.name ✅ Safe with optional chaining
+   ```
+
+2. **Data Fix**: Created migration 031 to backfill sourceMetadata for 110 tools:
+   - Extracts server name from tool ID (e.g., `mcp:api-gateway/bit.info` → `api-gateway`)
+   - Special cases: `agent.sendProgressUpdate`, `composition.*` → `tool-orchestrator`
+   - Creates backup table `platform_tool_registry_backup_031`
+
+**Results**:
+- Fixed: 110 tools (100%)
+- Remaining missing sourceMetadata: 0 tools
+- All tool execution now working correctly
 
 ---
 
