@@ -755,7 +755,8 @@ export class ToolGateway implements IToolGateway {
     });
 
     // Get MCP server name from tool metadata
-    const serverName = tool.sourceMetadata.mcpServer?.name;
+    // Sprint 66: Use optional chaining on sourceMetadata (defensive fix)
+    const serverName = tool.sourceMetadata?.mcpServer?.name;
     if (!serverName) {
       throw new Error(`MCP tool missing server name: ${tool.id}`);
     }
