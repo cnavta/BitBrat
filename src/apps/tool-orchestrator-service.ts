@@ -1446,16 +1446,50 @@ Returns composition metadata (id, name, version, contentHash).`,
       // CRITICAL: This must include tools from all registered MCP servers and Bits
       const allTools = this.getAllToolsFromRegistry();
 
+      // Sprint 66 FIX: Limit tools/list response to prevent SSE write buffer overflow
+      // Problem: Returning all 504 tools causes EINVAL (write buffer exceeded) and service crash
+      // Solution: Limit to MCP_MAX_TOOLS_LIST (default: 200), prioritizing admin/platform tools
+      const maxToolsLimit = parseInt(process.env.MCP_MAX_TOOLS_LIST || '200', 10);
+
+      // Prioritize tools by category:
+      // 1. Admin tools (tool.*, model.*, composition.*) - always include
+      // 2. Platform tools (bit.*) - important for monitoring
+      // 3. Domain tools (everything else) - up to limit
+      const adminTools = allTools.filter(t =>
+        t.canonicalName?.startsWith('tool.') ||
+        t.canonicalName?.startsWith('model.') ||
+        t.canonicalName?.startsWith('composition.')
+      );
+      const platformTools = allTools.filter(t =>
+        t.canonicalName === 'bit' || t.canonicalName?.startsWith('bit.')
+      );
+      const domainTools = allTools.filter(t =>
+        !adminTools.includes(t) && !platformTools.includes(t)
+      );
+
+      // Build prioritized list up to maxToolsLimit
+      const toolsToRegister = [
+        ...adminTools,
+        ...platformTools,
+        ...domainTools.slice(0, Math.max(0, maxToolsLimit - adminTools.length - platformTools.length))
+      ];
+
       logger.debug('mcp_server.initializing', {
         service: 'tool-orchestrator',
-        aggregatedTools: allTools.length,
+        totalTools: allTools.length,
+        adminTools: adminTools.length,
+        platformTools: platformTools.length,
+        domainTools: domainTools.length,
+        toolsToRegister: toolsToRegister.length,
+        maxToolsLimit,
+        toolsExcluded: allTools.length - toolsToRegister.length,
         ownTools: baseThis.registeredTools.size,
       });
 
       // Create MCP server
       const server = new McpServer(
         { name: 'tool-orchestrator', version: '1.0.0' },
-        { capabilities: { tools: allTools.length > 0 ? {} : undefined } }
+        { capabilities: { tools: toolsToRegister.length > 0 ? {} : undefined } }
       );
 
       // Sprint 65 FIX: Track sanitized tool names to prevent duplicate registrations
@@ -1463,7 +1497,8 @@ Returns composition metadata (id, name, version, contentHash).`,
       const registeredSanitizedNames = new Set<string>();
 
       // Register aggregated tools from PostgreSQL registry (NOT this.registeredTools)
-      for (const tool of allTools) {
+      // Sprint 66 FIX: Only register tools up to maxToolsLimit to prevent SSE write buffer overflow
+      for (const tool of toolsToRegister) {
         try {
           // Sprint 63: CRITICAL FIX - Omit inputSchema for aggregated tools
           //

@@ -1081,6 +1081,7 @@ services:
       - HEALTH_STALE_THRESHOLD_MS
       - DATABASE_URL
       - POSTGRES_POOL_SIZE  # Sprint 66: Increased pool size needed for concurrent tool registration (505 tools)
+      - MCP_MAX_TOOLS_LIST  # Sprint 66: Max tools to expose via MCP tools/list (default: 200, prevents SSE write buffer overflow)
 executionContexts:
   local:
     description: Local Docker development environment
