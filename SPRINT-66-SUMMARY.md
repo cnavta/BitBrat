@@ -55,6 +55,7 @@
 **Files Created**:
 - `migrations/027-analyze-canonical-name-pollution.sql` (analysis)
 - `migrations/028-fix-canonical-name-pollution.sql` (fix, executed)
+- `migrations/030-migrate-tool-gateway-source-to-orchestrator.sql` (fix, executed)
 
 #### Issue 2: Missing canonicalName (Migration 029)
 **Problem**: 110 tools had empty string or null canonicalName.
@@ -78,6 +79,22 @@
 
 **Files Created**:
 - `migrations/029-backfill-missing-canonical-name.sql` (executed)
+
+#### Issue 3: Tool-Gateway Source References (Migration 030)
+**Problem**: 371 tools still referenced tool-gateway as their origin server in sourceMetadata, causing tool execution to fail with "Model not found: tool-gateway" after tool-gateway removal.
+
+**Root Cause**: Tool metadata's sourceMetadata.mcpServer.name still pointed to tool-gateway. When llm-bot tried to execute these tools, the MCP bridge attempted to route calls to the non-existent tool-gateway service.
+
+**Solution**: Created migration 030 to update sourceMetadata references from tool-gateway to tool-orchestrator.
+
+**Results**:
+- Updated: 371 tools (100%)
+- Remaining tool-gateway refs: 0 tools
+- Tool-orchestrator refs: 387 tools
+- Backup: `platform_tool_registry_backup_030`
+
+**Files Created**:
+- `migrations/030-migrate-tool-gateway-source-to-orchestrator.sql` (executed)
 
 **Final Data Quality**:
 ```
@@ -202,6 +219,7 @@ Created comprehensive lifecycle documentation for platform_tool_registry:
 - `migrations/027-analyze-canonical-name-pollution.sql` (analysis, read-only)
 - `migrations/028-fix-canonical-name-pollution.sql` (executed, 247 tools fixed)
 - `migrations/029-backfill-missing-canonical-name.sql` (executed, 110 tools fixed)
+- `migrations/030-migrate-tool-gateway-source-to-orchestrator.sql` (executed, 371 tools fixed)
 
 ### Documentation:
 - `HANDOFF-schema-injection-fixes.md` (schema injection documentation)
@@ -248,6 +266,16 @@ BEGIN;
 UPDATE platform_tool_registry r
 SET data = b.data, updated_at = b.updated_at
 FROM platform_tool_registry_backup_029 b
+WHERE r.id = b.id;
+COMMIT;
+```
+
+### Migration 030 Rollback:
+```sql
+BEGIN;
+UPDATE platform_tool_registry r
+SET data = b.data, updated_at = b.updated_at
+FROM platform_tool_registry_backup_030 b
 WHERE r.id = b.id;
 COMMIT;
 ```
